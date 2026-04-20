@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>泰熙爾札娜 IP 影片成效儀表板</title>
+<style>
+:root{
+  --pink:#e6007e;--rose:#b12468;--teal:#50c8be;--gold:#c5b382;
+  --black:#000;--white:#fff;--off:#f5f4f2;--ink:#1a1a1a;--muted:#7a7a7a;--border:#e8e8e8;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;
+  --r:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hdr{background:var(--white);position:sticky;top:0;z-index:200;border-bottom:2px solid var(--pink);box-shadow:0 1px 8px rgba(0,0,0,.07)}
+.hdr-in{max-width:1400px;margin:0 auto;padding:0 28px;display:flex;align-items:stretch;justify-content:space-between;min-height:56px;gap:16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:30px;height:30px;background:var(--pink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.brand-name{font-size:13px;font-weight:800;color:var(--ink);letter-spacing:.3px;line-height:1.3}
+.brand-name small{display:block;font-size:10px;font-weight:400;color:var(--muted);letter-spacing:.5px}
+@media(max-width:640px){.brand-name{font-size:11px;white-space:nowrap}.brand-name small{display:none}}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.snapshot-badge{font-size:12px;font-weight:700;color:var(--muted);background:var(--off);border:1px solid var(--border);border-radius:6px;padding:4px 10px;white-space:nowrap}
+.tabs{background:var(--white);border-bottom:1px solid var(--border)}
+.tabs-in{max-width:1400px;margin:0 auto;padding:0 28px;display:flex}
+.tab{padding:12px 22px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--pink);border-bottom-color:var(--pink)}
+.page{max-width:1400px;margin:0 auto;padding:24px 28px 60px}
+.section{display:none}
+.section.active{display:block}
+.slabel{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.slabel::before{content:'';width:16px;height:3px;background:var(--pink);border-radius:2px;flex-shrink:0}
+.alert-banner{display:flex;align-items:center;gap:12px;background:rgba(230,0,126,.06);border:1px solid rgba(230,0,126,.2);border-left:4px solid var(--pink);border-radius:var(--r);padding:12px 18px;margin-bottom:20px;font-size:13px}
+.alert-banner.hidden{display:none}
+.alert-banner strong{color:var(--pink)}
+.state-box{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:48px 24px;text-align:center;color:var(--muted)}
+.state-box .state-icon{font-size:40px;margin-bottom:12px}
+.state-box h3{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.state-box p{font-size:13px;line-height:1.6}
+.yday-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+@media(max-width:900px){.yday-grid{grid-template-columns:1fr}}
+.vcard{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:transform .2s,box-shadow .2s}
+.vcard:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.08)}
+.vcard.tier3{border-color:rgba(230,0,126,.3)}
+.vcard-top{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:14px;border-bottom:1px solid var(--border)}
+.vcard-thumb{width:52px;height:52px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
+.vcard-meta{flex:1;min-width:0}
+.vcard-badges{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.badge.commerce{background:rgba(230,0,126,.1);color:var(--pink);border:1px solid rgba(230,0,126,.2)}
+.badge.traffic{background:rgba(80,200,190,.1);color:#1a9e95;border:1px solid rgba(80,200,190,.2)}
+.badge.fb{background:rgba(197,179,130,.12);color:#7a6428}
+.badge.ig{background:rgba(80,200,190,.1);color:#1a9e95}
+.badge.tier1{background:rgba(80,200,190,.12);color:#1a9e95}
+.badge.tier2{background:rgba(197,179,130,.15);color:#7a6428}
+.badge.tier3{background:rgba(230,0,126,.08);color:var(--rose)}
+.vcard-title{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vcard-date{font-size:11px;color:var(--muted)}
+.score-ring{position:relative;width:58px;height:58px;flex-shrink:0}
+.score-ring canvas{position:absolute;top:0;left:0}
+.score-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.score-num strong{font-size:18px;font-weight:900;letter-spacing:-1px}
+.score-num span{font-size:8px;color:var(--muted);margin-top:1px}
+.vcard-metrics{padding:14px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;border-bottom:1px solid var(--border)}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.metric-val{font-size:14px;font-weight:800;margin-top:2px}
+.metric-val.pink{color:var(--pink)}
+.metric-val.teal{color:#1a9e95}
+.metric-val.gold{color:#7a6428}
+.mbar{height:3px;background:var(--off);border-radius:2px;overflow:hidden;margin-top:4px}
+.mbar-fill{height:100%;border-radius:2px}
+.retention-strip{padding:10px 18px;border-bottom:1px solid var(--border);background:var(--off)}
+.retention-label{font-size:10px;color:var(--muted);margin-bottom:5px}
+.retention-bar{display:flex;gap:1px;height:18px;align-items:flex-end}
+.ret-seg{flex:1;border-radius:1px;min-width:2px}
+.vcard-bottom{padding:12px 18px;display:flex;gap:16px;background:var(--off)}
+.loyalty-val{font-size:13px;font-weight:800}
+.loyalty-val.t1{color:#1a9e95}
+.loyalty-val.t2{color:#7a6428}
+.loyalty-val.t3{color:var(--pink)}
+.devbadge{display:inline-flex;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+.devbadge.pos{background:rgba(80,200,190,.12);color:#1a9e95}
+.devbadge.neg{background:rgba(230,0,126,.08);color:var(--rose)}
+.devbadge.neu{background:rgba(197,179,130,.12);color:#7a6428}
+.period-btns{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content}
+.period-btn{padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);border:none;border-right:1px solid var(--border);font-family:var(--font);transition:all .2s}
+.period-btn:last-child{border-right:none}
+.period-btn.active{background:var(--pink);color:var(--white)}
+.top20-tabs{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content}
+.t20-tab{padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);transition:all .2s;border-right:1px solid var(--border)}
+.t20-tab:last-child{border-right:none}
+.t20-tab.active.traffic{background:var(--teal);color:var(--white)}
+.t20-tab.active.commerce{background:var(--pink);color:var(--white)}
+.top20-filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.filter-select{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;font-family:var(--font);color:var(--ink);cursor:pointer}
+.ranking-table{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.table-scroll{overflow-x:auto}
+.rt-head{display:grid;background:var(--off);border-bottom:1px solid var(--border);padding:9px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);grid-template-columns:32px 2fr 64px 80px 80px 80px 90px 80px}
+.rt-row{display:grid;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center;transition:background .15s;grid-template-columns:32px 2fr 64px 80px 80px 80px 90px 80px;min-width:600px}
+@media(max-width:640px){
+  .rt-head{grid-template-columns:28px 1fr 44px;padding:8px 12px}
+  .rt-head div:nth-child(n+4){display:none}
+  .rt-row{grid-template-columns:28px 1fr 44px;min-width:0;padding:10px 12px}
+  .rt-row>div:nth-child(n+4){display:none}
+  .rt-row>div:nth-child(2){min-width:0;overflow:hidden}
+  .rt-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+.rt-row:last-child{border-bottom:none}
+.rt-row:hover{background:var(--off)}
+.rt-rank{font-size:16px;font-weight:900;color:var(--border)}
+.rt-rank.gold-r{color:var(--gold)}
+.rt-rank.silver-r{color:#b0b0b0}
+.rt-rank.bronze-r{color:#cd7f32}
+.rt-title{font-size:13px;font-weight:700;line-height:1.3}
+.rt-date{font-size:11px;color:var(--muted);margin-top:1px}
+.rt-score{font-size:20px;font-weight:900;letter-spacing:-1px}
+.rt-score.t-score{color:#1a9e95}
+.rt-score.c-score{color:var(--pink)}
+.rt-num{font-size:13px;font-weight:700}
+.reuse-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:800;background:var(--black);color:var(--white)}
+.loading-row{padding:20px;text-align:center;color:var(--muted);font-size:13px;border-bottom:1px solid var(--border)}
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--black);border-top:1px solid rgba(255,255,255,.08);z-index:200;padding:8px 0 max(8px,env(safe-area-inset-bottom))}
+.mob-nav-in{display:flex;justify-content:space-around}
+.mob-tab{display:flex;flex-direction:column;align-items:center;gap:2px;color:rgba(255,255,255,.3);font-size:9px;cursor:pointer;padding:4px 10px;transition:color .2s}
+.mob-tab .mi{font-size:18px}
+.mob-tab.active{color:var(--pink)}
+@media(max-width:640px){.mob-nav{display:block};body{padding-bottom:70px}.tabs{display:none}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="brand">
+      <div class="brand-mark">◈</div>
+      <div class="brand-name">泰熙爾札娜 IP<small>影片成效儀表板</small></div>
+    </div>
+    <div class="hdr-right">
+      <span class="snapshot-badge" id="snapshotBadge">載入中…</span>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tabs-in">
+    <div class="tab active" onclick="switchTab('yesterday',this)">昨日成效</div>
+    <div class="tab" onclick="switchTab('top20',this)">長期排行 Top 10</div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="section active" id="sec-yesterday">
+    <div class="alert-banner hidden" id="alertBanner">
+      ⚠ <strong>今日有 <span id="alertCount">0</span> 支影片需診斷</strong>（忠實度 &lt; 1%）
+    </div>
+    <div class="slabel" id="ydayLabel">昨日影片成效 · 載入中…</div>
+    <div id="ydayGrid"></div>
+  </div>
+
+  <div class="section" id="sec-top20">
+    <div class="slabel">長期排行 · Top 10</div>
+    <div class="top20-tabs">
+      <div class="t20-tab active traffic" onclick="switchTop20('traffic',this)">📈 流量型 Top 10</div>
+      <div class="t20-tab commerce" onclick="switchTop20('commerce',this)">🛍 帶貨型 Top 10</div>
+    </div>
+    <div class="top20-filters">
+      <div class="period-btns">
+        <button class="period-btn active" onclick="setPeriod('7',this)">七天</button>
+        <button class="period-btn" onclick="setPeriod('30',this)">30天</button>
+        <button class="period-btn" onclick="setPeriod('90',this)">90天</button>
+      </div>
+      <select class="filter-select" id="platFilter" onchange="renderTop10()">
+        <option value="all">全部平台</option>
+        <option value="fb">Facebook</option>
+        <option value="ig">Instagram</option>
+      </select>
+    </div>
+    <div class="table-scroll">
+      <div class="ranking-table" id="rankingTable">
+        <div class="loading-row">載入中…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mob-nav">
+  <div class="mob-nav-in">
+    <div class="mob-tab active" onclick="mobileSwitchTab('yesterday',this)"><span class="mi">📊</span>昨日</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
+  </div>
+</div>
+
+<script>
+// ── 嵌入資料（由 pipeline.py 注入）────────────────────────────────────────────
+const STATIC_DATA = __STATIC_DATA__;
+
+const AVG = { fb: STATIC_DATA.avg_fb, ig: STATIC_DATA.avg_ig };
+let activePeriod = '7';
+let currentTop20Type = 'traffic';
+
+// ── 工具函式 ──────────────────────────────────────────────────────────────────
+function daysBetween(isoStr) {
+  return Math.floor((Date.now() - new Date(isoStr)) / 86400000);
+}
+
+function fmtDate(isoStr) {
+  return new Date(isoStr).toLocaleDateString('zh-TW', {
+    timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit'
+  });
+}
+
+function fmtNum(n) {
+  n = n || 0;
+  return n >= 1000000 ? (n/1000000).toFixed(2)+'M'
+       : n >= 1000    ? (n/1000).toFixed(1)+'K'
+       : n.toString();
+}
+
+function reachDev(v) {
+  const avg = v.platform === 'fb' ? AVG.fb : AVG.ig;
+  return avg > 0 ? ((v.reach || 0) - avg) / avg : 0;
+}
+
+function loyaltyRate(v) {
+  return v.plays > 0 ? ((v.comments + v.shares) / v.plays * 100) : 0;
+}
+
+function loyaltyTier(v) {
+  const r = loyaltyRate(v);
+  return r >= 3 ? 'tier1' : r >= 1 ? 'tier2' : 'tier3';
+}
+
+function newCustRate(v) {
+  return v.plays > 0 ? ((v.newFollowers || 0) / v.plays * 100) : 0;
+}
+
+// ── Canvas 環形評分 ───────────────────────────────────────────────────────────
+function drawRing(canvas, score) {
+  if (!canvas) return;
+  const dpr = devicePixelRatio || 1;
+  canvas.width = 58 * dpr; canvas.height = 58 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cx = 29, cy = 29, r = 24, lw = 5;
+  const color = score >= 80 ? '#1a9e95' : score >= 65 ? '#e6007e' : '#b12468';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = lw; ctx.stroke();
+  if (score > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (score / 100) * Math.PI * 2);
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  }
+}
+
+// ── 續看率 ────────────────────────────────────────────────────────────────────
+function renderRetentionStrip(retention) {
+  if (!retention || retention.length === 0) return '';
+  const max = retention[0] || 1;
+  const segs = retention.map(function(v) {
+    const pct = (v / max * 100).toFixed(0);
+    const alpha = (0.2 + (v / max) * 0.8).toFixed(2);
+    return '<div class="ret-seg" style="height:' + Math.max(pct, 4) + '%;background:rgba(230,0,126,' + alpha + ')"></div>';
+  }).join('');
+  const last = retention[retention.length - 1];
+  return '<div class="retention-strip"><div class="retention-label">觀眾續看率曲線 · 完播率 ' + (last * 100).toFixed(1) + '%</div><div class="retention-bar">' + segs + '</div></div>';
+}
+
+// ── 影片卡 ────────────────────────────────────────────────────────────────────
+const THUMB_BG = ['#fde8f2','#e8f9f8','#fff8e1','#f3e5f5','#e8f5e9','#fce4ec','#e0f7fa'];
+const THUMB_EM = ['💎','🔍','⛏','🌟','💚','💙','🤍'];
+
+function renderVideoCard(v, idx) {
+  const lt = loyaltyTier(v);
+  const lr = loyaltyRate(v).toFixed(2);
+  const dev = reachDev(v);
+  const devPct = (dev * 100).toFixed(1);
+  const devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
+  const devStr = (dev >= 0 ? '+' : '') + devPct + '%';
+  const barColor = v.type === 'commerce' ? 'var(--pink)' : 'var(--teal)';
+  const scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--rose)';
+  const tierLabel = { tier1:'Tier 1 忠實', tier2:'Tier 2 一般', tier3:'Tier 3 診斷' }[lt];
+  const shareBar  = v.plays ? Math.min(v.shares / v.plays / 0.03 * 100, 100).toFixed(0) : 0;
+  const commentBar = v.plays ? Math.min(v.comments / v.plays / 0.02 * 100, 100).toFixed(0) : 0;
+  const likeBar   = v.plays ? Math.min(v.likes / v.plays / 0.15 * 100, 100).toFixed(0) : 0;
+  const watchSec  = v.avgWatchMs > 0 ? (v.avgWatchMs / 1000).toFixed(1) + 's' : '—';
+  const vidLen    = v.length ? v.length.toFixed(0) + 's' : '—';
+  const savedStr  = v.saved != null ? fmtNum(v.saved) : '—';
+  const title     = v.description || v.caption || '(無標題)';
+
+  return '<div class="vcard ' + (lt === 'tier3' ? 'tier3' : '') + '" id="vcard-' + idx + '">'
+    + '<div class="vcard-top">'
+    + '<div class="vcard-thumb" style="background:' + THUMB_BG[idx % THUMB_BG.length] + '">' + THUMB_EM[idx % THUMB_EM.length] + '</div>'
+    + '<div class="vcard-meta">'
+    + '<div class="vcard-badges">'
+    + '<span class="badge ' + v.type + '">' + (v.type === 'commerce' ? '🛍 帶貨型' : '📈 流量型') + '</span>'
+    + '<span class="badge ' + v.platform + '">' + (v.platform === 'fb' ? '📘 FB' : '📸 IG') + '</span>'
+    + '<span class="badge ' + lt + '">' + tierLabel + '</span>'
+    + '</div>'
+    + '<div class="vcard-title">' + title + '</div>'
+    + '<div class="vcard-date">' + fmtDate(v.created_time) + ' 發布 · ' + vidLen + '</div>'
+    + '</div>'
+    + '<div class="score-ring" id="ring-wrap-' + idx + '">'
+    + '<canvas id="ring-' + idx + '"></canvas>'
+    + '<div class="score-num"><strong style="color:' + scoreColor + '">' + v.score + '</strong><span>分</span></div>'
+    + '</div>'
+    + '</div>'
+    + renderRetentionStrip(v.retention)
+    + '<div class="vcard-metrics">'
+    + '<div><div class="metric-label">轉發率</div><div class="metric-val pink">' + (v.plays ? (v.shares/v.plays*100).toFixed(2)+'%' : '—') + '</div><div class="mbar"><div class="mbar-fill" style="width:' + shareBar + '%;background:var(--pink)"></div></div></div>'
+    + '<div><div class="metric-label">留言率</div><div class="metric-val ' + (v.type==='commerce'?'pink':'teal') + '">' + (v.plays ? (v.comments/v.plays*100).toFixed(2)+'%' : '—') + '</div><div class="mbar"><div class="mbar-fill" style="width:' + commentBar + '%;background:' + barColor + '"></div></div></div>'
+    + '<div><div class="metric-label">點讚率</div><div class="metric-val gold">' + (v.plays ? (v.likes/v.plays*100).toFixed(2)+'%' : '—') + '</div><div class="mbar"><div class="mbar-fill" style="width:' + likeBar + '%;background:var(--gold)"></div></div></div>'
+    + '<div><div class="metric-label">播放</div><div class="metric-val">' + fmtNum(v.plays) + '</div></div>'
+    + '<div><div class="metric-label">觸及偏離</div><div class="metric-val"><span class="devbadge ' + devClass + '">' + devStr + '</span></div></div>'
+    + '<div><div class="metric-label">' + (v.platform === 'ig' ? '儲存' : '新粉') + '</div><div class="metric-val teal">' + (v.platform === 'ig' ? savedStr : ('+' + (v.newFollowers||0))) + '</div></div>'
+    + '</div>'
+    + '<div class="vcard-bottom">'
+    + '<div style="flex:1"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">原粉忠實度（留言+轉發）÷ 播放</div><div class="loyalty-val ' + lt + '">' + lr + '% <span style="font-weight:400;font-size:11px;color:var(--muted)">' + {tier1:'▲ T1',tier2:'◆ T2',tier3:'▼ T3'}[lt] + '</span></div></div>'
+    + '<div style="text-align:right"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">平均觀看 / 影片長</div><div style="font-size:13px;font-weight:800">' + watchSec + ' / ' + vidLen + '</div></div>'
+    + '</div></div>';
+}
+
+// ── 昨日成效 ──────────────────────────────────────────────────────────────────
+function initYesterday() {
+  const snapshotDate = STATIC_DATA.snapshot_date;
+  const grid  = document.getElementById('ydayGrid');
+  const label = document.getElementById('ydayLabel');
+
+  const videos = STATIC_DATA.videos.filter(function(v) {
+    return v.created_date === snapshotDate;
+  }).sort(function(a, b) { return b.score - a.score; });
+
+  label.textContent = '影片成效 · ' + snapshotDate + ' · 共 ' + videos.length + ' 支';
+
+  if (videos.length === 0) {
+    grid.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>此日無影片發布</h3></div>';
+    return;
+  }
+
+  const tier3 = videos.filter(function(v) { return loyaltyTier(v) === 'tier3'; });
+  const banner = document.getElementById('alertBanner');
+  if (tier3.length > 0) {
+    banner.classList.remove('hidden');
+    document.getElementById('alertCount').textContent = tier3.length;
+  }
+
+  grid.innerHTML = '<div class="yday-grid">' + videos.map(function(v, i) { return renderVideoCard(v, i); }).join('') + '</div>';
+  videos.forEach(function(v, i) { drawRing(document.getElementById('ring-' + i), v.score); });
+}
+
+// ── 長期排行 ──────────────────────────────────────────────────────────────────
+function renderTop10() {
+  const platF = document.getElementById('platFilter').value;
+  const days  = Number(activePeriod);
+
+  var data = STATIC_DATA.videos.filter(function(v) { return v.type === currentTop20Type; });
+  if (platF !== 'all') data = data.filter(function(v) { return v.platform === platF; });
+  data = data.filter(function(v) { return daysBetween(v.created_time) <= days; });
+  data.sort(function(a, b) { return b.score - a.score; });
+  var top10 = data.slice(0, 10);
+
+  if (top10.length === 0) {
+    document.getElementById('rankingTable').innerHTML = '<div class="loading-row">暫無符合條件的影片</div>';
+    return;
+  }
+
+  var rankClass = function(i) { return i===0?'gold-r':i===1?'silver-r':i===2?'bronze-r':''; };
+  var scoreClass = currentTop20Type === 'traffic' ? 't-score' : 'c-score';
+  var colHeaders = currentTop20Type === 'traffic'
+    ? ['#','影片','評分','播放','轉發率','留言率','觸及偏離','']
+    : ['#','影片','評分','播放','留言率','觸及偏離','儲存/新粉',''];
+
+  var rows = top10.map(function(v, i) {
+    var dev = reachDev(v);
+    var devPct = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
+    var devColor = dev >= 0.05 ? '#1a9e95' : dev <= -0.05 ? 'var(--rose)' : '#7a6428';
+    var daysOld = daysBetween(v.created_time);
+    var extra = v.platform === 'ig' ? fmtNum(v.saved || 0) : '+' + (v.newFollowers || 0);
+    var title = (v.description || v.caption || '');
+    var titleShort = title.slice(0, 60) + (title.length > 60 ? '…' : '');
+    var cols;
+    if (currentTop20Type === 'traffic') {
+      cols = [
+        '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
+        '<div><div class="rt-title">' + titleShort + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
+        '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
+        '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
+        '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
+        '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
+        '<div>' + (daysOld>=30&&daysOld<=150?'<span class="reuse-badge">♻ 復投</span>':'') + '</div>',
+      ];
+    } else {
+      cols = [
+        '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
+        '<div><div class="rt-title">' + titleShort + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
+        '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
+        '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
+        '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
+        '<div class="rt-num">' + extra + '</div>',
+        '<div>' + (daysOld>=30&&daysOld<=150?'<span class="reuse-badge">♻ 復投</span>':'') + '</div>',
+      ];
+    }
+    return '<div class="rt-row">' + cols.join('') + '</div>';
+  }).join('');
+
+  document.getElementById('rankingTable').innerHTML =
+    '<div class="rt-head">' + colHeaders.map(function(c) { return '<div>' + c + '</div>'; }).join('') + '</div>'
+    + rows;
+}
+
+function setPeriod(p, el) {
+  activePeriod = p;
+  document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+  renderTop10();
+}
+
+function switchTop20(type, el) {
+  currentTop20Type = type;
+  document.querySelectorAll('.t20-tab').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+  renderTop10();
+}
+
+// ── Tab 切換 ──────────────────────────────────────────────────────────────────
+var top20Initiated = false;
+
+function switchTab(id, el) {
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('sec-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'top20' && !top20Initiated) {
+    top20Initiated = true;
+    renderTop10();
+  }
+}
+
+function mobileSwitchTab(id, el) {
+  var tabMap = { yesterday: 0, top20: 1 };
+  var tabs = document.querySelectorAll('.tab');
+  if (tabs[tabMap[id]]) tabs[tabMap[id]].click();
+  document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+}
+
+// ── 初始化 ────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('snapshotBadge').textContent =
+    '📸 快照 · ' + STATIC_DATA.generated_at;
+  initYesterday();
+});
+</script>
+</body>
+</html>
