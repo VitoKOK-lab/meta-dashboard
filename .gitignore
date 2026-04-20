@@ -1,5 +1,4 @@
 config.py
-data/
 *.db
 __pycache__/
 *.pyc
