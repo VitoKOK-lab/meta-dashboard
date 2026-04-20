@@ -951,10 +951,10 @@ function initWaste() {
   function badRow(v,i){
     var dev = reachDev(v); var devStr = (dev>=0?'+':'')+(dev*100).toFixed(0)+'%';
     var lr = loyaltyRate(v).toFixed(2);
+    var title = v.description||v.caption||'';
     return '<div class="perf-panel-row" style="background:'+(i%2?'var(--off)':'')+';">'
       +'<div style="color:var(--muted)">'+(i+1)+'</div>'
-      +'<div class="perf-panel-title">'+truncTitle(v.description||v.caption||'')+'</div>'
-      +'<div style="font-size:10px">'+(v.platform==='fb'?'📘':'📸')+'</div>'
+      +'<div class="rt-title" data-full="'+escAttr(title)+'">'+truncTitle(title,14)+'</div>'
       +'<div style="font-weight:800">'+fmtNum(v.plays||0)+'</div>'
       +'<div style="color:var(--warn);font-weight:800">'+lr+'%</div>'
       +'<div style="color:var(--warn);font-size:11px">觸及 '+devStr+'</div>'
@@ -976,7 +976,7 @@ function initWaste() {
     +(topWords.length ? '<div style="font-size:11px;color:var(--muted);margin-top:8px">高頻出現詞（建議避開這類選題）</div><div class="waste-kw-grid">'+topWords.map(function(w){return '<span class="waste-kw">'+w+' ×'+wordCount[w]+'</span>';}).join('')+'</div>' : '')
     +'</div>'
     +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-bottom:16px">'
-    +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+    +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
     +(bad.slice(0,10).map(badRow).join('') || '<div style="padding:12px;text-align:center;color:var(--muted)">暫無符合條件影片</div>')
     +'</div>';
 
@@ -986,7 +986,7 @@ function initWaste() {
       +'<div class="insight-title" style="color:#c2580a">⚡ 有流量沒互動（'+noEngage.length+' 支）· 有機會翻身</div>'
       +'<div style="font-size:12px;line-height:1.7">演算法有在推，但觀眾看完就走。<strong>行動</strong>：①結尾加互動問句 ②加強 CTA「留言+1 領取」 ③前 3 秒鉤子要更強</div>'
       +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-top:10px">'
-      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
       +noEngage.slice(0,5).map(badRow).join('')
       +'</div></div>';
   }
@@ -997,7 +997,7 @@ function initWaste() {
       +'<div class="insight-title" style="color:#4f46e5">💎 低流量高互動（'+hidden.length+' 支）· 鐵粉喜歡但沒被推</div>'
       +'<div style="font-size:12px;line-height:1.7"><strong>行動</strong>：①換封面／標題重新發布 ②這類腳本值得重拍或複製 ③小額投廣測試看看</div>'
       +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-top:10px">'
-      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
       +hidden.slice(0,5).map(badRow).join('')
       +'</div></div>';
   }
