@@ -8,6 +8,7 @@
 :root{
   --pink:#9b2c7e;--rose:#7d1a5e;--teal:#0d9488;--gold:#b5924e;
   --black:#1e293b;--white:#fff;--off:#f8f7f5;--ink:#1a1a1a;--muted:#7a7a7a;--border:#e8e8e8;
+  --good:#0d9488;--ok:#b5924e;--warn:#be3a67;
   --font:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;
   --r:10px;
 }
@@ -32,31 +33,92 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .section.active{display:block}
 .slabel{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .slabel::before{content:'';width:16px;height:3px;background:var(--gold);border-radius:2px;flex-shrink:0}
-.alert-banner{display:flex;align-items:center;gap:12px;background:rgba(230,0,126,.06);border:1px solid rgba(230,0,126,.2);border-left:4px solid var(--pink);border-radius:var(--r);padding:12px 18px;margin-bottom:20px;font-size:13px}
+
+/* ── 總覽 KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;position:relative;overflow:hidden}
+.kpi-label{font-size:10px;color:var(--muted);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.kpi-val{font-size:30px;font-weight:900;line-height:1;letter-spacing:-1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:6px}
+.kpi-accent{position:absolute;bottom:0;left:0;right:0;height:3px}
+
+/* ── 本週精選 ── */
+.top3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px}
+@media(max-width:960px){.top3-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.top3-grid{grid-template-columns:1fr}}
+.mini-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.mini-card-rank{font-size:10px;font-weight:800;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.8px}
+.mini-rank-num{font-size:20px;font-weight:900}
+.mini-rank-num.gold-r{color:var(--gold)}
+.mini-rank-num.silver-r{color:#b0b0b0}
+.mini-rank-num.bronze-r{color:#cd7f32}
+.mini-card-title{font-size:13px;font-weight:700;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:12px;min-height:36px}
+.mini-score{font-size:36px;font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:6px}
+.mini-card-stats{display:flex;gap:14px;font-size:11px;margin-bottom:10px}
+.mini-card-stats span{display:flex;flex-direction:column;gap:2px}
+.mini-card-stats .ms-label{color:var(--muted)}
+.mini-card-stats .ms-val{font-size:13px;font-weight:800;color:var(--ink)}
+.mini-card-why{background:var(--off);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--ink);line-height:1.6}
+.mini-plat-badge{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700}
+
+/* ── 平台對比 ── */
+.plat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:28px}
+@media(max-width:640px){.plat-grid{grid-template-columns:1fr}}
+.plat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px}
+.plat-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:12px}
+.plat-icon{font-size:22px}
+.plat-name{font-size:15px;font-weight:800}
+.plat-count{font-size:11px;color:var(--muted);margin-left:auto}
+.plat-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plat-stat{padding:10px;background:var(--off);border-radius:6px}
+.plat-stat-label{font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.plat-stat-val{font-size:16px;font-weight:900}
+
+/* ── 表現分佈 ── */
+.perf-dist{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:28px}
+.perf-dist-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:14px}
+.perf-dist-rows{display:flex;flex-direction:column;gap:12px}
+.perf-dist-row{display:flex;align-items:center;gap:10px}
+.perf-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.perf-label{font-size:12px;color:var(--ink);width:64px;font-weight:600;flex-shrink:0}
+.perf-bar-wrap{flex:1;height:10px;background:var(--off);border-radius:5px;overflow:hidden}
+.perf-bar-fill{height:100%;border-radius:5px}
+.perf-count{font-size:13px;font-weight:800;min-width:24px;text-align:right}
+.perf-desc{font-size:10px;color:var(--muted);margin-left:6px;white-space:nowrap}
+
+/* ── 排行亮點解析 ── */
+.insight-box{background:linear-gradient(135deg,rgba(13,148,136,.06),rgba(181,146,78,.06));border:1px solid rgba(13,148,136,.25);border-radius:var(--r);padding:16px 18px;margin-bottom:18px}
+.insight-box.hidden{display:none}
+.insight-title{font-size:11px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.insight-body{font-size:12px;line-height:1.8;color:var(--ink)}
+
+/* ── 通用元件 ── */
+.alert-banner{display:flex;align-items:center;gap:12px;background:rgba(190,58,103,.06);border:1px solid rgba(190,58,103,.2);border-left:4px solid var(--warn);border-radius:var(--r);padding:12px 18px;margin-bottom:20px;font-size:13px}
 .alert-banner.hidden{display:none}
-.alert-banner strong{color:var(--pink)}
+.alert-banner strong{color:var(--warn)}
 .state-box{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:48px 24px;text-align:center;color:var(--muted)}
 .state-box .state-icon{font-size:40px;margin-bottom:12px}
 .state-box h3{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
-.state-box p{font-size:13px;line-height:1.6}
 .yday-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 @media(max-width:900px){.yday-grid{grid-template-columns:1fr}}
 .vcard{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:transform .2s,box-shadow .2s}
 .vcard:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.08)}
-.vcard.tier3{border-color:rgba(230,0,126,.3)}
+.vcard.tier3{border-color:rgba(190,58,103,.3)}
 .vcard-top{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:14px;border-bottom:1px solid var(--border)}
 .vcard-thumb{width:52px;height:52px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
 .vcard-meta{flex:1;min-width:0}
 .vcard-badges{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
 .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px}
-.badge.commerce{background:rgba(230,0,126,.1);color:var(--pink);border:1px solid rgba(230,0,126,.2)}
-.badge.traffic{background:rgba(80,200,190,.1);color:#1a9e95;border:1px solid rgba(80,200,190,.2)}
+.badge.commerce{background:rgba(155,44,126,.1);color:var(--pink);border:1px solid rgba(155,44,126,.2)}
+.badge.traffic{background:rgba(13,148,136,.1);color:#0d9488;border:1px solid rgba(13,148,136,.2)}
 .badge.fb{background:rgba(197,179,130,.12);color:#7a6428}
-.badge.ig{background:rgba(80,200,190,.1);color:#1a9e95}
-.badge.tier1{background:rgba(80,200,190,.12);color:#1a9e95}
+.badge.ig{background:rgba(13,148,136,.1);color:#1a9e95}
+.badge.tier1{background:rgba(13,148,136,.12);color:#1a9e95}
 .badge.tier2{background:rgba(197,179,130,.15);color:#7a6428}
-.badge.tier3{background:rgba(230,0,126,.08);color:var(--rose)}
-.vcard-title{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.badge.tier3{background:rgba(190,58,103,.08);color:var(--warn)}
+.vcard-title{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;user-select:none}
+.vcard-title.expanded{display:block;overflow:visible;white-space:normal;-webkit-line-clamp:unset}
 .vcard-date{font-size:11px;color:var(--muted)}
 .score-ring{position:relative;width:58px;height:58px;flex-shrink:0}
 .score-ring canvas{position:absolute;top:0;left:0}
@@ -75,14 +137,16 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .retention-label{font-size:10px;color:var(--muted);margin-bottom:5px}
 .retention-bar{display:flex;gap:1px;height:18px;align-items:flex-end}
 .ret-seg{flex:1;border-radius:1px;min-width:2px}
+.retention-insight{font-size:11px;color:var(--ink);margin-top:6px;padding:5px 8px;background:var(--white);border-radius:4px;line-height:1.5}
 .vcard-bottom{padding:12px 18px;display:flex;gap:16px;background:var(--off)}
 .loyalty-val{font-size:13px;font-weight:800}
 .loyalty-val.t1{color:#1a9e95}
 .loyalty-val.t2{color:#7a6428}
-.loyalty-val.t3{color:var(--pink)}
+.loyalty-val.t3{color:var(--warn)}
+.tier-explain{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5}
 .devbadge{display:inline-flex;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
-.devbadge.pos{background:rgba(80,200,190,.12);color:#1a9e95}
-.devbadge.neg{background:rgba(230,0,126,.08);color:var(--rose)}
+.devbadge.pos{background:rgba(13,148,136,.12);color:#1a9e95}
+.devbadge.neg{background:rgba(190,58,103,.08);color:var(--warn)}
 .devbadge.neu{background:rgba(197,179,130,.12);color:#7a6428}
 .period-btns{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content}
 .period-btn{padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);border:none;border-right:1px solid var(--border);font-family:var(--font);transition:all .2s}
@@ -105,7 +169,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
   .rt-row{grid-template-columns:28px 1fr 44px;min-width:0;padding:10px 12px}
   .rt-row>div:nth-child(n+4){display:none}
   .rt-row>div:nth-child(2){min-width:0;overflow:hidden}
-  .rt-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
 .rt-row:last-child{border-bottom:none}
 .rt-row:hover{background:var(--off)}
@@ -113,7 +176,8 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .rt-rank.gold-r{color:var(--gold)}
 .rt-rank.silver-r{color:#b0b0b0}
 .rt-rank.bronze-r{color:#cd7f32}
-.rt-title{font-size:13px;font-weight:700;line-height:1.3}
+.rt-title{font-size:13px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;max-width:100%}
+.rt-title.expanded{white-space:normal;overflow:visible;text-overflow:unset}
 .rt-date{font-size:11px;color:var(--muted);margin-top:1px}
 .rt-score{font-size:20px;font-weight:900;letter-spacing:-1px}
 .rt-score.t-score{color:#1a9e95}
@@ -125,7 +189,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .mob-nav-in{display:flex;justify-content:space-around}
 .mob-tab{display:flex;flex-direction:column;align-items:center;gap:2px;color:rgba(255,255,255,.3);font-size:9px;cursor:pointer;padding:4px 10px;transition:color .2s}
 .mob-tab .mi{font-size:18px}
-.mob-tab.active{color:var(--pink)}
+.mob-tab.active{color:var(--teal)}
 @media(max-width:640px){.mob-nav{display:block};body{padding-bottom:70px}.tabs{display:none}}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -147,20 +211,30 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="tabs">
   <div class="tabs-in">
-    <div class="tab active" onclick="switchTab('yesterday',this)">昨日成效</div>
-    <div class="tab" onclick="switchTab('top20',this)">長期排行 Top 10</div>
+    <div class="tab active" onclick="switchTab('overview',this)">📊 總覽</div>
+    <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
+    <div class="tab" onclick="switchTab('detail',this)">🎬 影片詳細</div>
   </div>
 </div>
 
 <div class="page">
-  <div class="section active" id="sec-yesterday">
-    <div class="alert-banner hidden" id="alertBanner">
-      ⚠ <strong>今日有 <span id="alertCount">0</span> 支影片需診斷</strong>（忠實度 &lt; 1%）
-    </div>
-    <div class="slabel" id="ydayLabel">昨日影片成效 · 載入中…</div>
-    <div id="ydayGrid"></div>
+
+  <!-- 總覽 -->
+  <div class="section active" id="sec-overview">
+    <div class="slabel">本週概覽 · 近 7 天</div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="slabel">本週精選 · Top 3</div>
+    <div class="top3-grid" id="top3Grid"></div>
+
+    <div class="slabel">平台對比 · 近 7 天</div>
+    <div class="plat-grid" id="platGrid"></div>
+
+    <div class="slabel">忠實度分佈 · 近 7 天</div>
+    <div class="perf-dist" id="perfDist"></div>
   </div>
 
+  <!-- 排行榜 -->
   <div class="section" id="sec-top20">
     <div class="slabel">長期排行 · Top 10</div>
     <div class="top20-tabs">
@@ -179,74 +253,143 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
         <option value="ig">Instagram</option>
       </select>
     </div>
+    <div class="insight-box hidden" id="insightBox">
+      <div class="insight-title">🔍 第一名亮點解析</div>
+      <div class="insight-body" id="insightBody"></div>
+    </div>
     <div class="table-scroll">
       <div class="ranking-table" id="rankingTable">
         <div class="loading-row">載入中…</div>
       </div>
     </div>
   </div>
+
+  <!-- 影片詳細 -->
+  <div class="section" id="sec-detail">
+    <div class="alert-banner hidden" id="alertBanner">
+      ⚠ <strong>今日有 <span id="alertCount">0</span> 支影片需優化</strong>（原粉互動率 &lt; 1%，詳見下方）
+    </div>
+    <div class="slabel" id="detailLabel">影片詳細 · 載入中…</div>
+    <div id="detailGrid"></div>
+  </div>
 </div>
 
 <div class="mob-nav">
   <div class="mob-nav-in">
-    <div class="mob-tab active" onclick="mobileSwitchTab('yesterday',this)"><span class="mi">📊</span>昨日</div>
+    <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>總覽</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('detail',this)"><span class="mi">🎬</span>詳細</div>
   </div>
 </div>
 
 <script>
-// ── 嵌入資料（由 pipeline.py 注入）────────────────────────────────────────────
 const STATIC_DATA = __STATIC_DATA__;
-
 const AVG = { fb: STATIC_DATA.avg_fb, ig: STATIC_DATA.avg_ig };
 let activePeriod = '7';
 let currentTop20Type = 'traffic';
 
-// ── 工具函式 ──────────────────────────────────────────────────────────────────
+// ── 工具 ──────────────────────────────────────────────────────────────────
 function daysBetween(isoStr) {
   return Math.floor((Date.now() - new Date(isoStr)) / 86400000);
 }
-
 function fmtDate(isoStr) {
   return new Date(isoStr).toLocaleDateString('zh-TW', {
     timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit'
   });
 }
-
 function fmtNum(n) {
   n = n || 0;
   return n >= 1000000 ? (n/1000000).toFixed(2)+'M'
        : n >= 1000    ? (n/1000).toFixed(1)+'K'
        : n.toString();
 }
-
 function reachDev(v) {
-  const avg = v.platform === 'fb' ? AVG.fb : AVG.ig;
+  var avg = v.platform === 'fb' ? AVG.fb : AVG.ig;
   return avg > 0 ? ((v.reach || 0) - avg) / avg : 0;
 }
-
 function loyaltyRate(v) {
   return v.plays > 0 ? ((v.comments + v.shares) / v.plays * 100) : 0;
 }
-
 function loyaltyTier(v) {
-  const r = loyaltyRate(v);
+  var r = loyaltyRate(v);
   return r >= 3 ? 'tier1' : r >= 1 ? 'tier2' : 'tier3';
 }
-
-function newCustRate(v) {
-  return v.plays > 0 ? ((v.newFollowers || 0) / v.plays * 100) : 0;
+function tierLabel(lt) {
+  return { tier1:'🟢 優質', tier2:'🟡 正常', tier3:'🔴 待優化' }[lt];
+}
+function tierExplain(lt) {
+  return {
+    tier1:'原粉留言＋轉發率 ≥ 3%，內容共鳴強',
+    tier2:'原粉互動率 1–3%，屬正常水準',
+    tier3:'原粉互動率 < 1%，建議檢討開場吸引力或內容方向'
+  }[lt];
 }
 
-// ── Canvas 環形評分 ───────────────────────────────────────────────────────────
+// ── 為何表現好 ────────────────────────────────────────────────────────────
+function whyGood(v) {
+  var reasons = [];
+  var shareRate = v.plays ? v.shares/v.plays*100 : 0;
+  var commentRate = v.plays ? v.comments/v.plays*100 : 0;
+  var dev = reachDev(v);
+  var completion = v.retention && v.retention.length > 0 ? v.retention[v.retention.length-1]*100 : 0;
+  if (shareRate >= 2) reasons.push('轉發強（' + shareRate.toFixed(2) + '%）');
+  else if (shareRate >= 1) reasons.push('轉發不錯（' + shareRate.toFixed(2) + '%）');
+  if (commentRate >= 1.5) reasons.push('留言熱（' + commentRate.toFixed(2) + '%）');
+  else if (commentRate >= 0.8) reasons.push('留言偏高（' + commentRate.toFixed(2) + '%）');
+  if (dev >= 0.5) reasons.push('演算法大力加推（+' + (dev*100).toFixed(0) + '%）');
+  else if (dev >= 0.2) reasons.push('觸及超出平均（+' + (dev*100).toFixed(0) + '%）');
+  if (completion >= 35) reasons.push('完播率佳（' + completion.toFixed(0) + '%）');
+  if (reasons.length === 0) reasons.push('各項指標均衡穩健');
+  return reasons.join('、');
+}
+
+// ── 排行第一名亮點解析 ────────────────────────────────────────────────────
+function buildHighlight(v) {
+  if (!v) return '';
+  var lines = [];
+  var shareRate = v.plays ? v.shares/v.plays*100 : 0;
+  var commentRate = v.plays ? v.comments/v.plays*100 : 0;
+  var dev = reachDev(v);
+  var completion = v.retention && v.retention.length > 0 ? v.retention[v.retention.length-1]*100 : 0;
+  var title = (v.description || v.caption || '').slice(0,40);
+  lines.push('《' + title + (title.length >= 40 ? '…' : '') + '》拿到第一名的原因：');
+  if (shareRate >= 1) lines.push('📤 轉發率 ' + shareRate.toFixed(2) + '% — 觀眾願意主動分享，話題性強');
+  if (commentRate >= 0.8) lines.push('💬 留言率 ' + commentRate.toFixed(2) + '% — 觀眾有話說，互動熱度高');
+  if (dev >= 0.2) lines.push('🚀 觸及超出均值 +' + (dev*100).toFixed(0) + '% — 演算法判斷優質並加大推播');
+  if (completion >= 25) lines.push('⏱ 完播率 ' + completion.toFixed(0) + '% — 觀眾願意看到最後');
+  if (lines.length === 1) lines.push('各項指標表現均衡，綜合評分最高');
+  return lines.join('<br>');
+}
+
+// ── 續看率下降點分析 ──────────────────────────────────────────────────────
+function retentionInsight(retention) {
+  if (!retention || retention.length < 4) return '';
+  var drops = [];
+  for (var i = 1; i < retention.length; i++) {
+    var drop = retention[i-1] - retention[i];
+    if (drop > 0) drops.push({ i: i, drop: drop });
+  }
+  drops.sort(function(a, b) { return b.drop - a.drop; });
+  var parts = [];
+  if (drops.length > 0) {
+    var pct = Math.round(drops[0].i / retention.length * 100);
+    parts.push('最大流失點在 ' + pct + '% 進度');
+  }
+  var final = retention[retention.length-1] * 100;
+  if (final < 15) parts.push('完播率 ' + final.toFixed(1) + '% 偏低，結尾可加強');
+  else if (final >= 30) parts.push('完播率 ' + final.toFixed(1) + '% 佳，觀眾投入度高');
+  return parts.length ? '💡 ' + parts.join('；') : '';
+}
+
+// ── Canvas 環形評分 ───────────────────────────────────────────────────────
 function drawRing(canvas, score) {
   if (!canvas) return;
-  const dpr = devicePixelRatio || 1;
+  var dpr = devicePixelRatio || 1;
   canvas.width = 58 * dpr; canvas.height = 58 * dpr;
-  const ctx = canvas.getContext('2d');
+  var ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const cx = 29, cy = 29, r = 24, lw = 5;
-  const color = score >= 80 ? '#1a9e95' : score >= 65 ? '#e6007e' : '#b12468';
+  var cx = 29, cy = 29, r = 24, lw = 5;
+  var color = score >= 80 ? '#1a9e95' : score >= 65 ? '#9b2c7e' : '#be3a67';
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = lw; ctx.stroke();
   if (score > 0) {
@@ -256,59 +399,64 @@ function drawRing(canvas, score) {
   }
 }
 
-// ── 續看率 ────────────────────────────────────────────────────────────────────
-function renderRetentionStrip(retention) {
+// ── 續看率條 ──────────────────────────────────────────────────────────────
+function renderRetentionStrip(v) {
+  var retention = v.retention;
   if (!retention || retention.length === 0) return '';
-  const max = retention[0] || 1;
-  const segs = retention.map(function(v) {
-    const pct = (v / max * 100).toFixed(0);
-    const alpha = (0.2 + (v / max) * 0.8).toFixed(2);
+  var max = retention[0] || 1;
+  var segs = retention.map(function(val) {
+    var pct = (val / max * 100).toFixed(0);
+    var alpha = (0.2 + (val / max) * 0.8).toFixed(2);
     return '<div class="ret-seg" style="height:' + Math.max(pct, 4) + '%;background:rgba(0,0,0,' + alpha + ')"></div>';
   }).join('');
-  const last = retention[retention.length - 1];
-  return '<div class="retention-strip"><div class="retention-label">觀眾續看率曲線 · 完播率 ' + (last * 100).toFixed(1) + '%</div><div class="retention-bar">' + segs + '</div></div>';
+  var last = retention[retention.length - 1];
+  var insight = retentionInsight(retention);
+  return '<div class="retention-strip">'
+    + '<div class="retention-label">觀眾續看率曲線 · 完播率 ' + (last * 100).toFixed(1) + '%</div>'
+    + '<div class="retention-bar">' + segs + '</div>'
+    + (insight ? '<div class="retention-insight">' + insight + '</div>' : '')
+    + '</div>';
 }
 
-// ── 影片卡 ────────────────────────────────────────────────────────────────────
-const THUMB_BG = ['#fde8f2','#e8f9f8','#fff8e1','#f3e5f5','#e8f5e9','#fce4ec','#e0f7fa'];
-const THUMB_EM = ['💎','🔍','⛏','🌟','💚','💙','🤍'];
+// ── 影片卡 ────────────────────────────────────────────────────────────────
+var THUMB_BG = ['#fde8f2','#e8f9f8','#fff8e1','#f3e5f5','#e8f5e9','#fce4ec','#e0f7fa'];
+var THUMB_EM = ['💎','🔍','⛏','🌟','💚','💙','🤍'];
 
 function renderVideoCard(v, idx) {
-  const lt = loyaltyTier(v);
-  const lr = loyaltyRate(v).toFixed(2);
-  const dev = reachDev(v);
-  const devPct = (dev * 100).toFixed(1);
-  const devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
-  const devStr = (dev >= 0 ? '+' : '') + devPct + '%';
-  const barColor = v.type === 'commerce' ? 'var(--pink)' : 'var(--teal)';
-  const scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--rose)';
-  const tierLabel = { tier1:'Tier 1 忠實', tier2:'Tier 2 一般', tier3:'Tier 3 診斷' }[lt];
-  const shareBar  = v.plays ? Math.min(v.shares / v.plays / 0.03 * 100, 100).toFixed(0) : 0;
-  const commentBar = v.plays ? Math.min(v.comments / v.plays / 0.02 * 100, 100).toFixed(0) : 0;
-  const likeBar   = v.plays ? Math.min(v.likes / v.plays / 0.15 * 100, 100).toFixed(0) : 0;
-  const watchSec  = v.avgWatchMs > 0 ? (v.avgWatchMs / 1000).toFixed(1) + 's' : '—';
-  const vidLen    = v.length ? v.length.toFixed(0) + 's' : '—';
-  const savedStr  = v.saved != null ? fmtNum(v.saved) : '—';
-  const title     = v.description || v.caption || '(無標題)';
+  var lt = loyaltyTier(v);
+  var lr = loyaltyRate(v).toFixed(2);
+  var dev = reachDev(v);
+  var devPct = (dev * 100).toFixed(1);
+  var devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
+  var devStr = (dev >= 0 ? '+' : '') + devPct + '%';
+  var barColor = v.type === 'commerce' ? 'var(--pink)' : 'var(--teal)';
+  var scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
+  var shareBar   = v.plays ? Math.min(v.shares / v.plays / 0.03 * 100, 100).toFixed(0) : 0;
+  var commentBar = v.plays ? Math.min(v.comments / v.plays / 0.02 * 100, 100).toFixed(0) : 0;
+  var likeBar    = v.plays ? Math.min(v.likes / v.plays / 0.15 * 100, 100).toFixed(0) : 0;
+  var watchSec   = v.avgWatchMs > 0 ? (v.avgWatchMs / 1000).toFixed(1) + 's' : '—';
+  var vidLen     = v.length ? v.length.toFixed(0) + 's' : '—';
+  var savedStr   = v.saved != null ? fmtNum(v.saved) : '—';
+  var title      = v.description || v.caption || '(無標題)';
+  var tl         = tierLabel(lt);
+  var te         = tierExplain(lt);
 
-  return '<div class="vcard ' + (lt === 'tier3' ? 'tier3' : '') + '" id="vcard-' + idx + '">'
+  return '<div class="vcard' + (lt === 'tier3' ? ' tier3' : '') + '">'
     + '<div class="vcard-top">'
     + '<div class="vcard-thumb" style="background:' + THUMB_BG[idx % THUMB_BG.length] + '">' + THUMB_EM[idx % THUMB_EM.length] + '</div>'
     + '<div class="vcard-meta">'
     + '<div class="vcard-badges">'
     + '<span class="badge ' + v.type + '">' + (v.type === 'commerce' ? '🛍 帶貨型' : '📈 流量型') + '</span>'
     + '<span class="badge ' + v.platform + '">' + (v.platform === 'fb' ? '📘 FB' : '📸 IG') + '</span>'
-    + '<span class="badge ' + lt + '">' + tierLabel + '</span>'
+    + '<span class="badge ' + lt + '">' + tl + '</span>'
     + '</div>'
     + '<div class="vcard-title">' + title + '</div>'
     + '<div class="vcard-date">' + fmtDate(v.created_time) + ' 發布 · ' + vidLen + '</div>'
     + '</div>'
-    + '<div class="score-ring" id="ring-wrap-' + idx + '">'
-    + '<canvas id="ring-' + idx + '"></canvas>'
+    + '<div class="score-ring"><canvas id="ring-' + idx + '"></canvas>'
     + '<div class="score-num"><strong style="color:' + scoreColor + '">' + v.score + '</strong><span>分</span></div>'
-    + '</div>'
-    + '</div>'
-    + renderRetentionStrip(v.retention)
+    + '</div></div>'
+    + renderRetentionStrip(v)
     + '<div class="vcard-metrics">'
     + '<div><div class="metric-label">轉發率</div><div class="metric-val pink">' + (v.plays ? (v.shares/v.plays*100).toFixed(2)+'%' : '—') + '</div><div class="mbar"><div class="mbar-fill" style="width:' + shareBar + '%;background:var(--pink)"></div></div></div>'
     + '<div><div class="metric-label">留言率</div><div class="metric-val ' + (v.type==='commerce'?'pink':'teal') + '">' + (v.plays ? (v.comments/v.plays*100).toFixed(2)+'%' : '—') + '</div><div class="mbar"><div class="mbar-fill" style="width:' + commentBar + '%;background:' + barColor + '"></div></div></div>'
@@ -318,74 +466,182 @@ function renderVideoCard(v, idx) {
     + '<div><div class="metric-label">' + (v.platform === 'ig' ? '儲存' : '新粉') + '</div><div class="metric-val teal">' + (v.platform === 'ig' ? savedStr : ('+' + (v.newFollowers||0))) + '</div></div>'
     + '</div>'
     + '<div class="vcard-bottom">'
-    + '<div style="flex:1"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">原粉忠實度（留言+轉發）÷ 播放</div><div class="loyalty-val ' + lt + '">' + lr + '% <span style="font-weight:400;font-size:11px;color:var(--muted)">' + {tier1:'▲ T1',tier2:'◆ T2',tier3:'▼ T3'}[lt] + '</span></div></div>'
-    + '<div style="text-align:right"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">平均觀看 / 影片長</div><div style="font-size:13px;font-weight:800">' + watchSec + ' / ' + vidLen + '</div></div>'
+    + '<div style="flex:1"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">原粉忠實度（留言＋轉發）÷ 播放</div>'
+    + '<div class="loyalty-val ' + lt + '">' + lr + '% ' + tl + '</div>'
+    + '<div class="tier-explain">' + te + '</div></div>'
+    + '<div style="text-align:right"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">平均觀看 / 影片長</div>'
+    + '<div style="font-size:13px;font-weight:800">' + watchSec + ' / ' + vidLen + '</div></div>'
     + '</div></div>';
 }
 
-// ── 昨日成效 ──────────────────────────────────────────────────────────────────
-function initYesterday() {
-  const snapshotDate = STATIC_DATA.snapshot_date;
-  const grid  = document.getElementById('ydayGrid');
-  const label = document.getElementById('ydayLabel');
+// ── 總覽 ─────────────────────────────────────────────────────────────────
+function initOverview() {
+  var all  = STATIC_DATA.videos;
+  var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
 
-  const videos = STATIC_DATA.videos.filter(function(v) {
+  var avgScore = week.length ? Math.round(week.reduce(function(s,v){return s+v.score;},0)/week.length) : 0;
+  var goodCnt  = week.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
+  var goodPct  = week.length ? Math.round(goodCnt/week.length*100) : 0;
+  var fbWeek   = week.filter(function(v){return v.platform==='fb';});
+  var igWeek   = week.filter(function(v){return v.platform==='ig';});
+  var fbAvg    = fbWeek.length ? Math.round(fbWeek.reduce(function(s,v){return s+v.score;},0)/fbWeek.length) : 0;
+  var igAvg    = igWeek.length ? Math.round(igWeek.reduce(function(s,v){return s+v.score;},0)/igWeek.length) : 0;
+  var bestPlat = fbAvg >= igAvg ? 'Facebook' : 'Instagram';
+
+  document.getElementById('kpiGrid').innerHTML = [
+    kpiCard('本週影片', week.length + ' 支', '過去 7 天發布', 'var(--teal)'),
+    kpiCard('週均評分', avgScore + ' 分', '滿分 100',
+      avgScore >= 70 ? 'var(--teal)' : avgScore >= 55 ? 'var(--gold)' : 'var(--warn)'),
+    kpiCard('最佳平台', bestPlat, 'FB ' + fbAvg + '分 vs IG ' + igAvg + '分', 'var(--gold)'),
+    kpiCard('優質率', goodPct + '%', goodCnt + ' 支達優質（忠實度 ≥ 3%）',
+      goodPct >= 50 ? 'var(--teal)' : 'var(--gold)'),
+  ].join('');
+
+  var sorted = week.slice().sort(function(a,b){return b.score-a.score;}).slice(0,3);
+  var rankCls   = ['gold-r','silver-r','bronze-r'];
+  var rankNames = ['第 1 名','第 2 名','第 3 名'];
+  if (sorted.length === 0) {
+    document.getElementById('top3Grid').innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="state-icon">📭</div><h3>本週暫無影片</h3></div>';
+  } else {
+    document.getElementById('top3Grid').innerHTML = sorted.map(function(v, i) {
+      var scoreColor = v.score >= 80 ? 'var(--teal)' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
+      var platBadge = v.platform === 'fb'
+        ? '<span class="mini-plat-badge badge fb">📘 FB</span>'
+        : '<span class="mini-plat-badge badge ig">📸 IG</span>';
+      return '<div class="mini-card">'
+        + '<div class="mini-card-rank"><span class="mini-rank-num ' + rankCls[i] + '">' + (i+1) + '</span>'
+        + rankNames[i] + platBadge + '</div>'
+        + '<div class="mini-card-title">' + (v.description || v.caption || '') + '</div>'
+        + '<div class="mini-score" style="color:' + scoreColor + '">' + v.score
+        + '<span style="font-size:14px;font-weight:400;color:var(--muted)"> 分</span></div>'
+        + '<div class="mini-card-stats">'
+        + '<span><div class="ms-label">播放</div><div class="ms-val">' + fmtNum(v.plays) + '</div></span>'
+        + '<span><div class="ms-label">轉發率</div><div class="ms-val">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div></span>'
+        + '<span><div class="ms-label">留言率</div><div class="ms-val">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div></span>'
+        + '</div>'
+        + '<div class="mini-card-why">' + whyGood(v) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  var fbPlays = fbWeek.reduce(function(s,v){return s+(v.plays||0);},0);
+  var igPlays = igWeek.reduce(function(s,v){return s+(v.plays||0);},0);
+  var fbGood  = fbWeek.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
+  var igGood  = igWeek.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
+  document.getElementById('platGrid').innerHTML =
+    platCard('📘','Facebook',fbWeek.length,fbAvg,fbPlays,fbGood) +
+    platCard('📸','Instagram',igWeek.length,igAvg,igPlays,igGood);
+
+  var t1 = week.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
+  var t2 = week.filter(function(v){return loyaltyTier(v)==='tier2';}).length;
+  var t3 = week.filter(function(v){return loyaltyTier(v)==='tier3';}).length;
+  var tot = week.length || 1;
+  document.getElementById('perfDist').innerHTML =
+    '<div class="perf-dist-title">共 ' + week.length + ' 支影片的忠實度分佈（原粉留言＋轉發率）</div>'
+    + '<div class="perf-dist-rows">'
+    + perfDistRow('#1a9e95','🟢 優質',t1,tot,'留言＋轉發率 ≥ 3%')
+    + perfDistRow('#b5924e','🟡 正常',t2,tot,'互動率 1–3%')
+    + perfDistRow('#be3a67','🔴 待優化',t3,tot,'互動率 < 1%，建議複盤')
+    + '</div>';
+}
+
+function kpiCard(label, val, sub, accent) {
+  return '<div class="kpi-card">'
+    + '<div class="kpi-label">' + label + '</div>'
+    + '<div class="kpi-val">' + val + '</div>'
+    + '<div class="kpi-sub">' + sub + '</div>'
+    + '<div class="kpi-accent" style="background:' + accent + '"></div>'
+    + '</div>';
+}
+
+function platCard(icon, name, count, avgSc, plays, goodCnt) {
+  return '<div class="plat-card">'
+    + '<div class="plat-head"><span class="plat-icon">' + icon + '</span>'
+    + '<span class="plat-name">' + name + '</span>'
+    + '<span class="plat-count">' + count + ' 支</span></div>'
+    + '<div class="plat-stat-grid">'
+    + '<div class="plat-stat"><div class="plat-stat-label">平均評分</div><div class="plat-stat-val">' + (count ? avgSc : '—') + '</div></div>'
+    + '<div class="plat-stat"><div class="plat-stat-label">本週播放</div><div class="plat-stat-val">' + fmtNum(plays) + '</div></div>'
+    + '<div class="plat-stat"><div class="plat-stat-label">優質影片</div><div class="plat-stat-val" style="color:var(--teal)">' + goodCnt + ' 支</div></div>'
+    + '<div class="plat-stat"><div class="plat-stat-label">優質率</div><div class="plat-stat-val">' + (count ? Math.round(goodCnt/count*100) : '—') + '%</div></div>'
+    + '</div></div>';
+}
+
+function perfDistRow(color, label, count, total, desc) {
+  var pct = Math.round(count / total * 100);
+  return '<div class="perf-dist-row">'
+    + '<div class="perf-dot" style="background:' + color + '"></div>'
+    + '<div class="perf-label">' + label + '</div>'
+    + '<div class="perf-bar-wrap"><div class="perf-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+    + '<div class="perf-count">' + count + '</div>'
+    + '<div class="perf-desc">' + desc + '</div>'
+    + '</div>';
+}
+
+// ── 影片詳細 ──────────────────────────────────────────────────────────────
+function initDetail() {
+  var snapshotDate = STATIC_DATA.snapshot_date;
+  var grid  = document.getElementById('detailGrid');
+  var label = document.getElementById('detailLabel');
+  var videos = STATIC_DATA.videos.filter(function(v) {
     return v.created_date === snapshotDate;
   }).sort(function(a, b) { return b.score - a.score; });
 
-  label.textContent = '影片成效 · ' + snapshotDate + ' · 共 ' + videos.length + ' 支';
-
+  label.textContent = '影片詳細 · ' + snapshotDate + ' · 共 ' + videos.length + ' 支';
   if (videos.length === 0) {
     grid.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>此日無影片發布</h3></div>';
     return;
   }
-
-  const tier3 = videos.filter(function(v) { return loyaltyTier(v) === 'tier3'; });
-  const banner = document.getElementById('alertBanner');
+  var tier3 = videos.filter(function(v) { return loyaltyTier(v) === 'tier3'; });
   if (tier3.length > 0) {
-    banner.classList.remove('hidden');
+    document.getElementById('alertBanner').classList.remove('hidden');
     document.getElementById('alertCount').textContent = tier3.length;
   }
-
   grid.innerHTML = '<div class="yday-grid">' + videos.map(function(v, i) { return renderVideoCard(v, i); }).join('') + '</div>';
   videos.forEach(function(v, i) { drawRing(document.getElementById('ring-' + i), v.score); });
 }
 
-// ── 長期排行 ──────────────────────────────────────────────────────────────────
+// ── 排行榜 ────────────────────────────────────────────────────────────────
 function renderTop10() {
-  const platF = document.getElementById('platFilter').value;
-  const days  = Number(activePeriod);
-
-  var data = STATIC_DATA.videos.filter(function(v) { return v.type === currentTop20Type; });
+  var platF = document.getElementById('platFilter').value;
+  var days  = Number(activePeriod);
+  var data  = STATIC_DATA.videos.filter(function(v) { return v.type === currentTop20Type; });
   if (platF !== 'all') data = data.filter(function(v) { return v.platform === platF; });
   data = data.filter(function(v) { return daysBetween(v.created_time) <= days; });
   data.sort(function(a, b) { return b.score - a.score; });
   var top10 = data.slice(0, 10);
+
+  var insightBox = document.getElementById('insightBox');
+  if (top10.length > 0) {
+    insightBox.classList.remove('hidden');
+    document.getElementById('insightBody').innerHTML = buildHighlight(top10[0]);
+  } else {
+    insightBox.classList.add('hidden');
+  }
 
   if (top10.length === 0) {
     document.getElementById('rankingTable').innerHTML = '<div class="loading-row">暫無符合條件的影片</div>';
     return;
   }
 
-  var rankClass = function(i) { return i===0?'gold-r':i===1?'silver-r':i===2?'bronze-r':''; };
+  var rankClass  = function(i) { return i===0?'gold-r':i===1?'silver-r':i===2?'bronze-r':''; };
   var scoreClass = currentTop20Type === 'traffic' ? 't-score' : 'c-score';
   var colHeaders = currentTop20Type === 'traffic'
     ? ['#','影片','評分','播放','轉發率','留言率','觸及偏離','']
     : ['#','影片','評分','播放','留言率','觸及偏離','儲存/新粉',''];
 
   var rows = top10.map(function(v, i) {
-    var dev = reachDev(v);
-    var devPct = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
-    var devColor = dev >= 0.05 ? '#1a9e95' : dev <= -0.05 ? 'var(--rose)' : '#7a6428';
+    var dev     = reachDev(v);
+    var devPct  = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
+    var devColor = dev >= 0.05 ? '#1a9e95' : dev <= -0.05 ? 'var(--warn)' : '#7a6428';
     var daysOld = daysBetween(v.created_time);
-    var extra = v.platform === 'ig' ? fmtNum(v.saved || 0) : '+' + (v.newFollowers || 0);
-    var title = (v.description || v.caption || '');
-    var titleShort = title.slice(0, 60) + (title.length > 60 ? '…' : '');
+    var extra   = v.platform === 'ig' ? fmtNum(v.saved || 0) : '+' + (v.newFollowers || 0);
+    var title   = v.description || v.caption || '';
     var cols;
     if (currentTop20Type === 'traffic') {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title">' + titleShort + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title">' + title + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -396,7 +652,7 @@ function renderTop10() {
     } else {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title">' + titleShort + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title">' + title + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -427,33 +683,42 @@ function switchTop20(type, el) {
   renderTop10();
 }
 
-// ── Tab 切換 ──────────────────────────────────────────────────────────────────
-var top20Initiated = false;
+// ── Tab 切換 ──────────────────────────────────────────────────────────────
+var initiated = { overview: false, top20: false, detail: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById('sec-' + id).classList.add('active');
   el.classList.add('active');
-  if (id === 'top20' && !top20Initiated) {
-    top20Initiated = true;
-    renderTop10();
+  if (!initiated[id]) {
+    initiated[id] = true;
+    if (id === 'overview') initOverview();
+    if (id === 'top20') renderTop10();
+    if (id === 'detail') initDetail();
   }
 }
 
 function mobileSwitchTab(id, el) {
-  var tabMap = { yesterday: 0, top20: 1 };
+  var tabMap = { overview: 0, top20: 1, detail: 2 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]]) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
   el.classList.add('active');
 }
 
-// ── 初始化 ────────────────────────────────────────────────────────────────────
+// ── 標題點擊展開 ──────────────────────────────────────────────────────────
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('vcard-title') || e.target.classList.contains('rt-title')) {
+    e.target.classList.toggle('expanded');
+  }
+});
+
+// ── 初始化 ────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('snapshotBadge').textContent =
-    '📸 快照 · ' + STATIC_DATA.generated_at;
-  initYesterday();
+  document.getElementById('snapshotBadge').textContent = '📸 快照 · ' + STATIC_DATA.generated_at;
+  initiated.overview = true;
+  initOverview();
 });
 </script>
 </body>

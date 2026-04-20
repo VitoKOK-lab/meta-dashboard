@@ -2,8 +2,16 @@ name: 每日儀表板更新
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 台灣時間每天早上 10:00（UTC 02:00）
-  workflow_dispatch:        # 手動觸發
+    - cron: '0 2 * * 2-7'   # 台灣時間每天早上 10:00（UTC 02:00），週二到週日
+    - cron: '0 16 * * 0'    # 台灣時間週一 00:00（UTC 週日 16:00），執行 weekly 90天模式
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '執行模式'
+        required: false
+        default: 'incremental'
+        type: choice
+        options: [incremental, weekly, full]
 
 jobs:
   update:
@@ -27,13 +35,27 @@ jobs:
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
         run: |
-          # 週一（weekday=1）加 --weekly，更新近 90 天 insights
-          DAY=$(date +%u)
-          if [ "$DAY" = "1" ]; then
-            echo "週一：執行 weekly 模式（90天 insights）"
-            python pipeline.py --weekly
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ github.event.inputs.mode }}"
           else
-            echo "平日：執行 incremental 模式（28天 insights）"
+            # 週日 16:00 UTC = 週一 00:00 台灣時間
+            DOW=$(date -u +%u)
+            HOUR=$(date -u +%H)
+            if [ "$DOW" = "7" ] && [ "$HOUR" = "16" ]; then
+              MODE="weekly"
+            else
+              MODE="incremental"
+            fi
+          fi
+
+          if [ "$MODE" = "weekly" ]; then
+            echo "週一午夜：執行 weekly 模式（90天 insights）"
+            python pipeline.py --weekly
+          elif [ "$MODE" = "full" ]; then
+            echo "執行 full 重建模式"
+            python pipeline.py --full
+          else
+            echo "執行 incremental 模式（28天 insights）"
             python pipeline.py
           fi
 
