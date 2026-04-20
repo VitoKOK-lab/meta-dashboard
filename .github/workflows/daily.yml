@@ -2,8 +2,8 @@ name: 每日儀表板更新
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 台灣時間早上 10:00（UTC 02:00）
-  workflow_dispatch:        # 也可以手動在 GitHub 上按按鈕觸發
+    - cron: '0 2 * * *'   # 台灣時間每天早上 10:00（UTC 02:00）
+  workflow_dispatch:        # 手動觸發
 
 jobs:
   update:
@@ -26,7 +26,16 @@ jobs:
       - name: Run pipeline
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
-        run: python pipeline.py
+        run: |
+          # 週一（weekday=1）加 --weekly，更新近 90 天 insights
+          DAY=$(date +%u)
+          if [ "$DAY" = "1" ]; then
+            echo "週一：執行 weekly 模式（90天 insights）"
+            python pipeline.py --weekly
+          else
+            echo "平日：執行 incremental 模式（28天 insights）"
+            python pipeline.py
+          fi
 
       - name: Commit and push
         run: |

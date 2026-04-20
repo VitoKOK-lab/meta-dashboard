@@ -51,7 +51,8 @@ TEMPLATE_PATH = os.path.join(BASE_DIR, 'template.html')
 OUTPUT_PATH   = os.path.join(BASE_DIR, 'index.html')
 API_BASE      = 'https://graph.facebook.com/v19.0'
 
-INSIGHTS_REFRESH_DAYS = 28
+INSIGHTS_REFRESH_DAYS = 28   # 每天：更新 28 天內的 insights
+INSIGHTS_WEEKLY_DAYS  = 90   # 每週一：更新 90 天內的 insights
 HTML_EMBED_DAYS       = 90
 
 # ── 時區（台灣 UTC+8）────────────────────────────────────────────────────────
@@ -392,7 +393,9 @@ def generate_html(recent_videos, avg_fb, avg_ig):
 
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 def main():
-    force_full = '--full' in sys.argv
+    force_full   = '--full'   in sys.argv
+    force_weekly = '--weekly' in sys.argv
+    refresh_days = INSIGHTS_WEEKLY_DAYS if force_weekly else INSIGHTS_REFRESH_DAYS
     print('=' * 50)
     print('  泰熙爾札娜 IP 儀表板 pipeline')
     print('  {}'.format(tw_now().strftime('%Y-%m-%d %H:%M')))
@@ -431,8 +434,8 @@ def main():
 
     # 步驟 2：更新 insights
     print('\n[2] 更新 Insights...')
-    stale = get_stale_ids(videos_dict)
-    print('  需更新: {} 支'.format(len(stale)))
+    stale = get_stale_ids(videos_dict, refresh_days=refresh_days)
+    print('  需更新: {} 支（{}天內）'.format(len(stale), refresh_days))
     if stale:
         insights_map = fetch_insights_for(stale)
         now_iso = utc_now().isoformat()

@@ -263,7 +263,7 @@ function renderRetentionStrip(retention) {
   const segs = retention.map(function(v) {
     const pct = (v / max * 100).toFixed(0);
     const alpha = (0.2 + (v / max) * 0.8).toFixed(2);
-    return '<div class="ret-seg" style="height:' + Math.max(pct, 4) + '%;background:rgba(230,0,126,' + alpha + ')"></div>';
+    return '<div class="ret-seg" style="height:' + Math.max(pct, 4) + '%;background:rgba(0,0,0,' + alpha + ')"></div>';
   }).join('');
   const last = retention[retention.length - 1];
   return '<div class="retention-strip"><div class="retention-label">觀眾續看率曲線 · 完播率 ' + (last * 100).toFixed(1) + '%</div><div class="retention-bar">' + segs + '</div></div>';
