@@ -310,19 +310,44 @@ function reachDev(v) {
 function loyaltyRate(v) {
   return v.plays > 0 ? ((v.comments + v.shares) / v.plays * 100) : 0;
 }
+
+// 動態門檻：依自身資料的 30th / 70th 百分位數計算
+var LOYALTY_HIGH, LOYALTY_LOW;
+(function() {
+  var rates = STATIC_DATA.videos
+    .filter(function(v){ return v.plays > 0; })
+    .map(function(v){ return loyaltyRate(v); })
+    .sort(function(a,b){ return a-b; });
+  if (rates.length < 5) { LOYALTY_HIGH = 3; LOYALTY_LOW = 1; return; }
+  LOYALTY_HIGH = rates[Math.floor(rates.length * 0.7)];
+  LOYALTY_LOW  = rates[Math.floor(rates.length * 0.3)];
+})();
+
 function loyaltyTier(v) {
   var r = loyaltyRate(v);
-  return r >= 3 ? 'tier1' : r >= 1 ? 'tier2' : 'tier3';
+  return r >= LOYALTY_HIGH ? 'tier1' : r >= LOYALTY_LOW ? 'tier2' : 'tier3';
 }
 function tierLabel(lt) {
   return { tier1:'🟢 優質', tier2:'🟡 正常', tier3:'🔴 待優化' }[lt];
 }
 function tierExplain(lt) {
+  var h = LOYALTY_HIGH != null ? LOYALTY_HIGH.toFixed(2) : '—';
+  var l = LOYALTY_LOW  != null ? LOYALTY_LOW.toFixed(2)  : '—';
   return {
-    tier1:'原粉留言＋轉發率 ≥ 3%，內容共鳴強',
-    tier2:'原粉互動率 1–3%，屬正常水準',
-    tier3:'原粉互動率 < 1%，建議檢討開場吸引力或內容方向'
+    tier1: '原粉互動率 ≥ ' + h + '%，高於頻道七成影片',
+    tier2: '原粉互動率 ' + l + '–' + h + '%，屬頻道正常水準',
+    tier3: '原粉互動率 < ' + l + '%，低於頻道三成影片，建議複盤'
   }[lt];
+}
+
+// 標題截斷（14字）
+function truncTitle(s, len) {
+  len = len || 14;
+  if (!s) return '';
+  return s.length > len ? s.slice(0, len) + '…' : s;
+}
+function escAttr(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
 
 // ── 為何表現好 ────────────────────────────────────────────────────────────
@@ -450,7 +475,7 @@ function renderVideoCard(v, idx) {
     + '<span class="badge ' + v.platform + '">' + (v.platform === 'fb' ? '📘 FB' : '📸 IG') + '</span>'
     + '<span class="badge ' + lt + '">' + tl + '</span>'
     + '</div>'
-    + '<div class="vcard-title">' + title + '</div>'
+    + '<div class="vcard-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div>'
     + '<div class="vcard-date">' + fmtDate(v.created_time) + ' 發布 · ' + vidLen + '</div>'
     + '</div>'
     + '<div class="score-ring"><canvas id="ring-' + idx + '"></canvas>'
@@ -480,8 +505,12 @@ function initOverview() {
   var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
 
   var avgScore = week.length ? Math.round(week.reduce(function(s,v){return s+v.score;},0)/week.length) : 0;
+  var allAvg   = all.length  ? Math.round(all.reduce(function(s,v){return s+v.score;},0)/all.length)  : 0;
+  var scoreDiff = avgScore - allAvg;
+  var scoreDiffStr = (scoreDiff >= 0 ? '+' : '') + scoreDiff;
   var goodCnt  = week.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
   var goodPct  = week.length ? Math.round(goodCnt/week.length*100) : 0;
+  var allGoodPct = all.length ? Math.round(all.filter(function(v){return loyaltyTier(v)==='tier1';}).length/all.length*100) : 0;
   var fbWeek   = week.filter(function(v){return v.platform==='fb';});
   var igWeek   = week.filter(function(v){return v.platform==='ig';});
   var fbAvg    = fbWeek.length ? Math.round(fbWeek.reduce(function(s,v){return s+v.score;},0)/fbWeek.length) : 0;
@@ -490,11 +519,11 @@ function initOverview() {
 
   document.getElementById('kpiGrid').innerHTML = [
     kpiCard('本週影片', week.length + ' 支', '過去 7 天發布', 'var(--teal)'),
-    kpiCard('週均評分', avgScore + ' 分', '滿分 100',
-      avgScore >= 70 ? 'var(--teal)' : avgScore >= 55 ? 'var(--gold)' : 'var(--warn)'),
+    kpiCard('週均評分', avgScore + ' 分', '頻道均值 ' + allAvg + ' 分（本週 ' + scoreDiffStr + '）',
+      scoreDiff >= 0 ? 'var(--teal)' : 'var(--gold)'),
     kpiCard('最佳平台', bestPlat, 'FB ' + fbAvg + '分 vs IG ' + igAvg + '分', 'var(--gold)'),
-    kpiCard('優質率', goodPct + '%', goodCnt + ' 支達優質（忠實度 ≥ 3%）',
-      goodPct >= 50 ? 'var(--teal)' : 'var(--gold)'),
+    kpiCard('優質率', goodPct + '%', '頻道均值 ' + allGoodPct + '%（依頻道標準）',
+      goodPct >= allGoodPct ? 'var(--teal)' : 'var(--gold)'),
   ].join('');
 
   var sorted = week.slice().sort(function(a,b){return b.score-a.score;}).slice(0,3);
@@ -511,7 +540,7 @@ function initOverview() {
       return '<div class="mini-card">'
         + '<div class="mini-card-rank"><span class="mini-rank-num ' + rankCls[i] + '">' + (i+1) + '</span>'
         + rankNames[i] + platBadge + '</div>'
-        + '<div class="mini-card-title">' + (v.description || v.caption || '') + '</div>'
+        + '<div class="mini-card-title">' + truncTitle(v.description || v.caption || '', 28) + '</div>'
         + '<div class="mini-score" style="color:' + scoreColor + '">' + v.score
         + '<span style="font-size:14px;font-weight:400;color:var(--muted)"> 分</span></div>'
         + '<div class="mini-card-stats">'
@@ -536,12 +565,14 @@ function initOverview() {
   var t2 = week.filter(function(v){return loyaltyTier(v)==='tier2';}).length;
   var t3 = week.filter(function(v){return loyaltyTier(v)==='tier3';}).length;
   var tot = week.length || 1;
+  var lh = LOYALTY_HIGH != null ? LOYALTY_HIGH.toFixed(2) : '—';
+  var ll = LOYALTY_LOW  != null ? LOYALTY_LOW.toFixed(2)  : '—';
   document.getElementById('perfDist').innerHTML =
-    '<div class="perf-dist-title">共 ' + week.length + ' 支影片的忠實度分佈（原粉留言＋轉發率）</div>'
+    '<div class="perf-dist-title">共 ' + week.length + ' 支影片的忠實度分佈（門檻依頻道自身資料計算）</div>'
     + '<div class="perf-dist-rows">'
-    + perfDistRow('#1a9e95','🟢 優質',t1,tot,'留言＋轉發率 ≥ 3%')
-    + perfDistRow('#b5924e','🟡 正常',t2,tot,'互動率 1–3%')
-    + perfDistRow('#be3a67','🔴 待優化',t3,tot,'互動率 < 1%，建議複盤')
+    + perfDistRow('#1a9e95','🟢 優質',t1,tot,'互動率 ≥ ' + lh + '%（頻道前 30%）')
+    + perfDistRow('#b5924e','🟡 正常',t2,tot,'互動率 ' + ll + '–' + lh + '%')
+    + perfDistRow('#be3a67','🔴 待優化',t3,tot,'互動率 < ' + ll + '%（頻道後 30%）')
     + '</div>';
 }
 
@@ -641,7 +672,7 @@ function renderTop10() {
     if (currentTop20Type === 'traffic') {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title">' + title + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -652,7 +683,7 @@ function renderTop10() {
     } else {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title">' + title + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -709,8 +740,16 @@ function mobileSwitchTab(id, el) {
 
 // ── 標題點擊展開 ──────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
-  if (e.target.classList.contains('vcard-title') || e.target.classList.contains('rt-title')) {
-    e.target.classList.toggle('expanded');
+  var el = e.target;
+  if (el.classList.contains('vcard-title') || el.classList.contains('rt-title')) {
+    var full = el.dataset.full || el.textContent;
+    if (el.classList.contains('expanded')) {
+      el.textContent = truncTitle(full);
+      el.classList.remove('expanded');
+    } else {
+      el.textContent = full;
+      el.classList.add('expanded');
+    }
   }
 });
 
