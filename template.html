@@ -775,7 +775,7 @@ function perfDistRow(color, label, count, total, desc, videos, panelId) {
     var platLabel = v.platform === 'fb' ? '📘FB' : '📸IG';
     return '<div class="perf-panel-row">'
       + '<div style="color:var(--muted)">' + fmtDate(v.created_time) + '</div>'
-      + '<div class="perf-panel-title" title="' + escAttr(v.description||v.caption||'') + '">' + truncTitle(v.description||v.caption||'') + sitTag(v) + '</div>'
+      + '<div class="rt-title" data-full="' + escAttr(v.description||v.caption||'') + '">' + truncTitle(v.description||v.caption||'') + sitTag(v) + '</div>'
       + '<div>' + platLabel + '</div>'
       + '<div style="font-weight:800">' + fmtNum(v.plays) + '</div>'
       + '<div style="font-weight:800">' + lr + '%</div>'
