@@ -964,17 +964,7 @@ function initWaste() {
   var html = '';
 
   // 區塊 1：爛片排行
-  html += '<div class="insight-box" style="border-color:rgba(190,58,103,.3);margin-bottom:14px">'
-    +'<div class="insight-title" style="color:var(--warn)">🚫 低流量低互動 · 建議減少拍攝的主題（'+bad.length+' 支）</div>'
-    +'<div class="waste-advice-title">這些影片同時達到：觸及低於頻道平均 + 觀眾互動率低 → 主題客人不買單</div>'
-    +'<div class="waste-stat-row">'
-    +'<div class="waste-stat"><div class="waste-stat-val">'+bad.length+'</div><div class="waste-stat-lbl">低效影片</div></div>'
-    +'<div class="waste-stat"><div class="waste-stat-val">'+fmtNum(avgBadPlays)+'</div><div class="waste-stat-lbl">平均播放<br>（頻道中位 '+fmtNum(medAll)+'）</div></div>'
-    +'<div class="waste-stat"><div class="waste-stat-val">'+badComRate+'%</div><div class="waste-stat-lbl">帶貨型佔比</div></div>'
-    +'<div class="waste-stat"><div class="waste-stat-val">'+badFbRate+'%</div><div class="waste-stat-lbl">FB 佔比</div></div>'
-    +'</div>'
-    +(topWords.length ? '<div style="font-size:11px;color:var(--muted);margin-top:8px">高頻出現詞（建議避開這類選題）</div><div class="waste-kw-grid">'+topWords.map(function(w){return '<span class="waste-kw">'+w+' ×'+wordCount[w]+'</span>';}).join('')+'</div>' : '')
-    +'</div>'
+  html += '<div class="slabel" style="margin-bottom:8px">🚫 低流量低互動 · 建議減少拍攝的主題（'+bad.length+' 支）</div>'
     +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-bottom:16px">'
     +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
     +(bad.slice(0,10).map(badRow).join('') || '<div style="padding:12px;text-align:center;color:var(--muted)">暫無符合條件影片</div>')
