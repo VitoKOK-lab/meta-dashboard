@@ -300,9 +300,9 @@ def fetch_video_list(platform, since_days=7):
             # FB：跳過沒有說明文字的影片（直播、純影片等）
             if platform == 'fb' and not cap:
                 continue
-            # FB：只要短影音（600 秒以下），過濾直播或長影片
+            # FB：只要短影音（120 秒以下 = 2 分鐘），過濾直播或長影片
             length = item.get('length')
-            if platform == 'fb' and length and length > 600:
+            if platform == 'fb' and length and length > 120:
                 continue
             videos.append({
                 'id':           item['id'],
@@ -376,8 +376,7 @@ def generate_html(recent_videos, avg_fb, avg_ig):
         sys.exit(1)
     with open(TEMPLATE_PATH, 'r', encoding='utf-8') as f:
         template = f.read()
-    dates = [v.get('created_date', '') for v in recent_videos if v.get('created_date')]
-    snapshot_date = max(dates) if dates else tw_yesterday()
+    snapshot_date = tw_yesterday()
     payload = {
         'generated_at':  tw_now().strftime('%Y-%m-%d %H:%M'),
         'snapshot_date': snapshot_date,
@@ -402,6 +401,8 @@ def main():
     videos_dict = load_db()
     is_first = len(videos_dict) == 0 or force_full
     fetch_days = 90 if is_first else 7
+    if force_full:
+        videos_dict = {}  # 清空，從頭重建
 
     if is_first:
         print('\n[全量模式] 抓取近 90 天...')
