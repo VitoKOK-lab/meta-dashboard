@@ -97,6 +97,23 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .perf-panel-title{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:640px){.perf-panel-row{grid-template-columns:60px 1fr 50px}.perf-panel-row>div:nth-child(n+4){display:none}}
 
+/* ── 低效分析頁 ── */
+.waste-advice{background:rgba(190,58,103,.06);border:1px solid rgba(190,58,103,.2);border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.8}
+.waste-advice-title{font-weight:900;font-size:13px;margin-bottom:6px;color:var(--warn)}
+.waste-kw-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.waste-kw{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(190,58,103,.1);color:var(--warn)}
+.waste-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.waste-stat{flex:1;min-width:110px;background:var(--off);border-radius:8px;padding:10px 12px;text-align:center}
+.waste-stat-val{font-size:18px;font-weight:900;color:var(--warn)}
+.waste-stat-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+/* 忠實度 per-video 情境標籤 */
+.sit-tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:3px;margin-left:6px;vertical-align:middle}
+.sit-no-engage{background:rgba(251,146,60,.15);color:#c2580a}
+.sit-no-reach{background:rgba(99,102,241,.15);color:#4f46e5}
+.sit-both-low{background:rgba(190,58,103,.12);color:var(--warn)}
+/* 行動建議 */
+.tier-advice{background:var(--off);border-left:3px solid var(--border);border-radius:0 6px 6px 0;padding:10px 14px;margin:8px 0 4px;font-size:12px;line-height:1.7;color:var(--text)}
+
 /* ── 爆流量警報 ── */
 .viral-alert{background:linear-gradient(135deg,rgba(239,68,68,.07),rgba(251,146,60,.07));border:1.5px solid rgba(239,68,68,.35);border-radius:var(--r);padding:14px 16px}
 .viral-hdr{font-size:13px;font-weight:900;color:#e03030;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -233,6 +250,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="tab active" onclick="switchTab('overview',this)">📊 總覽</div>
     <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
     <div class="tab" onclick="switchTab('detail',this)">🎬 影片詳細</div>
+    <div class="tab" onclick="switchTab('waste',this)">🚫 低效分析</div>
   </div>
 </div>
 
@@ -286,6 +304,12 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     </div>
   </div>
 
+  <!-- 低效分析 -->
+  <div class="section" id="sec-waste">
+    <div class="slabel">🚫 低效影片分析 · 客人不買單的主題</div>
+    <div id="wasteContent"></div>
+  </div>
+
   <!-- 影片詳細 -->
   <div class="section" id="sec-detail">
     <div class="alert-banner hidden" id="alertBanner">
@@ -301,6 +325,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>總覽</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
     <div class="mob-tab" onclick="mobileSwitchTab('detail',this)"><span class="mi">🎬</span>詳細</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('waste',this)"><span class="mi">🚫</span>低效</div>
   </div>
 </div>
 
@@ -726,14 +751,32 @@ function platCard(icon, name, count, avgSc, plays, goodCnt) {
     + '</div></div>';
 }
 
+function sitTag(v) {
+  var dev = reachDev(v);
+  var lt  = loyaltyTier(v);
+  if (lt === 'tier3' && dev >= -0.1)  return '<span class="sit-tag sit-no-engage">有流量沒互動</span>';
+  if (lt === 'tier3' && dev < -0.1)   return '<span class="sit-tag sit-both-low">低流量低互動</span>';
+  if (lt !== 'tier3' && dev < -0.3)   return '<span class="sit-tag sit-no-reach">低流量高互動</span>';
+  return '';
+}
+var TIER_ADVICE = {
+  tier1: '<div class="tier-advice" style="border-color:#1a9e95">✅ <strong>複製這類腳本</strong>：粉絲黏度高，這種主題/形式是你的強項。考慮同系列再拍，或直接重新剪輯投廣。</div>',
+  tier2: '<div class="tier-advice">📌 <strong>觀察趨勢即可</strong>：屬於頻道正常水準，不需要特別優化，持續產出保持節奏。</div>',
+  tier3: '<div class="tier-advice" style="border-color:var(--warn)">'
+    + '⚡ <strong>有流量沒互動</strong>：演算法有在推，但觀眾看完就走。→ 結尾加互動問句（「你覺得呢？留言告訴我」），或在影片中加入更明確的購買 CTA。<br>'
+    + '🚫 <strong>低流量低互動</strong>：這類主題客人不買單。→ 分析共同特徵（見低效分析頁），這類選題要少拍或完全換方向。<br>'
+    + '💎 <strong>低流量高互動</strong>：鐵粉很喜歡但演算法沒推。→ 換個封面/標題重新發，或考慮小額投廣，這種片值得復活。'
+    + '</div>',
+};
 function perfDistRow(color, label, count, total, desc, videos, panelId) {
   var pct = Math.round(count / total * 100);
+  var tier = panelId === 'panel-t1' ? 'tier1' : panelId === 'panel-t2' ? 'tier2' : 'tier3';
   var panelRows = videos.slice().sort(function(a,b){ return b.plays-a.plays; }).map(function(v) {
     var lr = loyaltyRate(v).toFixed(2);
     var platLabel = v.platform === 'fb' ? '📘FB' : '📸IG';
     return '<div class="perf-panel-row">'
       + '<div style="color:var(--muted)">' + fmtDate(v.created_time) + '</div>'
-      + '<div class="perf-panel-title" title="' + escAttr(v.description||v.caption||'') + '">' + truncTitle(v.description||v.caption||'') + '</div>'
+      + '<div class="perf-panel-title" title="' + escAttr(v.description||v.caption||'') + '">' + truncTitle(v.description||v.caption||'') + sitTag(v) + '</div>'
       + '<div>' + platLabel + '</div>'
       + '<div style="font-weight:800">' + fmtNum(v.plays) + '</div>'
       + '<div style="font-weight:800">' + lr + '%</div>'
@@ -749,6 +792,7 @@ function perfDistRow(color, label, count, total, desc, videos, panelId) {
     + '<button class="perf-toggle" onclick="togglePanel(\'' + panelId + '\',this)">' + count + ' 支 ▾</button>'
     + '</div>'
     + '<div class="perf-panel" id="' + panelId + '">'
+    + (TIER_ADVICE[tier] || '')
     + '<div class="perf-panel-row perf-panel-head"><div>日期</div><div>影片標題</div><div>平台</div><div>播放</div><div>互動率</div></div>'
     + (panelRows || '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px">本週無此類影片</div>')
     + '</div>'
@@ -861,8 +905,108 @@ function switchTop20(type, el) {
   renderTop10();
 }
 
+// ── 低效分析 ──────────────────────────────────────────────────────────────
+function initWaste() {
+  var all = STATIC_DATA.videos.filter(function(v){ return (v.plays||0) > 0; });
+  // 爛片 = 低互動 + 低觸及（低流量低互動）
+  var bad = all.filter(function(v){
+    return loyaltyTier(v) === 'tier3' && reachDev(v) < -0.1;
+  }).sort(function(a,b){ return a.score - b.score; });
+
+  // 有流量沒互動（另一類需關注）
+  var noEngage = all.filter(function(v){
+    return loyaltyTier(v) === 'tier3' && reachDev(v) >= -0.1;
+  }).sort(function(a,b){ return a.score - b.score; });
+
+  // 低流量高互動（潛力片）
+  var hidden = all.filter(function(v){
+    return loyaltyTier(v) !== 'tier3' && reachDev(v) < -0.3;
+  }).sort(function(a,b){ return b.plays - a.plays; });
+
+  // 關鍵詞分析（從爛片標題取高頻詞）
+  var stopWords = '的了是在我你他她它這那就都也很到說要去好不大沒來可會但和與及而或所如為上下中之以被得著過嗎呢啊喔哦吧呀一個有人片影片我們泰熙爾札娜IP'.split('');
+  var wordCount = {};
+  bad.slice(0,20).forEach(function(v){
+    var text = (v.description || v.caption || '').replace(/[！？，。、「」【】\n\r!?,.]/g,' ');
+    text.split(/\s+/).forEach(function(w){
+      w = w.trim();
+      if (w.length < 2) return;
+      if (w.charAt(0) === '#') return;  // 排除 hashtag
+      var isStop = stopWords.some(function(s){ return w === s; });
+      if (isStop) return;
+      wordCount[w] = (wordCount[w]||0) + 1;
+    });
+  });
+  var topWords = Object.keys(wordCount).filter(function(w){ return wordCount[w] >= 2; })
+    .sort(function(a,b){ return wordCount[b]-wordCount[a]; }).slice(0,12);
+
+  var badComRate = bad.length ? Math.round(bad.filter(function(v){return v.type==='commerce';}).length/bad.length*100) : 0;
+  var badFbRate  = bad.length ? Math.round(bad.filter(function(v){return v.platform==='fb';}).length/bad.length*100) : 0;
+  var avgBadPlays = bad.length ? Math.round(bad.reduce(function(s,v){return s+(v.plays||0);},0)/bad.length) : 0;
+  var medAll = (function(){
+    var ps = all.map(function(v){return v.plays||0;}).sort(function(a,b){return a-b;});
+    return ps.length ? ps[Math.floor(ps.length/2)] : 1;
+  })();
+
+  function badRow(v,i){
+    var dev = reachDev(v); var devStr = (dev>=0?'+':'')+(dev*100).toFixed(0)+'%';
+    var lr = loyaltyRate(v).toFixed(2);
+    return '<div class="perf-panel-row" style="background:'+(i%2?'var(--off)':'')+';">'
+      +'<div style="color:var(--muted)">'+(i+1)+'</div>'
+      +'<div class="perf-panel-title">'+truncTitle(v.description||v.caption||'')+'</div>'
+      +'<div style="font-size:10px">'+(v.platform==='fb'?'📘':'📸')+'</div>'
+      +'<div style="font-weight:800">'+fmtNum(v.plays||0)+'</div>'
+      +'<div style="color:var(--warn);font-weight:800">'+lr+'%</div>'
+      +'<div style="color:var(--warn);font-size:11px">觸及 '+devStr+'</div>'
+      +'</div>';
+  }
+
+  var html = '';
+
+  // 區塊 1：爛片排行
+  html += '<div class="insight-box" style="border-color:rgba(190,58,103,.3);margin-bottom:14px">'
+    +'<div class="insight-title" style="color:var(--warn)">🚫 低流量低互動 · 建議減少拍攝的主題（'+bad.length+' 支）</div>'
+    +'<div class="waste-advice-title">這些影片同時達到：觸及低於頻道平均 + 觀眾互動率低 → 主題客人不買單</div>'
+    +'<div class="waste-stat-row">'
+    +'<div class="waste-stat"><div class="waste-stat-val">'+bad.length+'</div><div class="waste-stat-lbl">低效影片</div></div>'
+    +'<div class="waste-stat"><div class="waste-stat-val">'+fmtNum(avgBadPlays)+'</div><div class="waste-stat-lbl">平均播放<br>（頻道中位 '+fmtNum(medAll)+'）</div></div>'
+    +'<div class="waste-stat"><div class="waste-stat-val">'+badComRate+'%</div><div class="waste-stat-lbl">帶貨型佔比</div></div>'
+    +'<div class="waste-stat"><div class="waste-stat-val">'+badFbRate+'%</div><div class="waste-stat-lbl">FB 佔比</div></div>'
+    +'</div>'
+    +(topWords.length ? '<div style="font-size:11px;color:var(--muted);margin-top:8px">高頻出現詞（建議避開這類選題）</div><div class="waste-kw-grid">'+topWords.map(function(w){return '<span class="waste-kw">'+w+' ×'+wordCount[w]+'</span>';}).join('')+'</div>' : '')
+    +'</div>'
+    +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-bottom:16px">'
+    +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+    +(bad.slice(0,10).map(badRow).join('') || '<div style="padding:12px;text-align:center;color:var(--muted)">暫無符合條件影片</div>')
+    +'</div>';
+
+  // 區塊 2：有流量沒互動
+  if (noEngage.length) {
+    html += '<div class="insight-box" style="border-color:rgba(251,146,60,.4);margin-bottom:14px">'
+      +'<div class="insight-title" style="color:#c2580a">⚡ 有流量沒互動（'+noEngage.length+' 支）· 有機會翻身</div>'
+      +'<div style="font-size:12px;line-height:1.7">演算法有在推，但觀眾看完就走。<strong>行動</strong>：①結尾加互動問句 ②加強 CTA「留言+1 領取」 ③前 3 秒鉤子要更強</div>'
+      +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-top:10px">'
+      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+      +noEngage.slice(0,5).map(badRow).join('')
+      +'</div></div>';
+  }
+
+  // 區塊 3：潛力片
+  if (hidden.length) {
+    html += '<div class="insight-box" style="border-color:rgba(99,102,241,.3);margin-bottom:14px">'
+      +'<div class="insight-title" style="color:#4f46e5">💎 低流量高互動（'+hidden.length+' 支）· 鐵粉喜歡但沒被推</div>'
+      +'<div style="font-size:12px;line-height:1.7"><strong>行動</strong>：①換封面／標題重新發布 ②這類腳本值得重拍或複製 ③小額投廣測試看看</div>'
+      +'<div class="perf-panel open" style="max-height:none;overflow:visible;margin-top:10px">'
+      +'<div class="perf-panel-row perf-panel-head"><div>#</div><div>影片</div><div>平台</div><div>播放</div><div>互動率</div><div>觸及</div></div>'
+      +hidden.slice(0,5).map(badRow).join('')
+      +'</div></div>';
+  }
+
+  document.getElementById('wasteContent').innerHTML = html;
+}
+
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { overview: false, top20: false, detail: false };
+var initiated = { overview: false, top20: false, detail: false, waste: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -874,11 +1018,12 @@ function switchTab(id, el) {
     if (id === 'overview') initOverview();
     if (id === 'top20') renderTop10();
     if (id === 'detail') initDetail();
+    if (id === 'waste') initWaste();
   }
 }
 
 function mobileSwitchTab(id, el) {
-  var tabMap = { overview: 0, top20: 1, detail: 2 };
+  var tabMap = { overview: 0, top20: 1, detail: 2, waste: 3 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]]) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
