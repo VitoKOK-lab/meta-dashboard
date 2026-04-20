@@ -123,7 +123,7 @@ def save_db(videos_dict):
     size_kb = os.path.getsize(DATA_PATH) // 1024
     print('  data/videos.json 已儲存 {} 支 ({} KB)'.format(len(videos_dict), size_kb))
 
-def get_stale_ids(videos_dict):
+def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
     """回傳需要更新 insights 的 (id, platform) 清單"""
     today = utc_now().strftime('%Y-%m-%d')
     stale = []
