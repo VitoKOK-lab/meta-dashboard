@@ -340,6 +340,13 @@ function tierExplain(lt) {
   }[lt];
 }
 
+// 週比週變化
+function wowStr(curr, prev) {
+  if (prev === 0) return curr > 0 ? '上週 0' : '—';
+  var pct = Math.round((curr - prev) / prev * 100);
+  return '上週 ' + fmtNum(prev) + '（' + (pct >= 0 ? '↑' : '↓') + Math.abs(pct) + '%）';
+}
+
 // 標題截斷（14字）
 function truncTitle(s, len) {
   len = len || 14;
@@ -504,29 +511,46 @@ function initOverview() {
   var all  = STATIC_DATA.videos;
   var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
 
-  var weekData = week.filter(function(v){ return v.plays > 0; });
-  var avgScore = weekData.length ? Math.round(weekData.reduce(function(s,v){return s+v.score;},0)/weekData.length) : 0;
-  var allData  = all.filter(function(v){ return v.plays > 0; });
-  var allAvg   = allData.length  ? Math.round(allData.reduce(function(s,v){return s+v.score;},0)/allData.length)  : 0;
-  var scoreDiff = avgScore - allAvg;
-  var scoreDiffStr = (scoreDiff >= 0 ? '+' : '') + scoreDiff;
-  var goodCnt  = week.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
-  var goodPct  = week.length ? Math.round(goodCnt/week.length*100) : 0;
-  var allGoodPct = all.length ? Math.round(all.filter(function(v){return loyaltyTier(v)==='tier1';}).length/all.length*100) : 0;
-  var fbWeek   = week.filter(function(v){return v.platform==='fb';});
-  var igWeek   = week.filter(function(v){return v.platform==='ig';});
-  var fbAvg    = fbWeek.length ? Math.round(fbWeek.reduce(function(s,v){return s+v.score;},0)/fbWeek.length) : 0;
-  var igAvg    = igWeek.length ? Math.round(igWeek.reduce(function(s,v){return s+v.score;},0)/igWeek.length) : 0;
-  var bestPlat = fbAvg >= igAvg ? 'Facebook' : 'Instagram';
+  var prevWeek = all.filter(function(v){ return daysBetween(v.created_time) > 7 && daysBetween(v.created_time) <= 14; });
+  var fbWeek   = week.filter(function(v){ return v.platform==='fb'; });
+  var igWeek   = week.filter(function(v){ return v.platform==='ig'; });
+
+  // KPI 1: 帶貨觸及（潛在買家看到商品的次數）
+  var comWeek      = week.filter(function(v){ return v.type==='commerce'; });
+  var comPlays     = comWeek.reduce(function(s,v){ return s+(v.plays||0); }, 0);
+  var prevComPlays = prevWeek.filter(function(v){ return v.type==='commerce'; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
+
+  // KPI 2: IG 儲存（存起來 = 想買但還沒決定）
+  var igSaves     = igWeek.reduce(function(s,v){ return s+(v.saved||0); }, 0);
+  var prevIgSaves = prevWeek.filter(function(v){ return v.platform==='ig'; }).reduce(function(s,v){ return s+(v.saved||0); }, 0);
+
+  // KPI 3: 帶貨留言率（留言裡含詢問、DM 購買意願）
+  var comPlaysTotal    = comWeek.filter(function(v){ return v.plays>0; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
+  var comCommentsTotal = comWeek.reduce(function(s,v){ return s+(v.comments||0); }, 0);
+  var comCR = comPlaysTotal > 0 ? comCommentsTotal/comPlaysTotal*100 : 0;
+  var allCom = all.filter(function(v){ return v.type==='commerce' && v.plays>0; });
+  var allComCR = allCom.length
+    ? allCom.reduce(function(s,v){ return s+(v.comments||0); },0) / allCom.reduce(function(s,v){ return s+(v.plays||0); },0) * 100
+    : 0;
+
+  // KPI 4: FB 新增粉絲（未來客戶池成長）
+  var fbNewF     = fbWeek.reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
+  var prevFbNewF = prevWeek.filter(function(v){ return v.platform==='fb'; }).reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
 
   document.getElementById('kpiGrid').innerHTML = [
-    kpiCard('本週影片', week.length + ' 支', '過去 7 天發布', 'var(--teal)'),
-    kpiCard('週均評分', avgScore + ' 分', '頻道均值 ' + allAvg + '分 | 本週 ' + scoreDiffStr + '（' + weekData.length + '支有數據）',
-      scoreDiff >= 0 ? 'var(--teal)' : 'var(--gold)'),
-    kpiCard('最佳平台', bestPlat, 'FB ' + fbAvg + '分 vs IG ' + igAvg + '分', 'var(--gold)'),
-    kpiCard('優質率', goodPct + '%', '頻道均值 ' + allGoodPct + '%（依頻道標準）',
-      goodPct >= allGoodPct ? 'var(--teal)' : 'var(--gold)'),
+    kpiCard('🛍 帶貨觸及', fmtNum(comPlays), wowStr(comPlays, prevComPlays) + '・帶貨型影片播放',
+      comPlays >= prevComPlays ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('🔖 IG 儲存', fmtNum(igSaves),  wowStr(igSaves, prevIgSaves) + '・購買意圖最強信號',
+      igSaves >= prevIgSaves ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('💬 帶貨留言率', comCR.toFixed(2) + '%', '頻道均值 ' + allComCR.toFixed(2) + '%・詢問 / DM 意願',
+      comCR >= allComCR ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('👥 FB 新增粉', '+' + fbNewF, wowStr(fbNewF, prevFbNewF) + '・未來客戶池',
+      fbNewF >= prevFbNewF ? 'var(--teal)' : 'var(--warn)'),
   ].join('');
+
+  // 供下方 platGrid / perfDist 使用
+  var fbAvg = fbWeek.length ? Math.round(fbWeek.reduce(function(s,v){return s+v.score;},0)/fbWeek.length) : 0;
+  var igAvg = igWeek.length ? Math.round(igWeek.reduce(function(s,v){return s+v.score;},0)/igWeek.length) : 0;
 
   var sorted = week.slice().sort(function(a,b){return b.score-a.score;}).slice(0,3);
   var rankCls   = ['gold-r','silver-r','bronze-r'];
