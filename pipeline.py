@@ -54,7 +54,7 @@ API_BASE      = 'https://graph.facebook.com/v19.0'
 
 INSIGHTS_REFRESH_DAYS = 28   # 每天：更新 28 天內的 insights
 INSIGHTS_WEEKLY_DAYS  = 90   # 每週一：更新 90 天內的 insights
-HTML_EMBED_DAYS       = 90
+HTML_EMBED_DAYS       = 9999  # 全部影片都嵌入，讓排行榜可以看歷史
 ARCHIVE_STABLE_DAYS   = 15   # 15 天以上流量趨穩，存入長期 archive
 
 # ── 時區（台灣 UTC+8）────────────────────────────────────────────────────────

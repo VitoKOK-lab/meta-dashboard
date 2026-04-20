@@ -257,16 +257,17 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
   <!-- 排行榜 -->
   <div class="section" id="sec-top20">
-    <div class="slabel">長期排行 · Top 10</div>
+    <div class="slabel">長期排行 · Top 15</div>
     <div class="top20-tabs">
-      <div class="t20-tab active traffic" onclick="switchTop20('traffic',this)">📈 流量型 Top 10</div>
-      <div class="t20-tab commerce" onclick="switchTop20('commerce',this)">🛍 帶貨型 Top 10</div>
+      <div class="t20-tab active traffic" onclick="switchTop20('traffic',this)">📈 流量型 Top 15</div>
+      <div class="t20-tab commerce" onclick="switchTop20('commerce',this)">🛍 帶貨型 Top 15</div>
     </div>
     <div class="top20-filters">
       <div class="period-btns">
         <button class="period-btn active" onclick="setPeriod('7',this)">7天</button>
         <button class="period-btn" onclick="setPeriod('30',this)">30天</button>
         <button class="period-btn" onclick="setPeriod('90',this)">90天</button>
+        <button class="period-btn" onclick="setPeriod('9999',this)">全部</button>
       </div>
       <select class="filter-select" id="platFilter" onchange="renderTop10()">
         <option value="all">全部平台</option>
@@ -785,7 +786,7 @@ function renderTop10() {
   if (platF !== 'all') data = data.filter(function(v) { return v.platform === platF; });
   data = data.filter(function(v) { return daysBetween(v.created_time) <= days; });
   data.sort(function(a, b) { return b.score - a.score; });
-  var top10 = data.slice(0, 10);
+  var top10 = data.slice(0, 15);
 
   var insightBox = document.getElementById('insightBox');
   if (top10.length > 0) {
