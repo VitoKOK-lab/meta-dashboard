@@ -289,10 +289,21 @@ def fetch_video_list(platform, since_days=7):
             break
         items = data.get('data') or []
         if platform == 'ig':
-            items = [v for v in items if v.get('media_type') == 'VIDEO']
+            # IG：只要影片，且必須有說明文字
+            items = [v for v in items
+                     if v.get('media_type') == 'VIDEO'
+                     and (v.get('caption') or '').strip()]
         for item in items:
             ts  = item.get('created_time') or item.get('timestamp', '')
             cap = item.get('description') or item.get('caption') or ''
+            cap = cap.strip()
+            # FB：跳過沒有說明文字的影片（直播、純影片等）
+            if platform == 'fb' and not cap:
+                continue
+            # FB：只要短影音（600 秒以下），過濾直播或長影片
+            length = item.get('length')
+            if platform == 'fb' and length and length > 600:
+                continue
             videos.append({
                 'id':           item['id'],
                 'platform':     platform,
@@ -300,7 +311,7 @@ def fetch_video_list(platform, since_days=7):
                 'created_time': ts,
                 'created_date': to_tw_date(ts),
                 'type':         detect_type(cap),
-                'length_sec':   item.get('length'),
+                'length_sec':   length,
             })
         cursor = (data.get('paging') or {}).get('next')
         page += 1
