@@ -340,11 +340,15 @@ function tierExplain(lt) {
   }[lt];
 }
 
-// 週比週變化
-function wowStr(curr, prev) {
-  if (prev === 0) return curr > 0 ? '上週 0' : '—';
-  var pct = Math.round((curr - prev) / prev * 100);
-  return '上週 ' + fmtNum(prev) + '（' + (pct >= 0 ? '↑' : '↓') + Math.abs(pct) + '%）';
+// 月比月變化（上月同期 = 上月 1 日到同天數為止）
+function momStr(curr, prevSamePeriod) {
+  if (prevSamePeriod === 0) return curr > 0 ? '上月同期 0' : '—';
+  var pct = Math.round((curr - prevSamePeriod) / prevSamePeriod * 100);
+  var up = pct >= 0;
+  var badge = '<span style="display:inline-flex;align-items:center;font-size:12px;font-weight:900;padding:2px 7px;border-radius:4px;margin-left:4px;background:'
+    + (up ? 'rgba(13,148,136,.15);color:#0d9488' : 'rgba(190,58,103,.12);color:#be3a67') + '">'
+    + (up ? '▲ +' : '▼ ') + Math.abs(pct) + '%</span>';
+  return '上月同期 ' + fmtNum(prevSamePeriod) + badge;
 }
 
 // 標題截斷（14字）
@@ -511,41 +515,51 @@ function initOverview() {
   var all  = STATIC_DATA.videos;
   var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
 
-  var prevWeek = all.filter(function(v){ return daysBetween(v.created_time) > 7 && daysBetween(v.created_time) <= 14; });
-  var fbWeek   = week.filter(function(v){ return v.platform==='fb'; });
-  var igWeek   = week.filter(function(v){ return v.platform==='ig'; });
+  // 月份邊界
+  var now = new Date();
+  var dayOfMonth = now.getDate();
+  var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  var lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var lastMonthSameEnd = new Date(now.getFullYear(), now.getMonth() - 1, dayOfMonth + 1); // 上月同天數截止
 
-  // KPI 1: 帶貨觸及（潛在買家看到商品的次數）
-  var comWeek      = week.filter(function(v){ return v.type==='commerce'; });
-  var comPlays     = comWeek.reduce(function(s,v){ return s+(v.plays||0); }, 0);
-  var prevComPlays = prevWeek.filter(function(v){ return v.type==='commerce'; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
+  var thisMonth = all.filter(function(v){ return new Date(v.created_time) >= thisMonthStart; });
+  var lastMonthSame = all.filter(function(v){
+    var d = new Date(v.created_time);
+    return d >= lastMonthStart && d < lastMonthSameEnd;
+  });
 
-  // KPI 2: IG 儲存（存起來 = 想買但還沒決定）
-  var igSaves     = igWeek.reduce(function(s,v){ return s+(v.saved||0); }, 0);
-  var prevIgSaves = prevWeek.filter(function(v){ return v.platform==='ig'; }).reduce(function(s,v){ return s+(v.saved||0); }, 0);
+  var fbWeek = week.filter(function(v){ return v.platform==='fb'; });
+  var igWeek = week.filter(function(v){ return v.platform==='ig'; });
 
-  // KPI 3: 帶貨留言率（留言裡含詢問、DM 購買意願）
-  var comPlaysTotal    = comWeek.filter(function(v){ return v.plays>0; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
-  var comCommentsTotal = comWeek.reduce(function(s,v){ return s+(v.comments||0); }, 0);
-  var comCR = comPlaysTotal > 0 ? comCommentsTotal/comPlaysTotal*100 : 0;
-  var allCom = all.filter(function(v){ return v.type==='commerce' && v.plays>0; });
-  var allComCR = allCom.length
-    ? allCom.reduce(function(s,v){ return s+(v.comments||0); },0) / allCom.reduce(function(s,v){ return s+(v.plays||0); },0) * 100
-    : 0;
+  // KPI 1: 帶貨觸及
+  var thisComPlays = thisMonth.filter(function(v){ return v.type==='commerce'; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
+  var prevComPlays = lastMonthSame.filter(function(v){ return v.type==='commerce'; }).reduce(function(s,v){ return s+(v.plays||0); }, 0);
 
-  // KPI 4: FB 新增粉絲（未來客戶池成長）
-  var fbNewF     = fbWeek.reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
-  var prevFbNewF = prevWeek.filter(function(v){ return v.platform==='fb'; }).reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
+  // KPI 2: IG 儲存
+  var thisIgSaves = thisMonth.filter(function(v){ return v.platform==='ig'; }).reduce(function(s,v){ return s+(v.saved||0); }, 0);
+  var prevIgSaves = lastMonthSame.filter(function(v){ return v.platform==='ig'; }).reduce(function(s,v){ return s+(v.saved||0); }, 0);
+
+  // KPI 3: 帶貨留言率（本月 vs 上月同期）
+  var thisCom = thisMonth.filter(function(v){ return v.type==='commerce' && v.plays>0; });
+  var prevCom = lastMonthSame.filter(function(v){ return v.type==='commerce' && v.plays>0; });
+  var comCR = thisCom.length
+    ? thisCom.reduce(function(s,v){ return s+(v.comments||0); },0) / thisCom.reduce(function(s,v){ return s+(v.plays||0); },0) * 100 : 0;
+  var prevComCR = prevCom.length
+    ? prevCom.reduce(function(s,v){ return s+(v.comments||0); },0) / prevCom.reduce(function(s,v){ return s+(v.plays||0); },0) * 100 : 0;
+
+  // KPI 4: FB 新增粉絲
+  var thisFbNewF = thisMonth.filter(function(v){ return v.platform==='fb'; }).reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
+  var prevFbNewF = lastMonthSame.filter(function(v){ return v.platform==='fb'; }).reduce(function(s,v){ return s+(v.newFollowers||0); }, 0);
 
   document.getElementById('kpiGrid').innerHTML = [
-    kpiCard('🛍 帶貨觸及', fmtNum(comPlays), wowStr(comPlays, prevComPlays) + '・帶貨型影片播放',
-      comPlays >= prevComPlays ? 'var(--teal)' : 'var(--warn)'),
-    kpiCard('🔖 IG 儲存', fmtNum(igSaves),  wowStr(igSaves, prevIgSaves) + '・購買意圖最強信號',
-      igSaves >= prevIgSaves ? 'var(--teal)' : 'var(--warn)'),
-    kpiCard('💬 帶貨留言率', comCR.toFixed(2) + '%', '頻道均值 ' + allComCR.toFixed(2) + '%・詢問 / DM 意願',
-      comCR >= allComCR ? 'var(--teal)' : 'var(--warn)'),
-    kpiCard('👥 FB 新增粉', '+' + fbNewF, wowStr(fbNewF, prevFbNewF) + '・未來客戶池',
-      fbNewF >= prevFbNewF ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('🛍 帶貨觸及', fmtNum(thisComPlays), momStr(thisComPlays, prevComPlays) + '<br><span style="font-size:10px;color:var(--muted)">帶貨型影片本月累計播放</span>',
+      thisComPlays >= prevComPlays ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('🔖 IG 儲存', fmtNum(thisIgSaves), momStr(thisIgSaves, prevIgSaves) + '<br><span style="font-size:10px;color:var(--muted)">購買意圖最強信號</span>',
+      thisIgSaves >= prevIgSaves ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('💬 帶貨留言率', comCR.toFixed(2) + '%', momStr(Math.round(comCR*100), Math.round(prevComCR*100)) + '<br><span style="font-size:10px;color:var(--muted)">詢問 / DM 意願</span>',
+      comCR >= prevComCR ? 'var(--teal)' : 'var(--warn)'),
+    kpiCard('👥 FB 新增粉', '+' + thisFbNewF, momStr(thisFbNewF, prevFbNewF) + '<br><span style="font-size:10px;color:var(--muted)">未來客戶池成長</span>',
+      thisFbNewF >= prevFbNewF ? 'var(--teal)' : 'var(--warn)'),
   ].join('');
 
   // 供下方 platGrid / perfDist 使用
@@ -606,7 +620,7 @@ function kpiCard(label, val, sub, accent) {
   return '<div class="kpi-card">'
     + '<div class="kpi-label">' + label + '</div>'
     + '<div class="kpi-val">' + val + '</div>'
-    + '<div class="kpi-sub">' + sub + '</div>'
+    + '<div class="kpi-sub" style="line-height:1.8">' + sub + '</div>'
     + '<div class="kpi-accent" style="background:' + accent + '"></div>'
     + '</div>';
 }

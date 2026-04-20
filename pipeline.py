@@ -129,7 +129,7 @@ def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
     stale = []
     for vid_id, v in videos_dict.items():
         age = days_ago_from(v.get('created_time', ''))
-        if age <= INSIGHTS_REFRESH_DAYS:
+        if age <= refresh_days:
             last = v.get('insights_at', '')[:10]
             if last < today:
                 stale.append((vid_id, v.get('platform', 'fb')))
@@ -255,12 +255,17 @@ def score_video(v, avg_fb=5000, avg_ig=3000):
         raw += cr * 0.05
     return min(int(round(raw * 100)), 100)
 
+def _median(lst):
+    s = sorted(lst)
+    n = len(s)
+    return (s[n//2] + s[(n-1)//2]) / 2.0
+
 def compute_averages(videos_list):
     fb_r = [v.get('reach') or 0 for v in videos_list if v.get('platform') == 'fb' and (v.get('reach') or 0) > 0]
     ig_r = [v.get('reach') or 0 for v in videos_list if v.get('platform') == 'ig' and (v.get('reach') or 0) > 0]
     return (
-        sum(fb_r)/len(fb_r) if fb_r else 5000.0,
-        sum(ig_r)/len(ig_r) if ig_r else 3000.0,
+        _median(fb_r) if fb_r else 5000.0,
+        _median(ig_r) if ig_r else 3000.0,
     )
 
 # ── 抓影片列表 ────────────────────────────────────────────────────────────────
