@@ -47,6 +47,7 @@ if not TOKEN:
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH     = os.path.join(BASE_DIR, 'data', 'videos.json')
+ARCHIVE_PATH  = os.path.join(BASE_DIR, 'data', 'archive.json')
 TEMPLATE_PATH = os.path.join(BASE_DIR, 'template.html')
 OUTPUT_PATH   = os.path.join(BASE_DIR, 'index.html')
 API_BASE      = 'https://graph.facebook.com/v19.0'
@@ -54,6 +55,7 @@ API_BASE      = 'https://graph.facebook.com/v19.0'
 INSIGHTS_REFRESH_DAYS = 28   # 每天：更新 28 天內的 insights
 INSIGHTS_WEEKLY_DAYS  = 90   # 每週一：更新 90 天內的 insights
 HTML_EMBED_DAYS       = 90
+ARCHIVE_STABLE_DAYS   = 15   # 15 天以上流量趨穩，存入長期 archive
 
 # ── 時區（台灣 UTC+8）────────────────────────────────────────────────────────
 TW_HOURS = 8
@@ -107,6 +109,34 @@ def load_db():
         return data.get('videos', {})
     except Exception:
         return {}
+
+def save_archive(videos_dict):
+    """把 15 天以上、流量趨穩的影片累積存入 data/archive.json（長期歷史紀錄）"""
+    data_dir = os.path.dirname(ARCHIVE_PATH)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    existing = {}
+    if os.path.exists(ARCHIVE_PATH):
+        try:
+            with open(ARCHIVE_PATH, 'r', encoding='utf-8') as f:
+                for v in json.load(f).get('videos', []):
+                    existing[v['id']] = v
+        except Exception:
+            pass
+    updated = 0
+    for vid_id, v in videos_dict.items():
+        if days_ago_from(v.get('created_time', '')) >= ARCHIVE_STABLE_DAYS and (v.get('plays') or 0) > 0:
+            existing[vid_id] = dict(v)
+            updated += 1
+    archive_list = sorted(existing.values(), key=lambda x: x.get('created_time', ''), reverse=True)
+    payload = {
+        'updated_at': utc_now().isoformat(),
+        'count': len(archive_list),
+        'videos': archive_list,
+    }
+    with open(ARCHIVE_PATH, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
+    print('  data/archive.json {} 支（新增/更新 {}）'.format(len(archive_list), updated))
 
 def save_db(videos_dict):
     """把 {id: video_dict} 存回 data/videos.json"""
@@ -270,7 +300,8 @@ def compute_averages(videos_list):
 
 # ── 抓影片列表 ────────────────────────────────────────────────────────────────
 def fetch_video_list(platform, since_days=7):
-    now_ts = int(time.time())
+    now_ts   = int(time.time())
+    cutoff_ts = now_ts - since_days * 86400
     videos = []
     cursor = None
     page   = 0
@@ -279,10 +310,11 @@ def fetch_video_list(platform, since_days=7):
             if cursor:
                 data = api_get(cursor)
             elif platform == 'fb':
+                # FB: do NOT use since/until — they filter by updated_time, not created_time
+                # Instead paginate all videos and stop when created_time < cutoff
                 data = api_get('{}/videos'.format(FB_PAGE), {
                     'fields': 'id,description,created_time,length',
-                    'since': now_ts - since_days*86400,
-                    'until': now_ts + 86400, 'limit': 100,
+                    'limit': 100,
                 })
             else:
                 data = api_get('{}/media'.format(IG_ACCOUNT), {
@@ -299,13 +331,26 @@ def fetch_video_list(platform, since_days=7):
             items = [v for v in items
                      if v.get('media_type') == 'VIDEO'
                      and (v.get('caption') or '').strip()]
+        hit_cutoff = False
         for item in items:
             ts  = item.get('created_time') or item.get('timestamp', '')
             cap = item.get('description') or item.get('caption') or ''
             cap = cap.strip()
-            # FB：跳過沒有說明文字的影片（直播、純影片等）
-            if platform == 'fb' and not cap:
-                continue
+            # FB：check created_time against cutoff (API returns newest-first)
+            if platform == 'fb':
+                s = ts.replace('Z', '').split('+')[0][:19]
+                try:
+                    item_ts = int(time.mktime(
+                        datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S').timetuple()
+                    ))
+                except ValueError:
+                    item_ts = 0
+                if item_ts < cutoff_ts:
+                    hit_cutoff = True
+                    break
+                # 跳過沒有說明文字的影片（直播、純影片等）
+                if not cap:
+                    continue
             # FB：只要短影音（120 秒以下 = 2 分鐘），過濾直播或長影片
             length = item.get('length')
             if platform == 'fb' and length and length > 120:
@@ -322,7 +367,7 @@ def fetch_video_list(platform, since_days=7):
         cursor = (data.get('paging') or {}).get('next')
         page += 1
         print('    {} 頁{} → {}支'.format(platform.upper(), page, len(items)))
-        if not cursor or not items:
+        if hit_cutoff or not cursor or not items:
             break
         time.sleep(0.3)
     return videos
@@ -374,6 +419,8 @@ def to_js_video(v):
         'completionRate': v.get('completion_rate'),
         'retention':      v.get('retention') or [],
         'score':          v.get('score', 0),
+        'playsPrev':      v.get('plays_prev', 0),
+        'playsPrevAt':    v.get('plays_prev_at', ''),
     }
 
 def generate_html(recent_videos, avg_fb, avg_ig):
@@ -446,6 +493,11 @@ def main():
         now_iso = utc_now().isoformat()
         for vid_id, ins in insights_map.items():
             if ins and vid_id in videos_dict:
+                # 更新前保留上一次播放數，供爆流量偵測用
+                prev_plays = videos_dict[vid_id].get('plays') or 0
+                if prev_plays > 0:
+                    videos_dict[vid_id]['plays_prev']    = prev_plays
+                    videos_dict[vid_id]['plays_prev_at'] = videos_dict[vid_id].get('insights_at', '')
                 videos_dict[vid_id].update(ins)
                 videos_dict[vid_id]['insights_at'] = now_iso
 
@@ -461,6 +513,7 @@ def main():
 
     # 儲存 JSON
     save_db(videos_dict)
+    save_archive(videos_dict)
 
     # 步驟 4：生成 HTML
     print('\n[4] 生成 index.html...')
