@@ -445,9 +445,10 @@ def generate_html(recent_videos, avg_fb, avg_ig):
 
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 def main():
-    force_full   = '--full'   in sys.argv
-    force_weekly = '--weekly' in sys.argv
-    refresh_days = INSIGHTS_WEEKLY_DAYS if force_weekly else INSIGHTS_REFRESH_DAYS
+    force_full    = '--full'    in sys.argv
+    force_weekly  = '--weekly'  in sys.argv
+    force_history = '--history' in sys.argv  # 每20天：拉5年內所有歷史影片
+    refresh_days  = INSIGHTS_WEEKLY_DAYS if (force_weekly or force_history) else INSIGHTS_REFRESH_DAYS
     print('=' * 50)
     print('  泰熙爾札娜 IP 儀表板 pipeline')
     print('  {}'.format(tw_now().strftime('%Y-%m-%d %H:%M')))
@@ -455,11 +456,18 @@ def main():
 
     videos_dict = load_db()
     is_first = len(videos_dict) == 0 or force_full
-    fetch_days = 90 if is_first else 7
+    if force_history:
+        fetch_days = 1825  # 5年，拉所有歷史影片
+    elif is_first:
+        fetch_days = 90
+    else:
+        fetch_days = 7
     if force_full:
         videos_dict = {}  # 清空，從頭重建
 
-    if is_first:
+    if force_history:
+        print('\n[歷史模式] 抓取近 5 年所有影片（每 20 天自動執行）...')
+    elif is_first:
         print('\n[全量模式] 抓取近 90 天...')
     else:
         print('\n[增量模式] DB {} 支 → 抓新影片（7天）+ 更新近{}天 insights'.format(
