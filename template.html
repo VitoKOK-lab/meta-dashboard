@@ -504,8 +504,10 @@ function initOverview() {
   var all  = STATIC_DATA.videos;
   var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
 
-  var avgScore = week.length ? Math.round(week.reduce(function(s,v){return s+v.score;},0)/week.length) : 0;
-  var allAvg   = all.length  ? Math.round(all.reduce(function(s,v){return s+v.score;},0)/all.length)  : 0;
+  var weekData = week.filter(function(v){ return v.plays > 0; });
+  var avgScore = weekData.length ? Math.round(weekData.reduce(function(s,v){return s+v.score;},0)/weekData.length) : 0;
+  var allData  = all.filter(function(v){ return v.plays > 0; });
+  var allAvg   = allData.length  ? Math.round(allData.reduce(function(s,v){return s+v.score;},0)/allData.length)  : 0;
   var scoreDiff = avgScore - allAvg;
   var scoreDiffStr = (scoreDiff >= 0 ? '+' : '') + scoreDiff;
   var goodCnt  = week.filter(function(v){return loyaltyTier(v)==='tier1';}).length;
@@ -519,7 +521,7 @@ function initOverview() {
 
   document.getElementById('kpiGrid').innerHTML = [
     kpiCard('本週影片', week.length + ' 支', '過去 7 天發布', 'var(--teal)'),
-    kpiCard('週均評分', avgScore + ' 分', '頻道均值 ' + allAvg + ' 分（本週 ' + scoreDiffStr + '）',
+    kpiCard('週均評分', avgScore + ' 分', '頻道均值 ' + allAvg + '分 | 本週 ' + scoreDiffStr + '（' + weekData.length + '支有數據）',
       scoreDiff >= 0 ? 'var(--teal)' : 'var(--gold)'),
     kpiCard('最佳平台', bestPlat, 'FB ' + fbAvg + '分 vs IG ' + igAvg + '分', 'var(--gold)'),
     kpiCard('優質率', goodPct + '%', '頻道均值 ' + allGoodPct + '%（依頻道標準）',
