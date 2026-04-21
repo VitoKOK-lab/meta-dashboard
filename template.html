@@ -98,6 +98,12 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 @media(max-width:640px){.perf-panel-row{grid-template-columns:60px 1fr 50px}.perf-panel-row>div:nth-child(n+4){display:none}}
 
 /* ── 尋找 ── */
+.srch-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content;margin-bottom:20px}
+.srch-tab{padding:8px 22px;font-size:12px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);transition:all .2s;border-right:1px solid var(--border)}
+.srch-tab:last-child{border-right:none}
+.srch-tab.active{background:var(--black);color:var(--white)}
+.srch-pane{display:none}
+.srch-pane.active{display:block}
 .search-bar-wrap{padding:8px 0 18px}
 .search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--border);border-radius:10px;background:var(--off);color:var(--ink);outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--teal)}
@@ -108,13 +114,28 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .search-result-meta{font-size:11px;color:var(--muted)}
 .search-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px}
 .search-stat{text-align:center}
-.search-stat-val{font-size:16px;font-weight:900}
+.search-stat-val{font-size:16px;font-weight:600}
 .search-stat-lbl{font-size:10px;color:var(--muted);margin-top:1px}
 .search-comps{padding:0 16px 14px}
 .search-comps-title{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .search-comp-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
 .search-comp-row:last-child{border-bottom:none}
-.search-comp-score{font-weight:900;min-width:36px;color:var(--teal)}
+.search-comp-score{font-weight:700;min-width:36px;color:var(--teal)}
+/* ── 關鍵字排行 ── */
+.kw-rank-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.kw-rank-row{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;user-select:none}
+.kw-rank-row:last-of-type{border-bottom:none}
+.kw-rank-row:hover{background:var(--off)}
+.kw-rank-num{font-size:12px;font-weight:700;color:var(--muted);min-width:26px;flex-shrink:0}
+.kw-chip{font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-hash{color:var(--teal)}
+.kw-count{font-size:12px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.kw-avg-plays{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;min-width:76px;text-align:right;flex-shrink:0}
+.kw-expand-icon{font-size:11px;color:var(--muted);margin-left:4px;flex-shrink:0}
+.kw-vid-panel{display:none;background:rgba(0,0,0,.02);border-bottom:1px solid var(--border);padding:0 16px}
+.kw-vid-panel.open{display:block}
+.kw-vid-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.kw-vid-row:last-child{border-bottom:none}
 
 /* ── 低效分析頁 ── */
 .waste-advice{background:rgba(190,58,103,.06);border:1px solid rgba(190,58,103,.2);border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.8}
@@ -317,10 +338,20 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
   <!-- 尋找 -->
   <div class="section" id="sec-search">
-    <div class="search-bar-wrap">
-      <input class="search-input" id="searchInput" type="text" placeholder="輸入關鍵字或部份片名…" oninput="runSearch(this.value)" autocomplete="off">
+    <div class="srch-tabs">
+      <div class="srch-tab active" onclick="switchSearchTab('find',this)">🔍 尋找</div>
+      <div class="srch-tab" onclick="switchSearchTab('keywords',this)">📊 關鍵字排行</div>
     </div>
-    <div id="searchResults"></div>
+    <div class="srch-pane active" id="srch-find">
+      <div class="search-bar-wrap">
+        <input class="search-input" id="searchInput" type="text" placeholder="輸入關鍵字或部份片名…" oninput="runSearch(this.value)" autocomplete="off">
+      </div>
+      <div id="searchResults"></div>
+    </div>
+    <div class="srch-pane" id="srch-keywords">
+      <div class="slabel">關鍵字排行 · 全部 {{VIDEO_COUNT}} 支影片標題</div>
+      <div id="keywordRankContent"><div class="search-empty">載入中…</div></div>
+    </div>
   </div>
 
   <!-- 低效分析 -->
@@ -970,6 +1001,113 @@ function initWaste() {
   document.getElementById('wasteContent').innerHTML = html;
 }
 
+// ── 搜尋分頁切換 ─────────────────────────────────────────────────────────
+function switchSearchTab(id, el) {
+  document.querySelectorAll('.srch-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.srch-pane').forEach(function(p){ p.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('srch-' + id).classList.add('active');
+  if (id === 'keywords') initKeywordRank();
+  if (id === 'find') setTimeout(function(){ document.getElementById('searchInput').focus(); }, 50);
+}
+
+// ── 關鍵字排行 ────────────────────────────────────────────────────────────
+var _kwInited = false;
+var _kwVidMap = {};
+
+function initKeywordRank() {
+  if (_kwInited) return;
+  _kwInited = true;
+  var all = STATIC_DATA.videos || [];
+  var STOP = new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那',
+    '什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實',
+    '現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得','還是']);
+  var freq = {};
+  _kwVidMap = {};
+
+  all.forEach(function(v) {
+    var text = (v.description || v.caption || '');
+    // 先把 # 標籤單獨取出，再分割剩餘文字
+    var hashtags = [];
+    text = text.replace(/#([^\s#，。！？、；：\n]+)/g, function(m, tag) {
+      hashtags.push('#' + tag);
+      return ' ';
+    });
+    var words = text.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean);
+    var tokens = words.concat(hashtags);
+    var seen = new Set();
+    tokens.forEach(function(w) {
+      w = w.trim();
+      if (!w) return;
+      var isHash = w.charAt(0) === '#';
+      if (!isHash) {
+        if (w.length < 2) return;
+        if (STOP.has(w)) return;
+        // 過濾純數字
+        if (/^\d+$/.test(w)) return;
+      }
+      if (seen.has(w)) return;
+      seen.add(w);
+      freq[w] = (freq[w] || 0) + 1;
+      if (!_kwVidMap[w]) _kwVidMap[w] = [];
+      _kwVidMap[w].push(v);
+    });
+  });
+
+  var sorted = Object.keys(freq)
+    .filter(function(k){ return freq[k] >= 2; })
+    .sort(function(a, b){ return freq[b] - freq[a]; })
+    .slice(0, 120);
+
+  var html = '<div class="kw-rank-list">';
+  sorted.forEach(function(kw, i) {
+    var vids = _kwVidMap[kw];
+    var avgPlays = Math.round(vids.reduce(function(s,v){ return s + (v.plays||0); }, 0) / vids.length);
+    var isHash = kw.charAt(0) === '#';
+    html += '<div class="kw-rank-row" data-idx="' + i + '" data-kw="' + escAttr(kw) + '" onclick="toggleKwPanel(' + i + ',this)">'
+      + '<span class="kw-rank-num">' + (i+1) + '</span>'
+      + '<span class="kw-chip' + (isHash ? ' kw-hash' : '') + '">' + kw + '</span>'
+      + '<span class="kw-count">' + freq[kw] + ' 支</span>'
+      + '<span class="kw-avg-plays">均 ' + fmtNum(avgPlays) + ' 播</span>'
+      + '<span class="kw-expand-icon">▾</span>'
+      + '</div>'
+      + '<div class="kw-vid-panel" id="kwp-' + i + '"></div>';
+  });
+  html += '</div>';
+  document.getElementById('keywordRankContent').innerHTML = html;
+}
+
+function toggleKwPanel(idx, rowEl) {
+  var panel = document.getElementById('kwp-' + idx);
+  var icon = rowEl.querySelector('.kw-expand-icon');
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    icon.textContent = '▾';
+    return;
+  }
+  var kw = rowEl.getAttribute('data-kw');
+  var vids = (_kwVidMap[kw] || []).slice().sort(function(a,b){ return (b.plays||0)-(a.plays||0); });
+  panel.innerHTML = vids.map(function(v) {
+    var title = v.description || v.caption || '(無標題)';
+    var scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
+    var dev = reachDev(v);
+    var devPct = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
+    var devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
+    var lt = loyaltyTier(v);
+    var tl = tierLabel(lt);
+    return '<div class="kw-vid-row">'
+      + '<span style="font-size:10px;color:var(--muted);min-width:54px;flex-shrink:0">' + fmtDate(v.created_time) + '</span>'
+      + '<span style="flex:1;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + title + '</span>'
+      + '<span style="font-size:13px;font-weight:600;color:' + scoreColor + ';min-width:32px;text-align:right;flex-shrink:0">' + (v.score||0) + '分</span>'
+      + '<span style="font-size:12px;font-weight:700;min-width:64px;text-align:right;flex-shrink:0">' + fmtNum(v.plays||0) + ' 播</span>'
+      + '<span class="devbadge ' + devClass + '" style="margin-left:6px;flex-shrink:0">' + devPct + '</span>'
+      + '<span class="badge ' + lt + '" style="margin-left:6px;flex-shrink:0">' + tl + '</span>'
+      + '</div>';
+  }).join('');
+  panel.classList.add('open');
+  icon.textContent = '▴';
+}
+
 // ── 尋找 ─────────────────────────────────────────────────────────────────
 function runSearch(q) {
   var out = document.getElementById('searchResults');
@@ -1051,9 +1189,8 @@ function switchTab(id, el) {
   }
   if (id === 'search') {
     setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
-    if (!document.getElementById('searchResults').innerHTML) {
-      document.getElementById('searchResults').innerHTML = '<div class="search-empty">輸入關鍵字尋找影片</div>';
-    }
+    var sr = document.getElementById('searchResults');
+    if (!sr.innerHTML) sr.innerHTML = '<div class="search-empty">輸入關鍵字尋找影片</div>';
   }
 }
 
