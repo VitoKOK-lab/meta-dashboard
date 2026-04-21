@@ -181,17 +181,9 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .mini-kpi-sub{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-top3{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
 .mini-top3-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
-/* ── 最近上片 精簡列表 ── */
-.recent-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:8px}
-.recent-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;transition:background .15s}
-.recent-row:last-child{border-bottom:none}
-.recent-row:hover{background:var(--off)}
-.recent-age{font-size:10px;color:var(--muted);flex-shrink:0;min-width:36px}
-.recent-title{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
-.recent-title.expanded{white-space:normal;overflow:visible;text-overflow:unset}
-.recent-score{font-size:14px;font-weight:400;min-width:34px;text-align:right;flex-shrink:0}
-.recent-plays{font-size:12px;color:var(--muted);min-width:60px;text-align:right;flex-shrink:0}
-@media(max-width:640px){.recent-plays{display:none}}
+.recent-grid-cols{grid-template-columns:46px 2fr 50px 76px 68px 88px !important}
+@media(max-width:640px){.recent-grid-cols{grid-template-columns:40px 1fr 44px !important}
+.recent-grid-cols>div:nth-child(n+4){display:none !important}}
 .mini-top3-row:last-child{border-bottom:none}
 .mini-top3-rank{font-size:14px;font-weight:700;min-width:20px;flex-shrink:0}
 .mini-top3-title{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -978,76 +970,94 @@ function perfDistRow(color, label, count, total, desc, videos, panelId) {
 }
 
 // ── 影片詳細 ──────────────────────────────────────────────────────────────
+var _recentType = 'traffic';
+var _recentPlat = 'all';
+
 function initDetail() {
   var grid  = document.getElementById('detailGrid');
   var label = document.getElementById('detailLabel');
+  var all7  = STATIC_DATA.videos.filter(function(v){ return daysBetween(v.created_time) <= 7; });
 
-  var videos = STATIC_DATA.videos.filter(function(v) {
-    return daysBetween(v.created_time) <= 7;
-  }).sort(function(a, b) {
-    return new Date(b.created_time) - new Date(a.created_time);
-  });
+  label.textContent = '最近上片 · 近 7 天 · 共 ' + all7.length + ' 支';
 
-  label.textContent = '最近上片 · 近 7 天 · 共 ' + videos.length + ' 支';
-
-  if (videos.length === 0) {
+  if (all7.length === 0) {
     grid.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>近 7 天暫無新影片</h3></div>';
     return;
   }
-
-  var tier3 = videos.filter(function(v) { return loyaltyTier(v) === 'tier3'; });
+  var tier3 = all7.filter(function(v){ return loyaltyTier(v)==='tier3'; });
   if (tier3.length > 0) {
     document.getElementById('alertBanner').classList.remove('hidden');
     document.getElementById('alertCount').textContent = tier3.length;
   }
 
-  // ≤ 2 天：大卡片；3–7 天：精簡列表
-  var recent = videos.filter(function(v) { return daysBetween(v.created_time) <= 2; });
-  var older  = videos.filter(function(v) { return daysBetween(v.created_time) > 2; });
+  _recentType = 'traffic'; _recentPlat = 'all';
+  grid.innerHTML =
+    '<div class="top20-tabs" style="margin-bottom:14px">'
+    + '<div class="t20-tab active traffic" onclick="setRecentType(\'traffic\',this)">📈 流量型</div>'
+    + '<div class="t20-tab commerce" onclick="setRecentType(\'commerce\',this)">🛍 帶貨型</div>'
+    + '</div>'
+    + '<div class="period-btns" style="margin-bottom:16px">'
+    + '<button class="period-btn active" onclick="setRecentPlat(\'all\',this)">全部</button>'
+    + '<button class="period-btn" onclick="setRecentPlat(\'fb\',this)">Facebook</button>'
+    + '<button class="period-btn" onclick="setRecentPlat(\'ig\',this)">Instagram</button>'
+    + '</div>'
+    + '<div id="recentTable"></div>';
 
-  var html = '';
-  var cardIdx = 0;
+  renderRecentTable();
+}
 
-  // ── 大卡片區（今天 / 昨天）──
-  if (recent.length > 0) {
-    var rGroups = {}, rOrder = [];
-    recent.forEach(function(v) {
-      var key = daysBetween(v.created_time) === 0 ? '今天' : '昨天';
-      if (!rGroups[key]) { rGroups[key] = []; rOrder.push(key); }
-      rGroups[key].push(v);
-    });
-    rOrder.forEach(function(day) {
-      html += '<div class="slabel" style="margin-top:' + (html===''?'0':'24px') + '">' + day + ' · ' + rGroups[day].length + ' 支</div>'
-            + '<div class="yday-grid">'
-            + rGroups[day].map(function(v) { return renderVideoCard(v, cardIdx++); }).join('')
-            + '</div>';
-    });
+function setRecentType(type, el) {
+  _recentType = type;
+  document.querySelectorAll('#detailGrid .t20-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  renderRecentTable();
+}
+
+function setRecentPlat(plat, el) {
+  _recentPlat = plat;
+  document.querySelectorAll('#detailGrid .period-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  renderRecentTable();
+}
+
+function renderRecentTable() {
+  var container = document.getElementById('recentTable');
+  if (!container) return;
+
+  var videos = STATIC_DATA.videos.filter(function(v) {
+    if (daysBetween(v.created_time) > 7) return false;
+    if (v.type !== _recentType) return false;
+    if (_recentPlat !== 'all' && v.platform !== _recentPlat) return false;
+    return true;
+  }).sort(function(a, b){ return new Date(b.created_time) - new Date(a.created_time); });
+
+  if (videos.length === 0) {
+    container.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>此分類近7天暫無影片</h3></div>';
+    return;
   }
 
-  // ── 精簡列表（3–7 天前）──
-  if (older.length > 0) {
-    html += '<div class="slabel" style="margin-top:' + (html===''?'0':'28px') + '">3–7 天前 · ' + older.length + ' 支</div>'
-          + '<div class="recent-list">'
-          + older.map(function(v) {
-              var age    = daysBetween(v.created_time);
-              var title  = v.description || v.caption || '(無標題)';
-              var sc     = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
-              var lt     = loyaltyTier(v);
-              var tl     = tierLabel(lt);
-              var plat   = v.platform === 'fb' ? '📘' : '📸';
-              return '<div class="recent-row">'
-                + '<span class="recent-age">' + age + '天前</span>'
-                + '<span style="margin-right:2px;flex-shrink:0">' + plat + '</span>'
-                + '<span class="recent-title rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title, 28) + '</span>'
-                + '<span class="badge ' + lt + '" style="flex-shrink:0">' + tl + '</span>'
-                + '<span class="recent-score" style="color:' + sc + '">' + (v.score||0) + '分</span>'
-                + '<span class="recent-plays">' + fmtNum(v.plays||0) + ' 播</span>'
-                + '</div>';
-            }).join('')
+  container.innerHTML = '<div class="ranking-table"><div class="table-scroll">'
+    + '<div class="rt-head recent-grid-cols"><div>上架</div><div>片名</div><div>分數</div><div>播放</div><div>留言率</div><div>忠實度</div></div>'
+    + videos.map(function(v) {
+        var age    = daysBetween(v.created_time);
+        var ageStr = age===0?'今天':age===1?'昨天':age+'天前';
+        var title  = v.description || v.caption || '';
+        var sc     = v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
+        var lt     = loyaltyTier(v);
+        var cr     = v.plays ? (v.comments/v.plays*100).toFixed(2)+'%' : '—';
+        var plat   = v.platform==='fb'?'📘 FB':'📸 IG';
+        return '<div class="rt-row recent-grid-cols">'
+          + '<div><div style="font-size:12px;font-weight:700;color:var(--ink)">' + ageStr + '</div>'
+          + '<div style="font-size:10px;color:var(--muted)">' + plat + '</div></div>'
+          + '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title,24) + '</div>'
+          + '<div class="rt-date">' + fmtDate(v.created_time) + '</div></div>'
+          + '<div class="rt-score" style="color:' + sc + '">' + (v.score||0) + '</div>'
+          + '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>'
+          + '<div class="rt-num">' + cr + '</div>'
+          + '<div><span class="badge ' + lt + '">' + tierLabel(lt) + '</span></div>'
           + '</div>';
-  }
-
-  grid.innerHTML = html;
+      }).join('')
+    + '</div></div>';
 }
 
 // ── 排行榜 ────────────────────────────────────────────────────────────────
