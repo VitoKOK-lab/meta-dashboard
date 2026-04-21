@@ -144,16 +144,14 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .cmd-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px}
 .cmd-card-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px}
 /* 頻道健康 */
-.health-arrow{font-size:44px;line-height:1;margin-bottom:6px}
-.health-pct{font-size:26px;font-weight:600;letter-spacing:-0.5px}
-.health-meta{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.6}
+.health-emoji{font-size:38px;line-height:1;margin-bottom:8px}
+.health-sentence{font-size:16px;font-weight:600;line-height:1.3;margin-bottom:6px}
+.health-pct{font-size:22px;font-weight:400;letter-spacing:-0.3px}
+.health-meta{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.7}
 /* 行動清單 */
-.action-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.5}
+.action-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.6}
 .action-item:last-child{border-bottom:none}
-.action-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.action-dot.warn{background:#e03030}
-.action-dot.good{background:var(--teal)}
-.action-dot.act{background:var(--gold)}
+.action-icon{font-size:16px;flex-shrink:0;line-height:1.4}
 /* 發片節奏 */
 .cadence-chart{display:flex;align-items:flex-end;gap:5px;height:64px;margin:14px 0 5px}
 .cadence-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -179,14 +177,14 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .mini-kpi-cell{flex:1;padding:10px 14px;border-right:1px solid var(--border);min-width:0;overflow:hidden}
 .mini-kpi-cell:last-child{border-right:none}
 .mini-kpi-lbl{font-size:10px;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mini-kpi-val{font-size:18px;font-weight:600;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini-kpi-val{font-size:18px;font-weight:400;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mini-kpi-sub{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-top3{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
 .mini-top3-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
 .mini-top3-row:last-child{border-bottom:none}
 .mini-top3-rank{font-size:14px;font-weight:700;min-width:20px;flex-shrink:0}
 .mini-top3-title{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mini-top3-score{font-size:14px;font-weight:600;min-width:36px;text-align:right;flex-shrink:0}
+.mini-top3-score{font-size:14px;font-weight:400;min-width:36px;text-align:right;flex-shrink:0}
 .mini-top3-plays{font-size:11px;color:var(--muted);min-width:56px;text-align:right;flex-shrink:0}
 /* ── 低效分析頁 ── */
 .waste-advice{background:rgba(190,58,103,.06);border:1px solid rgba(190,58,103,.2);border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.8}
@@ -763,22 +761,39 @@ function initOverview() {
       t3v=week.filter(function(v){return loyaltyTier(v)==='tier3';});
   var tot=week.length||1;
 
+  // ── 健康描述（白話） ──
+  var hEmoji, hSentence;
+  if (avgP===0)      { hEmoji='📊'; hSentence='開始累積數據中'; }
+  else if (hPct>10)  { hEmoji='🚀'; hSentence='越來越好！品質持續提升'; }
+  else if (hPct>4)   { hEmoji='📈'; hSentence='小幅進步，方向正確'; }
+  else if (hPct>=-4) { hEmoji='➡️'; hSentence='穩定發揮，維持現狀'; }
+  else if (hPct>=-10){ hEmoji='📉'; hSentence='稍微滑落，需要留意'; }
+  else               { hEmoji='⚠️'; hSentence='品質明顯下滑，需要檢視'; }
+
+  // ── 行動清單 emoji ──
+  var actionIcon = { good:'✅', warn:'⚠️', act:'💡' };
+
+  // ── 發片節奏白話摘要 ──
+  var cadenceSummary = '近4週平均 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍 節奏不錯':'⚡ 稍微落後');
+
   // ── RENDER ──
   document.getElementById('cmdCenter').innerHTML =
 
     // Row 1: 頻道健康 + 行動清單
     '<div class="cmd-row">'
     + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">頻道近況 · 近30天 vs 前30天</div>'
-    + '<div class="health-arrow" style="color:'+hColor+'">' + hArrow + '</div>'
+    + '<div class="cmd-card-label">頻道近況 · 近 30 天 vs 前 30 天</div>'
+    + '<div class="health-emoji">'+hEmoji+'</div>'
+    + '<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
     + '<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
-    + '<div class="health-meta">近30天平均分 <strong>'+avgR.toFixed(0)+'</strong>，前30天 <strong>'+avgP.toFixed(0)+'</strong><br>'
-    + '近30天共 '+recent30.length+' 支影片</div>'
+    + '<div class="health-meta">'
+    + '平均分 <strong>'+avgR.toFixed(0)+'</strong> 分（前30天 '+avgP.toFixed(0)+' 分）<br>'
+    + '近30天共拍了 <strong>'+recent30.length+'</strong> 支影片</div>'
     + '</div>'
     + '<div class="cmd-card">'
     + '<div class="cmd-card-label">本週行動清單</div>'
     + actions.map(function(a){
-        return '<div class="action-item"><span class="action-dot '+a.t+'"></span><span>'+a.msg+'</span></div>';
+        return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';
       }).join('')
     + '</div>'
     + '</div>'
@@ -787,13 +802,14 @@ function initOverview() {
     + '<div class="cmd-row-2">'
     + '<div class="cmd-card">'
     + '<div class="cmd-card-label">發片節奏 · 近 8 週</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">'+cadenceSummary+'</div>'
     + '<div class="cadence-chart">'
     + wkData.map(function(x,i){
-        var h=Math.max(Math.round(x.cnt/maxWk*56),x.cnt>0?6:2);
+        var h=Math.max(Math.round(x.cnt/maxWk*52),x.cnt>0?6:2);
         var cls=i===7?'cur':'past';
         return '<div class="cadence-bar-col">'
-          +'<span class="cadence-num">'+(x.cnt||'')+'</span>'
-          +'<div class="cadence-bar-fill '+cls+'" style="height:'+h+'px" title="'+x.label+' '+x.cnt+'支"></div>'
+          +'<span class="cadence-num">'+(x.cnt||'·')+'</span>'
+          +'<div class="cadence-bar-fill '+cls+'" style="height:'+h+'px"></div>'
           +'</div>';
       }).join('')
     + '</div>'
@@ -802,14 +818,16 @@ function initOverview() {
     + '</div>'
     + '</div>'
     + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">主題勝率 · 出現 ≥ 3 支的關鍵字平均分</div>'
-    + (kwTop.length===0?'<div style="color:var(--muted);font-size:12px;padding:10px 0">資料不足（需 ≥ 3 支含相同關鍵字）</div>'
-      : kwTop.map(function(x){
+    + '<div class="cmd-card-label">主題勝率 · 平均分越高 = 值得多拍</div>'
+    + (kwTop.length===0
+      ? '<div style="color:var(--muted);font-size:12px;padding:10px 0">資料不足（需 ≥ 3 支含相同關鍵字）</div>'
+      : kwTop.map(function(x,xi){
           var isH=x.kw[0]==='#';
           var barW=Math.round(x.avg/maxAvg*100);
           var sc=x.avg>=65?'#1a9e95':x.avg>=50?'#b5924e':'#be3a67';
+          var star=xi===0?'<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆 最強</span>':'';
           return '<div class="winrate-row">'
-            +'<span class="winrate-kw'+(isH?' kw-hash':'')+'">'+x.kw+'</span>'
+            +'<span class="winrate-kw'+(isH?' kw-hash':'')+'">'+x.kw+star+'</span>'
             +'<div class="winrate-bar-wrap"><div class="winrate-bar-fill" style="width:'+barW+'%;background:'+sc+'"></div></div>'
             +'<span class="winrate-score" style="color:'+sc+'">'+x.avg.toFixed(0)+'分</span>'
             +'<span class="winrate-cnt">'+x.cnt+'支</span>'
@@ -823,10 +841,10 @@ function initOverview() {
 
     // Mini KPIs
     + '<div class="mini-kpi-row">'
-    + miniKpiCell('🛍 賣貨播放',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays))
-    + miniKpiCell('🔖 IG 收藏',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves))
-    + miniKpiCell('💬 賣貨留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR))
-    + miniKpiCell('👥 FB 新粉','+'+thisFbNewF,momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':'尚無上月資料'))
+    + miniKpiCell('🛍 賣貨影片被看幾次',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
+    + miniKpiCell('🔖 IG 觀眾收藏數',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves),'想買的信號')
+    + miniKpiCell('💬 賣貨影片留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR),'每百次播放留言數')
+    + miniKpiCell('👥 FB 新增粉絲','+'+thisFbNewF,momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':'尚無上月資料'),'本月新追蹤')
     + '</div>'
 
     // Top 3 本週（小列表）
@@ -870,10 +888,12 @@ function initOverview() {
     + '</div></div>';
 }
 
-function miniKpiCell(lbl, val, sub) {
+function miniKpiCell(lbl, val, sub, hint) {
   return '<div class="mini-kpi-cell"><div class="mini-kpi-lbl">'+lbl+'</div>'
     + '<div class="mini-kpi-val">'+val+'</div>'
-    + '<div class="mini-kpi-sub">'+sub+'</div></div>';
+    + '<div class="mini-kpi-sub">'+sub+'</div>'
+    + (hint?'<div style="font-size:10px;color:var(--border);margin-top:1px">'+hint+'</div>':'')
+    + '</div>';
 }
 
 function kpiCard(label, val, sub, accent) {
