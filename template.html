@@ -133,14 +133,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 /* 行動建議 */
 .tier-advice{background:var(--off);border-left:3px solid var(--border);border-radius:0 6px 6px 0;padding:10px 14px;margin:8px 0 4px;font-size:12px;line-height:1.7;color:var(--text)}
 
-/* ── 爆流量警報 ── */
-.viral-alert{background:linear-gradient(135deg,rgba(239,68,68,.07),rgba(251,146,60,.07));border:1.5px solid rgba(239,68,68,.35);border-radius:var(--r);padding:14px 16px}
-.viral-hdr{font-size:13px;font-weight:900;color:#e03030;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.viral-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(239,68,68,.12);font-size:13px}
-.viral-item:last-child{border-bottom:none}
-.viral-plays{font-weight:900;color:#e03030;min-width:60px}
-.viral-gain{font-size:11px;font-weight:700;background:rgba(239,68,68,.12);color:#e03030;padding:2px 7px;border-radius:4px}
-.viral-badge{display:inline-block;font-size:10px;font-weight:800;background:#e03030;color:#fff;padding:1px 6px;border-radius:3px;margin-left:4px}
 
 /* ── 排行亮點解析 ── */
 .insight-box{background:linear-gradient(135deg,rgba(13,148,136,.06),rgba(181,146,78,.06));border:1px solid rgba(13,148,136,.25);border-radius:var(--r);padding:16px 18px;margin-bottom:18px}
@@ -279,8 +271,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
   <!-- 總覽 -->
   <div class="section" id="sec-overview">
-    <div id="viralSection" style="display:none;margin-bottom:12px"></div>
-
     <div class="slabel">本月成績 · 與上月同期相比</div>
     <div class="kpi-grid" id="kpiGrid"></div>
 
@@ -384,45 +374,7 @@ function reachDev(v) {
   return avg > 0 ? ((v.reach || 0) - avg) / avg : 0;
 }
 
-// ── 爆流量偵測 ────────────────────────────────────────────────────────────
-function isViral(v) {
-  if ((v.plays || 0) < 10000) return false;
-  var age = daysBetween(v.created_time);
-  if (age > 20) return false;  // 超過 20 天就算好片，不算爆流量
-  // 方法1：2小時內新增 2000+ 播放（每2小時更新，能即時抓到）
-  var prev = v.playsPrev || 0;
-  if (prev > 0 && (v.plays - prev) >= 2000 && v.playsPrevAt && daysBetween(v.playsPrevAt) <= 1) return true;
-  // 方法2（補強）：觸及超出頻道中位數 100%+ = 演算法正在推送
-  if (reachDev(v) >= 1.0) return true;
-  return false;
-}
-function viralGain(v) {
-  var prev = v.playsPrev || 0;
-  return prev > 0 ? v.plays - prev : 0;
-}
-function renderViralSection(virals) {
-  var el = document.getElementById('viralSection');
-  if (!virals || virals.length === 0) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
-  el.innerHTML = '<div class="viral-alert"><div class="viral-hdr">🚀 爆流量警報 — 這幾支影片正在衝！</div>'
-    + virals.slice(0, 5).map(function(v) {
-      var gain = viralGain(v);
-      var title = (v.description || v.caption || '').slice(0, 22);
-      var plat = v.platform === 'fb'
-        ? '<span style="font-size:10px;color:#1877f2;font-weight:800">FB</span>'
-        : '<span style="font-size:10px;color:#e1306c;font-weight:800">IG</span>';
-      var gainHtml = gain > 0
-        ? ' <span class="viral-gain">本次 +' + fmtNum(gain) + '</span>'
-        : '';
-      return '<div class="viral-item">'
-        + plat + ' '
-        + '<span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">' + title + '</span>'
-        + '<span class="viral-plays">' + fmtNum(v.plays) + ' 播</span>'
-        + gainHtml
-        + '</div>';
-    }).join('')
-    + '</div>';
-}
+
 function loyaltyRate(v) {
   return v.plays > 0 ? ((v.comments + v.shares) / v.plays * 100) : 0;
 }
@@ -643,10 +595,6 @@ function togglePanel(id, btn) {
 function initOverview() {
   var all  = STATIC_DATA.videos;
   var week = all.filter(function(v) { return daysBetween(v.created_time) <= 7; });
-
-  // 爆流量警報（全部影片掃一遍）
-  var virals = all.filter(isViral).sort(function(a, b) { return b.plays - a.plays; });
-  renderViralSection(virals);
 
   // 月份邊界
   var now = new Date();
@@ -886,12 +834,11 @@ function renderTop10() {
     var daysOld = daysBetween(v.created_time);
     var extra   = v.platform === 'ig' ? fmtNum(v.saved || 0) : '+' + (v.newFollowers || 0);
     var title   = v.description || v.caption || '';
-    var viralBadge = isViral(v) ? '<span class="viral-badge">🚀 爆</span>' : '';
     var cols;
     if (currentTop20Type === 'traffic') {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + viralBadge + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -902,7 +849,7 @@ function renderTop10() {
     } else {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + viralBadge + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
+        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
         '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
