@@ -329,7 +329,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="tabs">
   <div class="tabs-in">
-    <div class="tab active" onclick="switchTab('detail',this)">🎬 昨天上片</div>
+    <div class="tab active" onclick="switchTab('detail',this)">🎬 最近上片</div>
     <div class="tab" onclick="switchTab('overview',this)">📊 總覽</div>
     <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
     <div class="tab" onclick="switchTab('waste',this)">🚫 低效分析</div>
@@ -410,7 +410,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="mob-nav">
   <div class="mob-nav-in">
-    <div class="mob-tab active" onclick="mobileSwitchTab('detail',this)"><span class="mi">🎬</span>昨天</div>
+    <div class="mob-tab active" onclick="mobileSwitchTab('detail',this)"><span class="mi">🎬</span>最近</div>
     <div class="mob-tab" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>總覽</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
     <div class="mob-tab" onclick="mobileSwitchTab('waste',this)"><span class="mi">🚫</span>低效</div>
@@ -968,24 +968,48 @@ function perfDistRow(color, label, count, total, desc, videos, panelId) {
 
 // ── 影片詳細 ──────────────────────────────────────────────────────────────
 function initDetail() {
-  var snapshotDate = STATIC_DATA.snapshot_date;
   var grid  = document.getElementById('detailGrid');
   var label = document.getElementById('detailLabel');
-  var videos = STATIC_DATA.videos.filter(function(v) {
-    return v.created_date === snapshotDate;
-  }).sort(function(a, b) { return b.score - a.score; });
 
-  label.textContent = '影片詳細 · ' + snapshotDate + ' · 共 ' + videos.length + ' 支';
+  // 近 7 天，按發布時間新→舊
+  var videos = STATIC_DATA.videos.filter(function(v) {
+    return daysBetween(v.created_time) <= 7;
+  }).sort(function(a, b) {
+    return new Date(b.created_time) - new Date(a.created_time);
+  });
+
+  label.textContent = '最近上片 · 近 7 天 · 共 ' + videos.length + ' 支';
+
   if (videos.length === 0) {
-    grid.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>此日無影片發布</h3></div>';
+    grid.innerHTML = '<div class="state-box"><div class="state-icon">📭</div><h3>近 7 天暫無新影片</h3></div>';
     return;
   }
+
   var tier3 = videos.filter(function(v) { return loyaltyTier(v) === 'tier3'; });
   if (tier3.length > 0) {
     document.getElementById('alertBanner').classList.remove('hidden');
     document.getElementById('alertCount').textContent = tier3.length;
   }
-  grid.innerHTML = '<div class="yday-grid">' + videos.map(function(v, i) { return renderVideoCard(v, i); }).join('') + '</div>';
+
+  // 按天分組顯示
+  var groups = {};
+  var groupOrder = [];
+  videos.forEach(function(v) {
+    var age = daysBetween(v.created_time);
+    var key = age === 0 ? '今天' : age === 1 ? '昨天' : age + ' 天前';
+    if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+    groups[key].push(v);
+  });
+
+  var html = '';
+  var globalIdx = 0;
+  groupOrder.forEach(function(day) {
+    html += '<div class="slabel" style="margin-top:' + (globalIdx===0?'0':'24px') + '">' + day + ' · ' + groups[day].length + ' 支</div>'
+          + '<div class="yday-grid">'
+          + groups[day].map(function(v) { return renderVideoCard(v, globalIdx++); }).join('')
+          + '</div>';
+  });
+  grid.innerHTML = html;
 }
 
 // ── 排行榜 ────────────────────────────────────────────────────────────────
