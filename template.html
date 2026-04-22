@@ -140,7 +140,8 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 /* ── 指揮中心 ── */
 .cmd-row{display:grid;grid-template-columns:1fr 2fr;gap:14px;margin-bottom:14px}
 .cmd-row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-@media(max-width:900px){.cmd-row,.cmd-row-2{grid-template-columns:1fr}}
+.cmd-row-3{display:grid;grid-template-columns:1fr 1fr 2fr;gap:14px;margin-bottom:14px}
+@media(max-width:900px){.cmd-row,.cmd-row-2,.cmd-row-3{grid-template-columns:1fr}}
 .cmd-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px}
 .cmd-card-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px}
 /* 頻道健康 */
@@ -181,9 +182,42 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .mini-kpi-sub{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-top3{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
 .mini-top3-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
-.recent-grid-cols{grid-template-columns:46px 2fr 50px 76px 68px 88px !important}
-@media(max-width:640px){.recent-grid-cols{grid-template-columns:40px 1fr 44px !important}
-.recent-grid-cols>div:nth-child(n+4){display:none !important}}
+/* ── 產出效率 ── */
+.eff-num{font-size:32px;font-weight:400;letter-spacing:-1px;line-height:1;margin-bottom:4px}
+.eff-sub{font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px}
+/* ── 演算法起飛 ── */
+.rising-card{background:linear-gradient(135deg,rgba(155,44,126,.05),rgba(13,148,136,.05));border:1.5px solid rgba(155,44,126,.2);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
+.rising-hdr{font-size:12px;font-weight:800;color:var(--pink);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.rising-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(155,44,126,.1);font-size:12px}
+.rising-row:last-child{border-bottom:none}
+.rising-gain{font-size:12px;font-weight:700;color:var(--pink);min-width:68px;flex-shrink:0}
+.rising-verdict{font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;flex-shrink:0}
+.rv-good{background:rgba(13,148,136,.12);color:#1a9e95}
+.rv-miss{background:rgba(190,58,103,.1);color:var(--warn)}
+/* ── 今日上片 ── */
+.today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
+.today-row:last-child{border-bottom:none}
+/* ── 題材策略 ── */
+.theme-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.theme-cols{grid-template-columns:1fr}}
+.theme-col{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.theme-col-head{font-size:14px;font-weight:800;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+.theme-sec{margin-bottom:20px}
+.theme-sec:last-child{margin-bottom:0}
+.theme-sec-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.theme-kw-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.theme-kw-row:last-child{border-bottom:none}
+.theme-kw-name{font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trend-pill{font-size:10px;font-weight:800;padding:2px 6px;border-radius:3px;flex-shrink:0}
+.t-up{background:rgba(13,148,136,.12);color:#1a9e95}
+.t-down{background:rgba(190,58,103,.1);color:var(--warn)}
+.t-flat{background:rgba(181,146,78,.1);color:#7a6428}
+.t-new{background:rgba(100,100,100,.1);color:var(--muted)}
+.theme-kw-score{font-size:13px;font-weight:400;min-width:32px;text-align:right;flex-shrink:0}
+.theme-kw-cnt{font-size:10px;color:var(--muted);min-width:26px;text-align:right;flex-shrink:0}
+.theme-recycle-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12px;background:var(--off);border-radius:4px;margin-bottom:5px}
+.theme-recycle-row:last-child{margin-bottom:0}
 .mini-top3-row:last-child{border-bottom:none}
 .mini-top3-rank{font-size:14px;font-weight:700;min-width:20px;flex-shrink:0}
 .mini-top3-title{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -332,19 +366,23 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="tabs">
   <div class="tabs-in">
-    <div class="tab active" onclick="switchTab('detail',this)">🎬 最近上片</div>
-    <div class="tab" onclick="switchTab('overview',this)">📊 總覽</div>
+    <div class="tab active" onclick="switchTab('overview',this)">📊 本週指令</div>
+    <div class="tab" onclick="switchTab('theme',this)">🎯 題材策略</div>
     <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
-    <div class="tab" onclick="switchTab('waste',this)">🚫 低效分析</div>
     <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
   </div>
 </div>
 
 <div class="page">
 
-  <!-- 總覽 -->
-  <div class="section" id="sec-overview">
+  <!-- 本週指令 -->
+  <div class="section active" id="sec-overview">
     <div id="cmdCenter"></div>
+  </div>
+
+  <!-- 題材策略 -->
+  <div class="section" id="sec-theme">
+    <div id="themeContent"></div>
   </div>
 
   <!-- 排行榜 -->
@@ -396,27 +434,13 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     </div>
   </div>
 
-  <!-- 低效分析 -->
-  <div class="section" id="sec-waste">
-    <div id="wasteContent"></div>
-  </div>
-
-  <!-- 影片詳細 -->
-  <div class="section active" id="sec-detail">
-    <div class="alert-banner hidden" id="alertBanner">
-      ⚠ <strong>今日有 <span id="alertCount">0</span> 支影片需優化</strong>（原粉互動率 &lt; 1%，詳見下方）
-    </div>
-    <div class="slabel" id="detailLabel">影片詳細 · 載入中…</div>
-    <div id="detailGrid"></div>
-  </div>
 </div>
 
 <div class="mob-nav">
   <div class="mob-nav-in">
-    <div class="mob-tab active" onclick="mobileSwitchTab('detail',this)"><span class="mi">🎬</span>最近</div>
-    <div class="mob-tab" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>總覽</div>
+    <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>指令</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>題材</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
-    <div class="mob-tab" onclick="mobileSwitchTab('waste',this)"><span class="mi">🚫</span>低效</div>
     <div class="mob-tab" onclick="mobileSwitchTab('search',this)"><span class="mi">🔍</span>尋找</div>
   </div>
 </div>
@@ -773,26 +797,56 @@ function initOverview() {
   else if (hPct>=-10){ hEmoji='📉'; hSentence='稍微滑落，需要留意'; }
   else               { hEmoji='⚠️'; hSentence='品質明顯下滑，需要檢視'; }
 
+  // ── 產出效率 ──
+  var lastMonthAll = all.filter(function(v){ var d=new Date(v.created_time); return d>=lastMonthStart && d<thisMonthStart; });
+  var thisQual = thisMonth.filter(function(v){ return (v.score||0)>=65; });
+  var prevQual = lastMonthAll.filter(function(v){ return (v.score||0)>=65; });
+  var qualRate = thisMonth.length ? Math.round(thisQual.length/thisMonth.length*100) : 0;
+  var prevQualRate = lastMonthAll.length ? Math.round(prevQual.length/lastMonthAll.length*100) : 0;
+  var qualTrend = prevQualRate > 0 ? qualRate - prevQualRate : 0;
+  var qualColor = qualTrend > 0 ? '#1a9e95' : qualTrend < -5 ? '#be3a67' : '#b5924e';
+
+  // ── 演算法正在推 ──
+  var rising = all.filter(function(v){
+    if (daysBetween(v.created_time) > 7) return false;
+    var prev = v.playsPrev || 0; if (prev <= 0) return false;
+    return (v.plays||0) - prev >= 300;
+  }).sort(function(a,b){ return ((b.plays||0)-(b.playsPrev||0))-((a.plays||0)-(a.playsPrev||0)); }).slice(0,5);
+
+  // ── 今日 / 最近上片 ──
+  var todayVids = all.filter(function(v){ return daysBetween(v.created_time)===0; })
+    .sort(function(a,b){ return new Date(b.created_time)-new Date(a.created_time); });
+  var recentLabel = '今天上片';
+  if (todayVids.length===0) {
+    todayVids = all.filter(function(v){ return daysBetween(v.created_time)<=2; })
+      .sort(function(a,b){ return new Date(b.created_time)-new Date(a.created_time); });
+    recentLabel = '近 48 小時上片';
+  }
+
   // ── 行動清單 emoji ──
   var actionIcon = { good:'✅', warn:'⚠️', act:'💡' };
-
-  // ── 發片節奏白話摘要 ──
-  var cadenceSummary = '近4週平均 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍 節奏不錯':'⚡ 稍微落後');
+  var cadenceSummary = '近4週均速 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍':'⚡');
 
   // ── RENDER ──
   document.getElementById('cmdCenter').innerHTML =
 
-    // Row 1: 頻道健康 + 行動清單
-    '<div class="cmd-row">'
+    // Row 1: 頻道健康 | 產出效率 | 行動清單
+    '<div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:14px;margin-bottom:14px" class="cmd-row-3">'
     + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">頻道近況 · 近 30 天 vs 前 30 天</div>'
+    + '<div class="cmd-card-label">頻道近況 · 近30天</div>'
     + '<div class="health-emoji">'+hEmoji+'</div>'
     + '<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
     + '<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
-    + '<div class="health-meta">'
-    + '平均分 <strong>'+avgR.toFixed(0)+'</strong> 分（前30天 '+avgP.toFixed(0)+' 分）<br>'
-    + '近30天共拍了 <strong>'+recent30.length+'</strong> 支影片</div>'
+    + '<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
     + '</div>'
+    + '<div class="cmd-card">'
+    + '<div class="cmd-card-label">本月產出效率</div>'
+    + '<div class="health-emoji">'+(qualRate>=40?'🎯':qualRate>=25?'📊':'😬')+'</div>'
+    + '<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
+    + '<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
+    + '<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'
+    + (prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')
+    + '</div></div>'
     + '<div class="cmd-card">'
     + '<div class="cmd-card-label">本週行動清單</div>'
     + actions.map(function(a){
@@ -800,6 +854,25 @@ function initOverview() {
       }).join('')
     + '</div>'
     + '</div>'
+
+    // 演算法起飛（有資料才顯示）
+    + (rising.length===0 ? '' :
+      '<div class="rising-card">'
+      + '<div class="rising-hdr">🚀 演算法正在推這些片 — 接住了嗎？</div>'
+      + rising.map(function(v){
+          var gain = (v.plays||0)-(v.playsPrev||0);
+          var lt = loyaltyTier(v);
+          var caught = lt!=='tier3';
+          var title = truncTitle(v.description||v.caption||'',22);
+          var age = daysBetween(v.created_time);
+          return '<div class="rising-row">'
+            +'<span class="rising-gain">+'+fmtNum(gain)+' 播</span>'
+            +'<span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</span>'
+            +'<span style="font-size:11px;color:var(--muted);flex-shrink:0;margin:0 6px">'+age+'天前</span>'
+            +'<span class="rising-verdict '+(caught?'rv-good':'rv-miss')+'">'+(caught?'✅ 接住了':'⚠️ 沒接住')+'</span>'
+            +'</div>';
+        }).join('')
+      + '</div>')
 
     // Row 2: 發片節奏 + 主題勝率
     + '<div class="cmd-row-2">'
@@ -809,40 +882,35 @@ function initOverview() {
     + '<div class="cadence-chart">'
     + wkData.map(function(x,i){
         var h=Math.max(Math.round(x.cnt/maxWk*52),x.cnt>0?6:2);
-        var cls=i===7?'cur':'past';
         return '<div class="cadence-bar-col">'
           +'<span class="cadence-num">'+(x.cnt||'·')+'</span>'
-          +'<div class="cadence-bar-fill '+cls+'" style="height:'+h+'px"></div>'
+          +'<div class="cadence-bar-fill '+(i===7?'cur':'past')+'" style="height:'+h+'px"></div>'
           +'</div>';
       }).join('')
     + '</div>'
     + '<div style="display:flex;gap:5px">'
     + wkData.map(function(x){return '<div class="cadence-lbl" style="flex:1">'+x.label+'</div>';}).join('')
-    + '</div>'
-    + '</div>'
+    + '</div></div>'
     + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">主題勝率 · 平均分越高 = 值得多拍</div>'
+    + '<div class="cmd-card-label">主題勝率 · 詳細請看「題材策略」</div>'
     + (kwTop.length===0
-      ? '<div style="color:var(--muted);font-size:12px;padding:10px 0">資料不足（需 ≥ 3 支含相同關鍵字）</div>'
-      : kwTop.map(function(x,xi){
-          var isH=x.kw[0]==='#';
+      ? '<div style="color:var(--muted);font-size:12px;padding:10px 0">資料不足</div>'
+      : kwTop.slice(0,6).map(function(x,xi){
           var barW=Math.round(x.avg/maxAvg*100);
           var sc=x.avg>=65?'#1a9e95':x.avg>=50?'#b5924e':'#be3a67';
-          var star=xi===0?'<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆 最強</span>':'';
           return '<div class="winrate-row">'
-            +'<span class="winrate-kw'+(isH?' kw-hash':'')+'">'+x.kw+star+'</span>'
+            +'<span class="winrate-kw'+(x.kw[0]==='#'?' kw-hash':'')+'">'+x.kw
+            +(xi===0?'<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆</span>':'')
+            +'</span>'
             +'<div class="winrate-bar-wrap"><div class="winrate-bar-fill" style="width:'+barW+'%;background:'+sc+'"></div></div>'
             +'<span class="winrate-score" style="color:'+sc+'">'+x.avg.toFixed(0)+'分</span>'
             +'<span class="winrate-cnt">'+x.cnt+'支</span>'
             +'</div>';
         }).join(''))
-    + '</div>'
-    + '</div>'
+    + '</div></div>'
 
-    // ── 小字數據帶 ──
+    // ── 詳細數字 ──
     + '<div class="mini-section-divider">詳細數字</div>'
-
-    // Mini KPIs
     + '<div class="mini-kpi-row">'
     + miniKpiCell('🛍 賣貨影片被看幾次',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
     + miniKpiCell('🔖 IG 觀眾收藏數',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves),'想買的信號')
@@ -850,45 +918,25 @@ function initOverview() {
     + miniKpiCell('👥 FB 新增粉絲','+'+thisFbNewF,momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':'尚無上月資料'),'本月新追蹤')
     + '</div>'
 
-    // Top 3 本週（小列表）
-    + '<div class="slabel" style="margin-top:4px">本週 Top 3 · 近 7 天</div>'
-    + (top3.length===0
-      ? '<div style="color:var(--muted);font-size:12px;padding:8px 0">本週暫無影片</div>'
-      : '<div class="mini-top3">'
-        + top3.map(function(v,i){
+    // 今日 / 最近上片
+    + '<div class="slabel" style="margin-top:16px">'+recentLabel+' · '+todayVids.length+' 支</div>'
+    + (todayVids.length===0
+      ? '<div style="color:var(--muted);font-size:12px;padding:8px 0">近48小時暫無新影片</div>'
+      : '<div class="today-list">'
+        + todayVids.slice(0,10).map(function(v){
             var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
-            return '<div class="mini-top3-row">'
-              +'<span class="mini-top3-rank">'+rnk[i]+'</span>'
-              +'<span class="mini-top3-title" title="'+(v.description||v.caption||'')+'">'
-              +truncTitle(v.description||v.caption||'',30)+'</span>'
-              +'<span class="mini-top3-score" style="color:'+sc+'">'+v.score+'分</span>'
-              +'<span class="mini-top3-plays">'+fmtNum(v.plays||0)+' 播</span>'
+            var lt=loyaltyTier(v);
+            var age=daysBetween(v.created_time);
+            return '<div class="today-row">'
+              +'<span style="font-size:10px;color:var(--muted);min-width:34px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
+              +'<span style="font-size:11px;flex-shrink:0;margin-right:4px">'+(v.platform==='fb'?'📘':'📸')+'</span>'
+              +'<span style="flex:1;font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(v.description||v.caption||'')+'">'+truncTitle(v.description||v.caption||'',28)+'</span>'
+              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 6px">'+tierLabel(lt)+'</span>'
+              +'<span style="font-size:13px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0">'+(v.score||0)+'分</span>'
               +'</div>';
           }).join('')
         + '</div>')
-
-    // 平台對比（近7天）
-    + '<div class="slabel" style="margin-top:16px">平台對比 · 近 7 天</div>'
-    + '<div class="plat-grid">'
-    + platCard('📘','Facebook',fbWeek.length,
-        fbWeek.length?Math.round(fbWeek.reduce(function(s,v){return s+v.score;},0)/fbWeek.length):0,
-        fbWeek.reduce(function(s,v){return s+(v.plays||0);},0),
-        fbWeek.filter(function(v){return loyaltyTier(v)==='tier1';}).length)
-    + platCard('📸','Instagram',igWeek.length,
-        igWeek.length?Math.round(igWeek.reduce(function(s,v){return s+v.score;},0)/igWeek.length):0,
-        igWeek.reduce(function(s,v){return s+(v.plays||0);},0),
-        igWeek.filter(function(v){return loyaltyTier(v)==='tier1';}).length)
-    + '</div>'
-
-    // 忠實度分佈（近7天）
-    + '<div class="slabel" style="margin-top:16px">忠實度分佈 · 近 7 天</div>'
-    + '<div class="perf-dist">'
-    + '<div class="perf-dist-title">共 '+week.length+' 支影片（點按鈕查看明細）</div>'
-    + '<div class="perf-dist-rows">'
-    + perfDistRow('#1a9e95','🟢 優質',t1v.length,tot,'互動率 ≥ '+lh+'%',t1v,'panel-t1')
-    + perfDistRow('#b5924e','🟡 正常',t2v.length,tot,'互動率 '+ll+'–'+lh+'%',t2v,'panel-t2')
-    + perfDistRow('#be3a67','🔴 待優化',t3v.length,tot,'互動率 < '+ll+'%',t3v,'panel-t3')
-    + '</div></div>';
+    + '';
 }
 
 function miniKpiCell(lbl, val, sub, hint) {
@@ -897,6 +945,135 @@ function miniKpiCell(lbl, val, sub, hint) {
     + '<div class="mini-kpi-sub">'+sub+'</div>'
     + (hint?'<div style="font-size:10px;color:var(--border);margin-top:1px">'+hint+'</div>':'')
     + '</div>';
+}
+
+// ── 題材策略 ──────────────────────────────────────────────────────────────
+function initTheme() {
+  var all = STATIC_DATA.videos || [];
+  var STOP = new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那',
+    '什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實',
+    '現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
+
+  function extractKw(v) {
+    var text = (v.description || v.caption || '');
+    var hashtags = [];
+    text = text.replace(/#([^\s#，。！？、；：\n]+)/g, function(m, tag) { hashtags.push('#'+tag); return ' '; });
+    var words = text.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean);
+    var result = [], seen = new Set();
+    words.concat(hashtags).forEach(function(w) {
+      w = w.trim(); if (!w) return;
+      var isH = w[0]==='#';
+      if (!isH && (w.length<2 || STOP.has(w) || /^\d+$/.test(w))) return;
+      if (!seen.has(w)) { seen.add(w); result.push(w); }
+    });
+    return result;
+  }
+
+  function arrAvg(arr) { return arr.length ? arr.reduce(function(s,x){return s+x;},0)/arr.length : 0; }
+
+  function buildKwData(type) {
+    var kd = {};
+    all.filter(function(v){ return v.type===type; }).forEach(function(v) {
+      var age = daysBetween(v.created_time);
+      extractKw(v).forEach(function(kw) {
+        if (!kd[kw]) kd[kw] = { scores:[], recent:[], prev:[] };
+        kd[kw].scores.push(v.score||0);
+        if (age<=30) kd[kw].recent.push(v.score||0);
+        else if (age<=60) kd[kw].prev.push(v.score||0);
+      });
+    });
+    Object.keys(kd).forEach(function(k){ if (kd[k].scores.length<3) delete kd[k]; });
+    return kd;
+  }
+
+  function trendPill(kd) {
+    if (!kd.recent.length) return '<span class="trend-pill t-new">新</span>';
+    if (!kd.prev.length)   return '<span class="trend-pill t-new">近期</span>';
+    var pct = arrAvg(kd.prev)>0 ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
+    if (pct>=8)  return '<span class="trend-pill t-up">↑ +'+pct+'%</span>';
+    if (pct<=-8) return '<span class="trend-pill t-down">↓ '+pct+'%</span>';
+    return '<span class="trend-pill t-flat">→</span>';
+  }
+
+  function classify(kd) {
+    var a = arrAvg(kd.scores);
+    var pct = (kd.prev.length&&arrAvg(kd.prev)>0) ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
+    if (a>=62 && pct>=-5) return 'add';
+    if (a<52 || pct<=-15) return 'stop';
+    return 'hold';
+  }
+
+  function renderKwRows(kd) {
+    var keys = Object.keys(kd).sort(function(a,b){ return arrAvg(kd[b].scores)-arrAvg(kd[a].scores); });
+    if (!keys.length) return '<div style="color:var(--muted);font-size:12px;padding:8px 0">資料不足（需3支以上）</div>';
+    return keys.map(function(kw) {
+      var a = arrAvg(kd[kw].scores), aStr = a.toFixed(0);
+      var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
+      return '<div class="theme-kw-row">'
+        +'<span class="theme-kw-name'+(kw[0]==='#'?' kw-hash':'')+'">'+kw+'</span>'
+        +trendPill(kd[kw])
+        +'<span class="theme-kw-score" style="color:'+sc+'">'+aStr+'分</span>'
+        +'<span class="theme-kw-cnt">'+kd[kw].scores.length+'支</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  function recycleHtml(type) {
+    var recs = all.filter(function(v){
+      var age=daysBetween(v.created_time);
+      return v.type===type && age>=30 && age<=150 && (v.score||0)>=65;
+    }).sort(function(a,b){return (b.score||0)-(a.score||0);}).slice(0,5);
+    if (!recs.length) return '<div style="color:var(--muted);font-size:12px;padding:6px 0">暫無符合條件影片</div>';
+    return recs.map(function(v){
+      var title=truncTitle(v.description||v.caption||'',22);
+      var age=daysBetween(v.created_time);
+      var sc=v.score||0;
+      return '<div class="theme-recycle-row">'
+        +'<span style="font-size:10px;color:var(--muted);min-width:34px;flex-shrink:0">'+age+'天</span>'
+        +'<span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</span>'
+        +'<span style="font-size:13px;font-weight:400;color:'+(sc>=80?'#1a9e95':'#b5924e')+';min-width:28px;text-align:right;flex-shrink:0">'+sc+'分</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  function renderTypeCol(type, label, icon) {
+    var kd = buildKwData(type);
+    var addKw={}, stopKw={}, holdKw={};
+    Object.keys(kd).forEach(function(k){
+      var c=classify(kd[k]);
+      if(c==='add') addKw[k]=kd[k];
+      else if(c==='stop') stopKw[k]=kd[k];
+      else holdKw[k]=kd[k];
+    });
+    return '<div class="theme-col">'
+      +'<div class="theme-col-head">'+icon+' '+label+'</div>'
+      +'<div class="theme-sec">'
+      +'<div class="theme-sec-title" style="color:#1a9e95">✅ 值得加碼（'+Object.keys(addKw).length+' 個主題）</div>'
+      +renderKwRows(addKw)
+      +'</div>'
+      +'<div class="theme-sec">'
+      +'<div class="theme-sec-title" style="color:#be3a67">🚫 考慮停拍（'+Object.keys(stopKw).length+' 個主題）</div>'
+      +renderKwRows(stopKw)
+      +'</div>'
+      +(Object.keys(holdKw).length ? '<div class="theme-sec">'
+        +'<div class="theme-sec-title" style="color:#b5924e">👀 持續觀察（'+Object.keys(holdKw).length+' 個主題）</div>'
+        +renderKwRows(holdKw)
+        +'</div>' : '')
+      +'<div class="theme-sec">'
+      +'<div class="theme-sec-title" style="color:#b5924e">♻ 可復投影片（30-150天 · 分數≥65）</div>'
+      +recycleHtml(type)
+      +'</div>'
+      +'</div>';
+  }
+
+  document.getElementById('themeContent').innerHTML =
+    '<div class="slabel" style="margin-bottom:16px">主題策略 · 依歷史表現分類建議</div>'
+    +'<div style="background:rgba(181,146,78,.07);border:1px solid rgba(181,146,78,.25);border-radius:var(--r);padding:12px 16px;margin-bottom:18px;font-size:12px;line-height:1.8;color:var(--ink)">'
+    +'<strong>判斷邏輯：</strong>✅ 值得加碼 = 平均分≥62且近30天沒衰退　🚫 考慮停拍 = 平均分&lt;52或近期下滑≥15%　♻ 可復投 = 30-150天前的高分影片，可換封面重發</div>'
+    +'<div class="theme-cols">'
+    +renderTypeCol('traffic','流量型','📈')
+    +renderTypeCol('commerce','帶貨型','🛍')
+    +'</div>';
 }
 
 function kpiCard(label, val, sub, accent) {
@@ -1404,7 +1581,7 @@ function runSearch(q) {
 }
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { detail: false, overview: false, top20: false, waste: false, search: false };
+var initiated = { overview: false, theme: false, top20: false, search: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -1413,10 +1590,9 @@ function switchTab(id, el) {
   el.classList.add('active');
   if (!initiated[id]) {
     initiated[id] = true;
-    if (id === 'detail') initDetail();
     if (id === 'overview') initOverview();
+    if (id === 'theme') initTheme();
     if (id === 'top20') renderTop10();
-    if (id === 'waste') initWaste();
   }
   if (id === 'search') {
     setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
@@ -1426,7 +1602,7 @@ function switchTab(id, el) {
 }
 
 function mobileSwitchTab(id, el) {
-  var tabMap = { detail: 0, overview: 1, top20: 2, waste: 3, search: 4 };
+  var tabMap = { overview: 0, theme: 1, top20: 2, search: 3 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]] !== undefined) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -1459,8 +1635,8 @@ window.addEventListener('DOMContentLoaded', function() {
   }
   updateClock();
   setInterval(updateClock, 1000);
-  initiated.detail = true;
-  initDetail();
+  initiated.overview = true;
+  initOverview();
 });
 </script>
 </body>
