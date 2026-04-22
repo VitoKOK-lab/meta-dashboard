@@ -1020,16 +1020,23 @@ function initTheme() {
   function classify(kd) {
     var a = arrAvg(kd.scores);
     var pct = (kd.prev.length&&arrAvg(kd.prev)>0) ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
-    // 新百分位制：60=前35%，40=底部25%
-    if (a>=60 && pct>=-5) return 'add';
-    if (a<40 || pct<=-15) return 'stop';
+    // 分類邏輯：
+    //   值得加碼 = 整體平均高(>=60) 且 近期沒有大幅衰退(>=-10%)
+    //   考慮停拍 = 整體平均低(<40)，平均低才代表這主題一直都不行
+    //             ※ 高分但近期下滑 → 只放「持續觀察」，不算停拍
+    if (a>=60 && pct>=-10) return 'add';
+    if (a<40)              return 'stop';
     return 'hold';
   }
 
-  function renderKwRows(kd) {
+  function renderKwRows(kd, limit) {
+    limit = limit || 10;
+    // 正面優先：加碼區依分數降冪，停拍區依分數升冪（最差的排最前讓人知道要避開）
+    // 這裡 caller 決定方向，統一傳 sorted keys 進來
     var keys = Object.keys(kd).sort(function(a,b){ return arrAvg(kd[b].scores)-arrAvg(kd[a].scores); });
     if (!keys.length) return '<div style="color:var(--muted);font-size:14px;padding:8px 0">資料不足（需3支以上）</div>';
-    return keys.map(function(kw) {
+
+    function makeRow(kw) {
       var a = arrAvg(kd[kw].scores), aStr = a.toFixed(0);
       var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
       return '<div class="theme-kw-row">'
@@ -1038,7 +1045,18 @@ function initTheme() {
         +'<span class="theme-kw-score" style="color:'+sc+'">'+aStr+'分</span>'
         +'<span class="theme-kw-cnt">'+kd[kw].scores.length+'支</span>'
         +'</div>';
-    }).join('');
+    }
+
+    var top  = keys.slice(0, limit);
+    var rest = keys.slice(limit);
+    var html = top.map(makeRow).join('');
+    if (rest.length) {
+      html += '<details><summary style="font-size:13px;color:var(--muted);cursor:pointer;padding:6px 0;user-select:none">'
+        +'還有 '+rest.length+' 個主題（點擊展開）</summary>'
+        +rest.map(makeRow).join('')
+        +'</details>';
+    }
+    return html;
   }
 
   function recycleHtml(type) {
@@ -1059,6 +1077,30 @@ function initTheme() {
     }).join('');
   }
 
+  function renderKwRowsAsc(kd, limit) {
+    // 停拍區：最差排最前（升冪），讓人一眼看到最需要避開的
+    limit = limit || 10;
+    var keys = Object.keys(kd).sort(function(a,b){ return arrAvg(kd[a].scores)-arrAvg(kd[b].scores); });
+    if (!keys.length) return '<div style="color:var(--muted);font-size:14px;padding:8px 0">目前無此類主題</div>';
+    function makeRow(kw) {
+      var a = arrAvg(kd[kw].scores), aStr = a.toFixed(0);
+      var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
+      return '<div class="theme-kw-row">'
+        +'<span class="theme-kw-name'+(kw[0]==='#'?' kw-hash':'')+'">'+kw+'</span>'
+        +trendPill(kd[kw])
+        +'<span class="theme-kw-score" style="color:'+sc+'">'+aStr+'分</span>'
+        +'<span class="theme-kw-cnt">'+kd[kw].scores.length+'支</span>'
+        +'</div>';
+    }
+    var top = keys.slice(0,limit), rest = keys.slice(limit);
+    var html = top.map(makeRow).join('');
+    if (rest.length) {
+      html += '<details><summary style="font-size:13px;color:var(--muted);cursor:pointer;padding:6px 0;user-select:none">'
+        +'還有 '+rest.length+' 個（點擊展開）</summary>'+rest.map(makeRow).join('')+'</details>';
+    }
+    return html;
+  }
+
   function renderTypeCol(type, label, icon) {
     var kd = buildKwData(type);
     var addKw={}, stopKw={}, holdKw={};
@@ -1068,20 +1110,28 @@ function initTheme() {
       else if(c==='stop') stopKw[k]=kd[k];
       else holdKw[k]=kd[k];
     });
+    var holdCnt = Object.keys(holdKw).length;
     return '<div class="theme-col">'
       +'<div class="theme-col-head">'+icon+' '+label+'</div>'
+
+      // 值得加碼：高分優先，最多10個展示
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#1a9e95">✅ 值得加碼（'+Object.keys(addKw).length+' 個主題）</div>'
-      +renderKwRows(addKw)
+      +renderKwRows(addKw, 10)
       +'</div>'
+
+      // 考慮停拍：最差優先（讓人知道最要避開哪個）
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#be3a67">🚫 考慮停拍（'+Object.keys(stopKw).length+' 個主題）</div>'
-      +renderKwRows(stopKw)
+      +renderKwRowsAsc(stopKw, 10)
       +'</div>'
-      +(Object.keys(holdKw).length ? '<div class="theme-sec">'
-        +'<div class="theme-sec-title" style="color:#b5924e">👀 持續觀察（'+Object.keys(holdKw).length+' 個主題）</div>'
-        +renderKwRows(holdKw)
-        +'</div>' : '')
+
+      // 持續觀察：折疊，不需要每次都看
+      +(holdCnt ? '<details class="theme-sec"><summary style="font-size:13px;color:#b5924e;cursor:pointer;user-select:none;list-style:none;padding:4px 0">👀 持續觀察 '+holdCnt+' 個主題（點擊展開）</summary>'
+        +renderKwRows(holdKw, 10)
+        +'</details>' : '')
+
+      // 可復投
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#b5924e">♻ 可復投影片（30-150天 · 分數≥65）</div>'
       +recycleHtml(type)
