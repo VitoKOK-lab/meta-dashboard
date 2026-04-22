@@ -859,7 +859,13 @@ function initOverview() {
     // 演算法起飛（有資料才顯示）
     + (rising.length===0 ? '' :
       '<div class="rising-card">'
-      + '<div class="rising-hdr">🚀 演算法正在推這些片 — 接住了嗎？</div>'
+      + '<div class="rising-hdr">🚀 演算法正在推這些片</div>'
+      + '<div style="font-size:11px;line-height:1.7;color:var(--ink);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,.6);border-radius:5px">'
+      + '平台在偵測到這些影片播放量快速上升後，正在推給更多陌生人。<br>'
+      + '✅ <strong>接住了</strong> = 新觀眾進來後有留言或轉發 → 平台繼續推，流量滾雪球<br>'
+      + '⚠️ <strong>沒接住</strong> = 觀眾只看不互動就走 → 平台會判斷沒吸引力，停止推播<br>'
+      + '<strong>你現在要做的：</strong>馬上去「沒接住」的片留言區互動、用限時動態呼粉絲去看、帶貨片補一句「留言+1 領取」'
+      + '</div>'
       + rising.map(function(v){
           var gain = (v.plays||0)-(v.playsPrev||0);
           var lt = loyaltyTier(v);
