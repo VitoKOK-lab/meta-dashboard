@@ -831,32 +831,26 @@ function initOverview() {
   // ── RENDER ──
   document.getElementById('cmdCenter').innerHTML =
 
-    // Row 1: 頻道健康 | 產出效率 | 行動清單
-    '<div class="cmd-row-3">'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">頻道近況 · 近30天</div>'
-    + '<div class="health-emoji">'+hEmoji+'</div>'
-    + '<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
-    + '<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
-    + '<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
-    + '</div>'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">本月產出效率</div>'
-    + '<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
-    + '<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
-    + '<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
-    + '<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'
-    + (prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')
-    + '</div></div>'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">本週行動清單</div>'
-    + actions.map(function(a){
-        return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';
-      }).join('')
-    + '</div>'
-    + '</div>'
+    // ① 今日 / 最近上片（最重要，最先看）
+    '<div class="slabel">'+recentLabel+' · '+todayVids.length+' 支</div>'
+    + (todayVids.length===0
+      ? '<div style="color:var(--muted);font-size:12px;padding:8px 0 16px">近48小時暫無新影片</div>'
+      : '<div class="today-list" style="margin-bottom:14px">'
+        + todayVids.slice(0,10).map(function(v){
+            var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
+            var lt=loyaltyTier(v);
+            var age=daysBetween(v.created_time);
+            return '<div class="today-row">'
+              +'<span style="font-size:10px;color:var(--muted);min-width:34px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
+              +'<span style="font-size:11px;flex-shrink:0;margin-right:4px">'+(v.platform==='fb'?'📘':'📸')+'</span>'
+              +'<span style="flex:1;font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(v.description||v.caption||'')+'">'+truncTitle(v.description||v.caption||'',28)+'</span>'
+              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 6px">'+tierLabel(lt)+'</span>'
+              +'<span style="font-size:13px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0">'+(v.score||0)+'分</span>'
+              +'</div>';
+          }).join('')
+        + '</div>')
 
-    // 演算法起飛（有資料才顯示）
+    // ② 演算法起飛（緊急行動，有資料才顯示）
     + (rising.length===0 ? '' :
       '<div class="rising-card">'
       + '<div class="rising-hdr">🚀 演算法正在推這些片</div>'
@@ -881,7 +875,34 @@ function initOverview() {
         }).join('')
       + '</div>')
 
-    // Row 2: 發片節奏 + 主題勝率
+    // ③ 行動清單（今天要做什麼）
+    + '<div class="cmd-card" style="margin-bottom:14px">'
+    + '<div class="cmd-card-label">本週行動清單</div>'
+    + actions.map(function(a){
+        return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';
+      }).join('')
+    + '</div>'
+
+    // ④ 頻道近況 + 本月效率（週報性質，2欄）
+    + '<div class="cmd-row-2">'
+    + '<div class="cmd-card">'
+    + '<div class="cmd-card-label">頻道近況 · 近30天</div>'
+    + '<div class="health-emoji">'+hEmoji+'</div>'
+    + '<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
+    + '<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
+    + '<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
+    + '</div>'
+    + '<div class="cmd-card">'
+    + '<div class="cmd-card-label">本月產出效率</div>'
+    + '<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
+    + '<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
+    + '<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
+    + '<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'
+    + (prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')
+    + '</div></div>'
+    + '</div>'
+
+    // ⑤ 發片節奏 + 主題勝率
     + '<div class="cmd-row-2">'
     + '<div class="cmd-card">'
     + '<div class="cmd-card-label">發片節奏 · 近 8 週</div>'
@@ -916,7 +937,7 @@ function initOverview() {
         }).join(''))
     + '</div></div>'
 
-    // ── 詳細數字 ──
+    // ⑥ 詳細數字（最後，查閱用）
     + '<div class="mini-section-divider">詳細數字</div>'
     + '<div class="mini-kpi-row">'
     + miniKpiCell('🛍 賣貨影片被看幾次',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
@@ -924,25 +945,6 @@ function initOverview() {
     + miniKpiCell('💬 賣貨影片留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR),'每百次播放留言數')
     + miniKpiCell('👥 FB 新增粉絲','+'+thisFbNewF,momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':'尚無上月資料'),'本月新追蹤')
     + '</div>'
-
-    // 今日 / 最近上片
-    + '<div class="slabel" style="margin-top:16px">'+recentLabel+' · '+todayVids.length+' 支</div>'
-    + (todayVids.length===0
-      ? '<div style="color:var(--muted);font-size:12px;padding:8px 0">近48小時暫無新影片</div>'
-      : '<div class="today-list">'
-        + todayVids.slice(0,10).map(function(v){
-            var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
-            var lt=loyaltyTier(v);
-            var age=daysBetween(v.created_time);
-            return '<div class="today-row">'
-              +'<span style="font-size:10px;color:var(--muted);min-width:34px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
-              +'<span style="font-size:11px;flex-shrink:0;margin-right:4px">'+(v.platform==='fb'?'📘':'📸')+'</span>'
-              +'<span style="flex:1;font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(v.description||v.caption||'')+'">'+truncTitle(v.description||v.caption||'',28)+'</span>'
-              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 6px">'+tierLabel(lt)+'</span>'
-              +'<span style="font-size:13px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0">'+(v.score||0)+'分</span>'
-              +'</div>';
-          }).join('')
-        + '</div>')
     + '';
 }
 
