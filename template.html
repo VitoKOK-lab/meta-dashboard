@@ -720,8 +720,9 @@ function initOverview() {
   if (thisW===0)                              actions.push({t:'warn',msg:'本週還沒有新影片！近月均速 '+avgWeekly+' 支/週，今天就要開拍。'});
   else if (avgWeekly>1 && thisW < avgWeekly-1) actions.push({t:'warn',msg:'本週只發了 '+thisW+' 支，低於近月均速（'+avgWeekly+' 支/週），需要補齊。'});
   else                                         actions.push({t:'good',msg:'本週發片節奏正常（'+thisW+' 支），繼續維持。'});
-  var badCom = all.filter(function(v){return v.type==='commerce'&&(v.score||0)<50&&daysBetween(v.created_time)<=30;});
-  if (badCom.length>=2) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數 < 50，這些主題不要再拍了，複盤找共同點。'});
+  // 新百分位制：50分是中位數，35分（底部四分位）才是真正需要注意的
+  var badCom = all.filter(function(v){return v.type==='commerce'&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
+  if (badCom.length>=3) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數偏低（底部25%），複盤這些片的共同點，減少類似主題。'});
   var hidden = all.filter(function(v){return loyaltyTier(v)!=='tier3'&&reachDev(v)<-0.3&&daysBetween(v.created_time)<=60;});
   if (hidden.length>=2) actions.push({t:'act',msg:'有 '+hidden.length+' 支影片鐵粉喜歡但流量低，值得改標題重發或加投廣告。'});
   var fbR=all.filter(function(v){return v.platform==='fb'&&daysBetween(v.created_time)<=30;}).length;
@@ -841,7 +842,7 @@ function initOverview() {
     + '</div>'
     + '<div class="cmd-card">'
     + '<div class="cmd-card-label">本月產出效率</div>'
-    + '<div class="health-emoji">'+(qualRate>=40?'🎯':qualRate>=25?'📊':'😬')+'</div>'
+    + '<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
     + '<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
     + '<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
     + '<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'
@@ -998,8 +999,9 @@ function initTheme() {
   function classify(kd) {
     var a = arrAvg(kd.scores);
     var pct = (kd.prev.length&&arrAvg(kd.prev)>0) ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
-    if (a>=62 && pct>=-5) return 'add';
-    if (a<52 || pct<=-15) return 'stop';
+    // 新百分位制：60=前35%，40=底部25%
+    if (a>=60 && pct>=-5) return 'add';
+    if (a<40 || pct<=-15) return 'stop';
     return 'hold';
   }
 
