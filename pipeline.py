@@ -446,6 +446,10 @@ def fetch_video_list(platform, since_days=7):
                 # 跳過沒有說明文字的影片（直播、純影片等）
                 if not cap:
                     continue
+                # 跳過直播存檔（FB 自動標題 "Live streaming of ..."、"Live with ..." 等）
+                cap_low = cap.lower()
+                if cap_low.startswith('live streaming') or cap_low.startswith('live with ') or cap_low == 'live':
+                    continue
             # FB：只要短影音（120 秒以下 = 2 分鐘），過濾直播或長影片
             length = item.get('length')
             if platform == 'fb' and length and length > 120:
