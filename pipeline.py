@@ -261,42 +261,137 @@ def parse_ig_insights(data):
         'retention':       [],
     }
 
-# ── 評分 ──────────────────────────────────────────────────────────────────────
-def score_video(v, avg_fb=5000, avg_ig=3000):
-    plays = v.get('plays') or 0
-    if plays == 0:
-        return 0
-    share_rate   = (v.get('shares') or 0) / plays
-    comment_rate = (v.get('comments') or 0) / plays
-    avg   = avg_fb if v.get('platform') == 'fb' else avg_ig
-    reach = v.get('reach') or 0
-    dev   = (reach - avg) / avg if avg > 0 else 0
-    dev_score = min(max((dev + 0.5) / 1.5, 0), 1)
-    if v.get('type') == 'traffic':
-        raw = (min(share_rate/0.03, 1)*0.40
-             + dev_score*0.35
-             + min(comment_rate/0.015, 1)*0.25)
-    else:
-        raw = (min(comment_rate/0.02, 1)*0.45
-             + dev_score*0.40
-             + min(share_rate/0.02, 1)*0.15)
-    cr = v.get('completion_rate')
-    if cr is not None:
-        raw += cr * 0.05
-    return min(int(round(raw * 100)), 100)
+# ── 評分（頻道相對百分位制）──────────────────────────────────────────────────
+#
+# 核心理念：跟自己頻道比，不跟行業固定門檻比。
+#   流量型：播放量 × 轉發率 × 留言率 × 觸及覆蓋 四維度
+#   帶貨型：留言率（引導購買訊號）× IG儲存率 × 觸及 × 轉發
+#            → 播放量不重要，因為帶貨片天生流量小
+#
+# 百分位排名：同類型影片中，這支片在各指標的位置（0~1）
+# 最終分 = 各維度加權百分位 × 100，分佈自然趨於 0-100
+
+def _percentile_rank(sorted_list, value):
+    """回傳 value 在已排序 sorted_list 中的百分位（0.0–1.0）。"""
+    if not sorted_list:
+        return 0.5
+    lo, hi = 0, len(sorted_list)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if sorted_list[mid] <= value:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo / float(len(sorted_list))
+
+def _sorted_rates(videos, key):
+    # 含 0，讓「完全沒有轉發/留言」也有百分位位置，而非強制得 0 分
+    vals = []
+    for v in videos:
+        p = v.get('plays') or 0
+        if p > 0:
+            vals.append((v.get(key) or 0) / float(p))
+    return sorted(vals)
+
+def _sorted_plays(videos):
+    return sorted(v.get('plays') or 0 for v in videos if (v.get('plays') or 0) > 0)
+
+def _sorted_reach(videos, platform):
+    return sorted(v.get('reach') or 0 for v in videos
+                  if v.get('platform') == platform and (v.get('reach') or 0) > 0)
 
 def _median(lst):
     s = sorted(lst)
     n = len(s)
-    return (s[n//2] + s[(n-1)//2]) / 2.0
+    return (s[n // 2] + s[(n - 1) // 2]) / 2.0 if n else 0.0
 
-def compute_averages(videos_list):
-    fb_r = [v.get('reach') or 0 for v in videos_list if v.get('platform') == 'fb' and (v.get('reach') or 0) > 0]
-    ig_r = [v.get('reach') or 0 for v in videos_list if v.get('platform') == 'ig' and (v.get('reach') or 0) > 0]
+def compute_stats(videos_list):
+    """
+    建立頻道內各指標的排序分佈，流量型與帶貨型分開計算。
+    用於 score_video() 的百分位排名。
+    """
+    traffic  = [v for v in videos_list if v.get('type') == 'traffic']
+    commerce = [v for v in videos_list if v.get('type') == 'commerce']
+    return {
+        # 流量型
+        'tr_plays':   _sorted_plays(traffic)             or [1],
+        'tr_share':   _sorted_rates(traffic,  'shares')  or [0],
+        'tr_comment': _sorted_rates(traffic,  'comments')or [0],
+        # 帶貨型
+        'cm_plays':   _sorted_plays(commerce)            or [1],
+        'cm_comment': _sorted_rates(commerce, 'comments')or [0],
+        'cm_share':   _sorted_rates(commerce, 'shares')  or [0],
+        'cm_saves':   _sorted_rates(commerce, 'saved')   or [0],
+        # 觸及（全影片，依平台）
+        'fb_reach':   _sorted_reach(videos_list, 'fb')   or [1],
+        'ig_reach':   _sorted_reach(videos_list, 'ig')   or [1],
+    }
+
+def compute_averages(stats):
+    """回傳 (avg_fb, avg_ig) 觸及中位數，供 JS reachDev() 顯示偏離值用。"""
     return (
-        _median(fb_r) if fb_r else 5000.0,
-        _median(ig_r) if ig_r else 3000.0,
+        _median(stats['fb_reach']) or 5000.0,
+        _median(stats['ig_reach']) or 3000.0,
     )
+
+def score_video(v, stats):
+    """
+    百分位制評分（0–100）。
+    ─ 流量型 ─
+      播放量  35%：頻道流量型影片中的百分位
+      轉發率  30%：轉發=觀眾主動傳播，最強流量訊號
+      留言率  20%：留言=熱度訊號
+      觸及覆蓋15%：觸及在頻道中的百分位
+    ─ 帶貨型（FB）─
+      留言率  50%：留言=購買意圖訊號（引導「留言+1」）
+      觸及覆蓋25%
+      轉發率  15%
+      播放量  10%：帶貨片流量天生少，佔比低
+    ─ 帶貨型（IG）─
+      留言率  40%
+      儲存率  25%：儲存=想買但還沒買，最強電商訊號
+      觸及覆蓋20%
+      轉發率  10%
+      播放量   5%
+    完播率（如有）：×0.95 + cr×0.05 微調
+    """
+    plays = v.get('plays') or 0
+    if plays == 0:
+        return 0
+
+    p  = _percentile_rank
+    sr = (v.get('shares')   or 0) / float(plays)
+    cr = (v.get('comments') or 0) / float(plays)
+
+    reach      = v.get('reach') or 0
+    reach_list = stats['fb_reach'] if v.get('platform') == 'fb' else stats['ig_reach']
+    reach_pct  = p(reach_list, reach)
+
+    if v.get('type') == 'traffic':
+        raw = (p(stats['tr_plays'],   plays) * 0.35
+             + p(stats['tr_share'],   sr)    * 0.30
+             + p(stats['tr_comment'], cr)    * 0.20
+             + reach_pct                     * 0.15)
+    else:  # commerce
+        saves_rate = (v.get('saved') or 0) / float(plays) if v.get('platform') == 'ig' else 0.0
+        if v.get('platform') == 'ig':
+            sv = p(stats['cm_saves'], saves_rate) if saves_rate > 0 else 0.0
+            raw = (p(stats['cm_comment'], cr)  * 0.40
+                 + sv                           * 0.25
+                 + reach_pct                    * 0.20
+                 + p(stats['cm_share'],   sr)   * 0.10
+                 + p(stats['cm_plays'], plays)  * 0.05)
+        else:  # FB 帶貨
+            raw = (p(stats['cm_comment'], cr)  * 0.50
+                 + reach_pct                    * 0.25
+                 + p(stats['cm_share'],   sr)   * 0.15
+                 + p(stats['cm_plays'], plays)  * 0.10)
+
+    completion = v.get('completion_rate')
+    if completion is not None:
+        raw = raw * 0.95 + completion * 0.05
+
+    return min(int(round(raw * 100)), 100)
 
 # ── 抓影片列表 ────────────────────────────────────────────────────────────────
 def fetch_video_list(platform, since_days=7):
@@ -509,15 +604,22 @@ def main():
                 videos_dict[vid_id].update(ins)
                 videos_dict[vid_id]['insights_at'] = now_iso
 
-    # 步驟 3：計算評分
+    # 步驟 3：計算評分（頻道相對百分位制）
     print('\n[3] 計算評分...')
     recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
-    avg_fb, avg_ig = compute_averages(recent)
-    print('  平均觸及 FB={:.0f}  IG={:.0f}'.format(avg_fb, avg_ig))
-    stale_ids = set(r[0] for r in stale)
+    stats  = compute_stats(recent)
+    avg_fb, avg_ig = compute_averages(stats)
+    tr_cnt = len([v for v in recent if v.get('type') == 'traffic'])
+    cm_cnt = len([v for v in recent if v.get('type') == 'commerce'])
+    print('  觸及中位 FB={:.0f}  IG={:.0f}  流量型{}支 帶貨型{}支'.format(
+        avg_fb, avg_ig, tr_cnt, cm_cnt))
+    # 百分位制：每次都全量重算，因為任何影片的 insights 更新都會移動整體分佈
+    rescored = 0
     for v in videos_dict.values():
-        if v['id'] in stale_ids or is_first:
-            v['score'] = score_video(v, avg_fb, avg_ig)
+        if (v.get('plays') or 0) > 0:
+            v['score'] = score_video(v, stats)
+            rescored += 1
+    print('  重新計算分數: {} 支'.format(rescored))
 
     # 儲存 JSON
     save_db(videos_dict)
