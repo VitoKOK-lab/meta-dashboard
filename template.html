@@ -209,6 +209,12 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .follower-table td:first-child{text-align:left;padding-left:0;font-size:13px;color:var(--muted)}
 .follower-table tr.total-row td{border-top:2px solid var(--border);font-weight:700}
 .follower-table tr.total-row td:first-child{color:var(--ink)}
+/* ── 內容簡報 ── */
+.brief-section{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
+.brief-action{background:#fff7ed;border-left:3px solid #f97316;border-radius:0 6px 6px 0;padding:7px 12px;margin:4px 0;font-size:13px;line-height:1.5}
+.brief-share-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;border-top:1px solid var(--border);font-size:13px}
+.brief-share-row:first-child{border-top:none}
+.brief-share-row:hover{opacity:.75}
 /* ── 近日上片 ── */
 .today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;transition:background .12s}
@@ -763,6 +769,162 @@ function renderFollowerChart() {
     + '</div>';
 }
 
+// ── 每日內容簡報 ──────────────────────────────────────────────────────────
+function renderContentBrief(all, rising, todayVids) {
+  // 取近30支有播放數的影片做分析
+  var recent = all.slice()
+    .sort(function(a,b){ return b.created_time.localeCompare(a.created_time); })
+    .slice(0, 40)
+    .filter(function(v){ return (v.plays||0) > 50; });
+  if (recent.length < 3) return '';
+
+  // ── ① 影片長度分桶 ──
+  var buckets = [
+    {label:'<30秒', min:0,  max:30,    vids:[]},
+    {label:'30-60秒', min:30, max:60,  vids:[]},
+    {label:'60-90秒', min:60, max:90,  vids:[]},
+    {label:'>90秒',  min:90, max:99999,vids:[]}
+  ];
+  recent.forEach(function(v) {
+    var s = v.length_sec || 0;
+    for (var i=0; i<buckets.length; i++) {
+      if (s >= buckets[i].min && s < buckets[i].max) { buckets[i].vids.push(v); break; }
+    }
+  });
+  var validBuckets = buckets.filter(function(b){ return b.vids.length >= 2; });
+  validBuckets.forEach(function(b) {
+    b.avgScore = b.vids.reduce(function(s,v){ return s+(v.score||0); },0)/b.vids.length;
+    b.avgComp  = b.vids.reduce(function(s,v){
+      var c = v.completion_rate || (v.avg_watch_ms && v.length_sec ? v.avg_watch_ms/(v.length_sec*1000)*100 : 0);
+      return s + c;
+    },0)/b.vids.length;
+  });
+  var bestBucket = validBuckets.slice().sort(function(a,b){ return b.avgScore-a.avgScore; })[0];
+
+  // ── ② 留言觸發關鍵字 ──
+  var STOP = new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那',
+    '什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實',
+    '現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
+  function _xKw(v) {
+    var text = (v.description||v.caption||''), hashtags = [];
+    text = text.replace(/#([^\s#，。！？、；：\n]+)/g, function(m,t){ hashtags.push('#'+t); return ' '; });
+    var words = text.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean);
+    var result=[], seen=new Set();
+    words.concat(hashtags).forEach(function(w){
+      w=w.trim(); if(!w) return;
+      if(w[0]!=='#' && (w.length<2||STOP.has(w)||/^\d+$/.test(w))) return;
+      if(!seen.has(w)){ seen.add(w); result.push(w); }
+    });
+    return result.slice(0,8);
+  }
+  var byComment = recent.filter(function(v){ return (v.plays||0)>0; })
+    .sort(function(a,b){ return (b.comments/b.plays)-(a.comments/a.plays); }).slice(0,5);
+  var kwFreq = {};
+  byComment.forEach(function(v){ _xKw(v).forEach(function(k){ kwFreq[k]=(kwFreq[k]||0)+1; }); });
+  var topKw = Object.keys(kwFreq).sort(function(a,b){ return kwFreq[b]-kwFreq[a]; }).slice(0,4);
+
+  // ── ③ 分享率前3 ──
+  var byShare = recent.filter(function(v){ return (v.plays||0)>50&&(v.shares||0)>0; })
+    .sort(function(a,b){ return (b.shares/b.plays)-(a.shares/a.plays); }).slice(0,3);
+
+  // ── ④ 行動建議 ──
+  var actions = '';
+  if (rising.length > 0) {
+    var top = rising[0];
+    actions += '<div class="brief-action">🔥 <strong>'+truncTitle(top.description||top.caption||'',14)+'</strong> 演算法正在推 → 趁熱拍相似主題或延伸內容</div>';
+  }
+  if (todayVids.length === 0) {
+    actions += '<div class="brief-action">📅 近48小時還沒發片，今天可以安排一支上架</div>';
+  }
+  // 建議下一支：均分≥60 且距上次≥14天
+  var kwMap = {};
+  all.forEach(function(v){
+    var age=daysBetween(v.created_time);
+    _xKw(v).forEach(function(k){
+      if(!kwMap[k]) kwMap[k]={scores:[],lastAge:9999};
+      kwMap[k].scores.push(v.score||0);
+      if(age<kwMap[k].lastAge) kwMap[k].lastAge=age;
+    });
+  });
+  var shootNext = Object.keys(kwMap).filter(function(k){
+    var d=kwMap[k]; if(d.scores.length<3) return false;
+    var avg=d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length;
+    return avg>=60 && d.lastAge>=14;
+  }).sort(function(a,b){
+    var aa=kwMap[a].scores.reduce(function(s,x){return s+x;},0)/kwMap[a].scores.length;
+    var ba=kwMap[b].scores.reduce(function(s,x){return s+x;},0)/kwMap[b].scores.length;
+    return ba-aa;
+  }).slice(0,2);
+  if (shootNext.length > 0) {
+    var recs = shootNext.map(function(k){
+      var d=kwMap[k]; var avg=Math.round(d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length);
+      return '<strong>'+k+'</strong>（均分'+avg+'分，上次'+d.lastAge+'天前）';
+    }).join(' 或 ');
+    actions += '<div class="brief-action">📝 建議下一支拍：'+recs+'</div>';
+  }
+
+  // ── 組合 HTML ──
+  var html = '<div class="brief-section">';
+  html += '<div class="slabel">📋 今日內容簡報</div>';
+
+  if (actions) html += '<div style="margin-bottom:12px">'+actions+'</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+
+  // 長度洞察
+  html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
+  html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">最佳影片長度</div>';
+  if (bestBucket) {
+    html += '<div style="font-size:20px;font-weight:800;color:var(--teal)">'+bestBucket.label+'</div>';
+    html += '<div style="font-size:12px;color:var(--muted);margin-top:2px">均分 '+Math.round(bestBucket.avgScore)+'分'+(bestBucket.avgComp>1?' · 完播 '+Math.round(bestBucket.avgComp)+'%':'')+' ／ '+bestBucket.vids.length+'支</div>';
+    html += '<div style="display:flex;gap:3px;margin-top:7px;flex-wrap:wrap">';
+    validBuckets.forEach(function(b){
+      var best=b===bestBucket;
+      html += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:'+(best?'#d1fae5':'#e5e7eb')+';color:'+(best?'#065f46':'#6b7280')+';font-weight:'+(best?'700':'400')+'">'+b.label+'</span>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:13px;color:var(--muted)">資料累積中</div>';
+  }
+  html += '</div>';
+
+  // 留言觸發主題
+  html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
+  html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">留言最多的主題</div>';
+  if (topKw.length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
+    topKw.forEach(function(kw){
+      html += '<span style="font-size:12px;font-weight:700;color:var(--pink);background:rgba(155,44,126,.08);border-radius:4px;padding:2px 6px">'+kw+'</span>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:11px;color:var(--muted)">↑ 這些主題引發觀眾留言討論</div>';
+  } else {
+    html += '<div style="font-size:13px;color:var(--muted)">資料累積中</div>';
+  }
+  html += '</div>';
+
+  html += '</div>'; // close 2-col grid
+
+  // 分享率前3
+  if (byShare.length > 0) {
+    html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
+    html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">分享率最高的片 <span style="font-weight:400;font-size:11px">（轉發＝情感共鳴或實用資訊 → 腳本可參考）</span></div>';
+    byShare.forEach(function(v){
+      var sr=((v.shares||0)/(v.plays||1)*100).toFixed(1);
+      var safeId=String(v.id||'').replace(/['"\\]/g,'');
+      html += '<div class="brief-share-row" onclick="showVidDetail(\''+safeId+'\')">'
+        +'<span style="font-size:13px;font-weight:700;color:var(--teal);flex-shrink:0;min-width:36px">'+sr+'%</span>'
+        +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+truncTitle(v.description||v.caption||'',24)+'</span>'
+        +'<span style="font-size:12px;color:var(--muted);flex-shrink:0">›</span>'
+        +'</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 // ── 總覽 ─────────────────────────────────────────────────────────────────
 function initOverview() {
   var all  = STATIC_DATA.videos;
@@ -951,7 +1113,10 @@ function initOverview() {
         }).join('')
       + '</div>')
 
-    // ③ 行動清單（今天要做什麼）
+    // ③ 內容簡報（今天要拍什麼）
+    + renderContentBrief(all, rising, todayVids)
+
+    // ④ 行動清單（今天要做什麼）
     + '<div class="cmd-card" style="margin-bottom:14px">'
     + '<div class="cmd-card-label">本週行動清單</div>'
     + actions.map(function(a){

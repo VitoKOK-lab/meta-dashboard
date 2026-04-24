@@ -771,7 +771,12 @@ def main():
                     videos_dict[vid_id]['plays_prev']    = prev_plays
                     videos_dict[vid_id]['plays_prev_at'] = videos_dict[vid_id].get('insights_at', '')
                 videos_dict[vid_id].update(ins)
-                videos_dict[vid_id]['insights_at'] = now_iso
+                # 只在有真實播放數、或影片已超過 24 小時時才標記 insights_at
+                # 避免新影片 API 尚未回傳數據（plays=0）就被鎖定，導致永遠不再重抓
+                has_data = (ins.get('plays') or 0) > 0
+                age_hours = days_ago_from(videos_dict[vid_id].get('created_time', '')) * 24
+                if has_data or age_hours >= 24:
+                    videos_dict[vid_id]['insights_at'] = now_iso
 
     # 步驟 3：計算評分（頻道相對百分位制）
     print('\n[3] 計算評分...')
