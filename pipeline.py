@@ -45,17 +45,19 @@ if not TOKEN:
         sys.exit(1)
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
-BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH     = os.path.join(BASE_DIR, 'data', 'videos.json')
-ARCHIVE_PATH  = os.path.join(BASE_DIR, 'data', 'archive.json')
-TEMPLATE_PATH = os.path.join(BASE_DIR, 'template.html')
-OUTPUT_PATH   = os.path.join(BASE_DIR, 'index.html')
-API_BASE      = 'https://graph.facebook.com/v19.0'
+BASE_DIR              = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH             = os.path.join(BASE_DIR, 'data', 'videos.json')
+ARCHIVE_PATH          = os.path.join(BASE_DIR, 'data', 'archive.json')
+FOLLOWER_HISTORY_PATH = os.path.join(BASE_DIR, 'data', 'follower_history.json')
+TEMPLATE_PATH         = os.path.join(BASE_DIR, 'template.html')
+OUTPUT_PATH           = os.path.join(BASE_DIR, 'index.html')
+API_BASE              = 'https://graph.facebook.com/v19.0'
 
-INSIGHTS_REFRESH_DAYS = 28   # 每天：更新 28 天內的 insights
-INSIGHTS_WEEKLY_DAYS  = 90   # 每週一：更新 90 天內的 insights
-HTML_EMBED_DAYS       = 9999  # 全部影片都嵌入，讓排行榜可以看歷史
-ARCHIVE_STABLE_DAYS   = 15   # 15 天以上流量趨穩，存入長期 archive
+INSIGHTS_REFRESH_DAYS  = 28    # 每天：更新 28 天內的 insights
+INSIGHTS_WEEKLY_DAYS   = 90    # 每週一：更新 90 天內的 insights
+HTML_EMBED_DAYS        = 9999  # 全部影片都嵌入，讓排行榜可以看歷史
+ARCHIVE_STABLE_DAYS    = 15    # 15 天以上流量趨穩，存入長期 archive
+FOLLOWER_KEEP_DAYS     = 90    # 保留最近 90 天的每日粉絲快照
 
 # ── 時區（台灣 UTC+8）────────────────────────────────────────────────────────
 TW_HOURS = 8
@@ -152,6 +154,161 @@ def save_db(videos_dict):
         json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
     size_kb = os.path.getsize(DATA_PATH) // 1024
     print('  data/videos.json 已儲存 {} 支 ({} KB)'.format(len(videos_dict), size_kb))
+
+# ── 粉絲歷史快照 ──────────────────────────────────────────────────────────────
+def load_follower_history():
+    if not os.path.exists(FOLLOWER_HISTORY_PATH):
+        return []
+    try:
+        with open(FOLLOWER_HISTORY_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f).get('history', [])
+    except Exception:
+        return []
+
+def save_follower_history(history):
+    data_dir = os.path.dirname(FOLLOWER_HISTORY_PATH)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    history.sort(key=lambda x: x.get('date', ''))
+    history = history[-FOLLOWER_KEEP_DAYS:]
+    # net = 連續兩天 total 的差值（FB 無 insights 權限；IG 統一用此方法保持一致）
+    for i in range(len(history)):
+        if i == 0:
+            continue
+        prev = history[i-1]
+        curr = history[i]
+        prev_fb = prev.get('fb_total') or 0
+        curr_fb = curr.get('fb_total') or 0
+        if prev_fb and curr_fb:
+            curr['fb_net'] = curr_fb - prev_fb
+        prev_ig = prev.get('ig_total') or 0
+        curr_ig = curr.get('ig_total') or 0
+        if prev_ig and curr_ig:
+            curr['ig_net'] = curr_ig - prev_ig
+    with open(FOLLOWER_HISTORY_PATH, 'w', encoding='utf-8') as f:
+        json.dump({'updated_at': utc_now().isoformat(), 'history': history},
+                  f, ensure_ascii=False, separators=(',', ':'))
+    return history
+
+def backfill_follower_history():
+    """一次性補齊過去 90 天的粉絲快照"""
+    print('\n[backfill] 補齊過去 90 天粉絲歷史...')
+    epoch    = datetime.datetime(1970, 1, 1)
+    since_ts = int((utc_now() - datetime.timedelta(days=93) - epoch).total_seconds())
+    until_ts = int((utc_now() + datetime.timedelta(days=1) - epoch).total_seconds())
+    days_map = {}  # date_str -> {fb_total, ig_total}
+
+    # ── FB：page_fans 每日快照（用 ISO date string，不用 unix ts）──
+    fb_days = 0
+    for chunk_start in range(0, 93, 28):
+        try:
+            since_str = (utc_now() - datetime.timedelta(days=chunk_start+28)).strftime('%Y-%m-%d')
+            until_str = (utc_now() - datetime.timedelta(days=chunk_start) + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+            data = api_get('{}/insights'.format(FB_PAGE), {
+                'metric': 'page_fans',
+                'period': 'day',
+                'since': since_str,
+                'until': until_str,
+            })
+            for d in (data.get('data') or []):
+                if d.get('name') == 'page_fans':
+                    for val in (d.get('values') or []):
+                        date_str = val.get('end_time', '')[:10]
+                        if date_str:
+                            days_map.setdefault(date_str, {})['fb_total'] = val.get('value') or 0
+                            fb_days += 1
+            time.sleep(0.5)
+        except Exception as e:
+            print('  [WARN] FB chunk {} 失敗: {}'.format(chunk_start, e))
+    # fallback: 至少存今日 total
+    if fb_days == 0:
+        try:
+            page_data = api_get(FB_PAGE, {'fields': 'fan_count'})
+            today_str2 = tw_now().strftime('%Y-%m-%d')
+            days_map.setdefault(today_str2, {})['fb_total'] = page_data.get('fan_count') or 0
+        except Exception:
+            pass
+    print('  FB page_fans: {} 天'.format(fb_days))
+
+    # ── IG：follower_count 每日快照（28天分批，最多30天限制）──
+    ig_days = 0
+    for chunk_start in range(0, 93, 28):
+        try:
+            s = int((utc_now() - datetime.timedelta(days=chunk_start+28) - epoch).total_seconds())
+            u = int((utc_now() - datetime.timedelta(days=chunk_start) + datetime.timedelta(days=1) - epoch).total_seconds())
+            data = api_get('{}/insights'.format(IG_ACCOUNT), {
+                'metric': 'follower_count',
+                'period': 'day',
+                'since': s,
+                'until': u,
+            })
+            for d in (data.get('data') or []):
+                if d.get('name') == 'follower_count':
+                    for val in (d.get('values') or []):
+                        date_str = val.get('end_time', '')[:10]
+                        if date_str:
+                            days_map.setdefault(date_str, {})['ig_total'] = val.get('value') or 0
+                            ig_days += 1
+            time.sleep(0.5)
+        except Exception as e:
+            print('  [WARN] IG chunk {} 失敗: {}'.format(chunk_start, e))
+    print('  IG follower_count: {} 天'.format(ig_days))
+
+    if not days_map:
+        print('  無法取得任何歷史資料，放棄')
+        return
+
+    # 合併現有歷史（避免蓋掉已有資料）
+    existing = {h['date']: h for h in load_follower_history()}
+    for date_str, vals in days_map.items():
+        if date_str in existing:
+            existing[date_str].update(vals)
+        else:
+            existing[date_str] = dict({'date': date_str, 'fb_total': 0, 'ig_total': 0, 'fb_net': 0, 'ig_net': 0}, **vals)
+
+    history = save_follower_history(list(existing.values()))
+    print('  完成，共 {} 天快照已儲存'.format(len(history)))
+
+def fetch_follower_snapshot():
+    """抓今天的粉絲快照（FB page_fans + IG follower_count）"""
+    today_str = tw_now().strftime('%Y-%m-%d')
+    epoch     = datetime.datetime(1970, 1, 1)
+    since_ts  = int((utc_now() - datetime.timedelta(days=3) - epoch).total_seconds())
+    until_ts  = int((utc_now() + datetime.timedelta(days=1) - epoch).total_seconds())
+    snap = {'date': today_str, 'fb_net': 0, 'fb_total': 0, 'ig_net': 0, 'ig_total': 0}
+
+    # ── FB ──
+    try:
+        # 總粉絲數直接從 page fields 取，不用 insights
+        page_data = api_get(FB_PAGE, {'fields': 'fan_count,followers_count'})
+        snap['fb_total'] = page_data.get('fan_count') or page_data.get('followers_count') or 0
+    except Exception as e:
+        print('  [WARN] FB 粉絲總數失敗: {}'.format(e))
+    # FB 每日增減 = 用連續快照的 total 差值計算（page insights 無此 metric 權限）
+
+    # ── IG ──
+    try:
+        ig_data = api_get(IG_ACCOUNT, {'fields': 'followers_count'})
+        snap['ig_total'] = ig_data.get('followers_count') or 0
+    except Exception as e:
+        print('  [WARN] IG 粉絲總數失敗: {}'.format(e))
+    try:
+        data = api_get('{}/insights'.format(IG_ACCOUNT), {
+            'metric': 'follower_count',
+            'period': 'day', 'since': since_ts, 'until': until_ts,
+        })
+        for d in (data.get('data') or []):
+            if d.get('name') == 'follower_count':
+                vals = d.get('values') or []
+                if vals:
+                    if not snap['ig_total']:
+                        snap['ig_total'] = vals[-1].get('value') or 0
+                    if len(vals) >= 2:
+                        snap['ig_net'] = (vals[-1].get('value') or 0) - (vals[-2].get('value') or 0)
+    except Exception as e:
+        print('  [WARN] IG 每日增減失敗: {}'.format(e))
+
+    return snap
 
 def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
     """回傳需要更新 insights 的 (id, platform) 清單"""
@@ -255,6 +412,7 @@ def parse_ig_insights(data):
         'comments':        m.get('comments') or 0,
         'likes':           m.get('likes') or 0,
         'saved':           m.get('saved') or 0,
+        'new_followers':   m.get('follows') or 0,
         'avg_watch_ms':    avg_watch,
         'total_view_ms':   total_view,
         'completion_rate': None,
@@ -486,7 +644,7 @@ def fetch_insights_for(stale_list):
         print('  [IG] 更新 insights ({} 支)...'.format(len(ig_ids)))
         time.sleep(1.5)
         raw = batch_api([
-            '{}/insights?metric=reach,shares,comments,likes,saved,'
+            '{}/insights?metric=reach,shares,comments,likes,saved,follows,'
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])
@@ -522,7 +680,7 @@ def to_js_video(v):
         'playsPrevAt':    v.get('plays_prev_at', ''),
     }
 
-def generate_html(recent_videos, avg_fb, avg_ig):
+def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None):
     if not os.path.exists(TEMPLATE_PATH):
         print('ERROR: 找不到 template.html')
         sys.exit(1)
@@ -530,11 +688,12 @@ def generate_html(recent_videos, avg_fb, avg_ig):
         template = f.read()
     snapshot_date = tw_yesterday()
     payload = {
-        'generated_at':  tw_now().strftime('%Y-%m-%d %H:%M'),
-        'snapshot_date': snapshot_date,
-        'avg_fb':        round(avg_fb, 1),
-        'avg_ig':        round(avg_ig, 1),
-        'videos':        [to_js_video(v) for v in recent_videos],
+        'generated_at':    tw_now().strftime('%Y-%m-%d %H:%M'),
+        'snapshot_date':   snapshot_date,
+        'avg_fb':          round(avg_fb, 1),
+        'avg_ig':          round(avg_ig, 1),
+        'videos':          [to_js_video(v) for v in recent_videos],
+        'followerHistory': follower_history or [],
     }
     html = template.replace('__STATIC_DATA__', json.dumps(payload, ensure_ascii=False))
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
@@ -547,6 +706,12 @@ def main():
     force_full    = '--full'    in sys.argv
     force_weekly  = '--weekly'  in sys.argv
     force_history = '--history' in sys.argv  # 每20天：拉5年內所有歷史影片
+    force_backfill = '--backfill' in sys.argv  # 一次性補齊粉絲90天歷史
+
+    if force_backfill:
+        backfill_follower_history()
+        # 也跑一次正常 pipeline 讓 index.html 包含最新資料
+        sys.argv = [a for a in sys.argv if a != '--backfill']
     refresh_days  = INSIGHTS_WEEKLY_DAYS if (force_weekly or force_history) else INSIGHTS_REFRESH_DAYS
     print('=' * 50)
     print('  泰熙爾札娜 IP 儀表板 pipeline')
@@ -629,10 +794,25 @@ def main():
     save_db(videos_dict)
     save_archive(videos_dict)
 
-    # 步驟 4：生成 HTML
-    print('\n[4] 生成 index.html...')
+    # 步驟 4：粉絲每日快照
+    print('\n[4] 粉絲快照...')
+    fh = load_follower_history()
+    today_str = tw_now().strftime('%Y-%m-%d')
+    existing_dates = {h['date'] for h in fh}
+    if today_str not in existing_dates:
+        snap = fetch_follower_snapshot()
+        fh.append(snap)
+        fh = save_follower_history(fh)
+        print('  FB total={} net={}  IG total={} net={}'.format(
+            snap.get('fb_total'), snap.get('fb_net'),
+            snap.get('ig_total'), snap.get('ig_net')))
+    else:
+        print('  今日快照已存在（{}筆），跳過'.format(len(fh)))
+
+    # 步驟 5：生成 HTML
+    print('\n[5] 生成 index.html...')
     recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
-    generate_html(recent, avg_fb, avg_ig)
+    generate_html(recent, avg_fb, avg_ig, follower_history=fh)
 
     print('\n完成！DB:{} 支 / HTML:{} 支'.format(len(videos_dict), len(recent)))
 
