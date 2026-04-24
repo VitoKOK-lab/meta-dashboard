@@ -171,16 +171,103 @@ def save_follower_history(history):
         os.makedirs(data_dir)
     history.sort(key=lambda x: x.get('date', ''))
     history = history[-FOLLOWER_KEEP_DAYS:]
-    # FB net = 連續兩天 fb_total 的差值（因 insights API 無權限取每日增減）
+    # net = 連續兩天 total 的差值（FB 無 insights 權限；IG 統一用此方法保持一致）
     for i in range(len(history)):
-        prev_fb = history[i-1].get('fb_total') or 0 if i > 0 else 0
-        curr_fb = history[i].get('fb_total') or 0
+        if i == 0:
+            continue
+        prev = history[i-1]
+        curr = history[i]
+        prev_fb = prev.get('fb_total') or 0
+        curr_fb = curr.get('fb_total') or 0
         if prev_fb and curr_fb:
-            history[i]['fb_net'] = curr_fb - prev_fb
+            curr['fb_net'] = curr_fb - prev_fb
+        prev_ig = prev.get('ig_total') or 0
+        curr_ig = curr.get('ig_total') or 0
+        if prev_ig and curr_ig:
+            curr['ig_net'] = curr_ig - prev_ig
     with open(FOLLOWER_HISTORY_PATH, 'w', encoding='utf-8') as f:
         json.dump({'updated_at': utc_now().isoformat(), 'history': history},
                   f, ensure_ascii=False, separators=(',', ':'))
     return history
+
+def backfill_follower_history():
+    """一次性補齊過去 90 天的粉絲快照"""
+    print('\n[backfill] 補齊過去 90 天粉絲歷史...')
+    epoch    = datetime.datetime(1970, 1, 1)
+    since_ts = int((utc_now() - datetime.timedelta(days=93) - epoch).total_seconds())
+    until_ts = int((utc_now() + datetime.timedelta(days=1) - epoch).total_seconds())
+    days_map = {}  # date_str -> {fb_total, ig_total}
+
+    # ── FB：page_fans 每日快照（用 ISO date string，不用 unix ts）──
+    fb_days = 0
+    for chunk_start in range(0, 93, 28):
+        try:
+            since_str = (utc_now() - datetime.timedelta(days=chunk_start+28)).strftime('%Y-%m-%d')
+            until_str = (utc_now() - datetime.timedelta(days=chunk_start) + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+            data = api_get('{}/insights'.format(FB_PAGE), {
+                'metric': 'page_fans',
+                'period': 'day',
+                'since': since_str,
+                'until': until_str,
+            })
+            for d in (data.get('data') or []):
+                if d.get('name') == 'page_fans':
+                    for val in (d.get('values') or []):
+                        date_str = val.get('end_time', '')[:10]
+                        if date_str:
+                            days_map.setdefault(date_str, {})['fb_total'] = val.get('value') or 0
+                            fb_days += 1
+            time.sleep(0.5)
+        except Exception as e:
+            print('  [WARN] FB chunk {} 失敗: {}'.format(chunk_start, e))
+    # fallback: 至少存今日 total
+    if fb_days == 0:
+        try:
+            page_data = api_get(FB_PAGE, {'fields': 'fan_count'})
+            today_str2 = tw_now().strftime('%Y-%m-%d')
+            days_map.setdefault(today_str2, {})['fb_total'] = page_data.get('fan_count') or 0
+        except Exception:
+            pass
+    print('  FB page_fans: {} 天'.format(fb_days))
+
+    # ── IG：follower_count 每日快照（28天分批，最多30天限制）──
+    ig_days = 0
+    for chunk_start in range(0, 93, 28):
+        try:
+            s = int((utc_now() - datetime.timedelta(days=chunk_start+28) - epoch).total_seconds())
+            u = int((utc_now() - datetime.timedelta(days=chunk_start) + datetime.timedelta(days=1) - epoch).total_seconds())
+            data = api_get('{}/insights'.format(IG_ACCOUNT), {
+                'metric': 'follower_count',
+                'period': 'day',
+                'since': s,
+                'until': u,
+            })
+            for d in (data.get('data') or []):
+                if d.get('name') == 'follower_count':
+                    for val in (d.get('values') or []):
+                        date_str = val.get('end_time', '')[:10]
+                        if date_str:
+                            days_map.setdefault(date_str, {})['ig_total'] = val.get('value') or 0
+                            ig_days += 1
+            time.sleep(0.5)
+        except Exception as e:
+            print('  [WARN] IG chunk {} 失敗: {}'.format(chunk_start, e))
+    print('  IG follower_count: {} 天'.format(ig_days))
+
+    if not days_map:
+        print('  無法取得任何歷史資料，放棄')
+        return
+
+    # 合併現有歷史（避免蓋掉已有資料）
+    existing = {h['date']: h for h in load_follower_history()}
+    for date_str, vals in days_map.items():
+        if date_str in existing:
+            existing[date_str].update(vals)
+        else:
+            existing[date_str] = dict({'date': date_str, 'fb_total': 0, 'ig_total': 0, 'fb_net': 0, 'ig_net': 0}, **vals)
+
+    history = save_follower_history(list(existing.values()))
+    print('  完成，共 {} 天快照已儲存'.format(len(history)))
 
 def fetch_follower_snapshot():
     """抓今天的粉絲快照（FB page_fans + IG follower_count）"""
@@ -619,6 +706,12 @@ def main():
     force_full    = '--full'    in sys.argv
     force_weekly  = '--weekly'  in sys.argv
     force_history = '--history' in sys.argv  # 每20天：拉5年內所有歷史影片
+    force_backfill = '--backfill' in sys.argv  # 一次性補齊粉絲90天歷史
+
+    if force_backfill:
+        backfill_follower_history()
+        # 也跑一次正常 pipeline 讓 index.html 包含最新資料
+        sys.argv = [a for a in sys.argv if a != '--backfill']
     refresh_days  = INSIGHTS_WEEKLY_DAYS if (force_weekly or force_history) else INSIGHTS_REFRESH_DAYS
     print('=' * 50)
     print('  泰熙爾札娜 IP 儀表板 pipeline')
