@@ -196,10 +196,19 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .rising-verdict{font-size:13px;font-weight:800;padding:2px 8px;border-radius:4px;flex-shrink:0}
 .rv-good{background:rgba(13,148,136,.12);color:#1a9e95}
 .rv-miss{background:rgba(190,58,103,.1);color:var(--warn)}
-/* ── 今日上片 ── */
+/* ── 近日上片 ── */
 .today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px}
+.today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;transition:background .12s}
+.today-row:hover{background:var(--off)}
 .today-row:last-child{border-bottom:none}
+/* ── 影片詳細 drawer ── */
+#vidBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:900}
+#vidBackdrop.vd-open{display:block}
+#vidDrawer{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100vw,500px);background:var(--white);border-radius:16px 16px 0 0;padding:20px 18px 36px;z-index:901;box-shadow:0 -6px 32px rgba(0,0,0,.14)}
+#vidDrawer.vd-open{display:block}
+.vd-cell{background:var(--off);border-radius:6px;padding:10px 12px;min-width:0}
+.vd-lbl{font-size:11px;color:var(--muted);margin-bottom:3px;white-space:nowrap}
+.vd-val{font-size:16px;font-weight:700;white-space:nowrap}
 /* ── 題材策略 ── */
 .theme-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.theme-cols{grid-template-columns:1fr}}
@@ -817,15 +826,10 @@ function initOverview() {
     return (v.plays||0) - prev >= 300;
   }).sort(function(a,b){ return ((b.plays||0)-(b.playsPrev||0))-((a.plays||0)-(a.playsPrev||0)); }).slice(0,5);
 
-  // ── 今日 / 最近上片 ──
-  var todayVids = all.filter(function(v){ return daysBetween(v.created_time)===0; })
+  // ── 近日上片（永遠顯示 48 小時內）──
+  var todayVids = all.filter(function(v){ return daysBetween(v.created_time)<=1; })
     .sort(function(a,b){ return new Date(b.created_time)-new Date(a.created_time); });
-  var recentLabel = '今天上片';
-  if (todayVids.length===0) {
-    todayVids = all.filter(function(v){ return daysBetween(v.created_time)<=2; })
-      .sort(function(a,b){ return new Date(b.created_time)-new Date(a.created_time); });
-    recentLabel = '近 48 小時上片';
-  }
+  var recentLabel = '近日上片';
 
   // ── 行動清單 emoji ──
   var actionIcon = { good:'✅', warn:'⚠️', act:'💡' };
@@ -835,7 +839,7 @@ function initOverview() {
   document.getElementById('cmdCenter').innerHTML =
 
     // ① 今日 / 最近上片（最重要，最先看）
-    '<div class="slabel">'+recentLabel+' · '+todayVids.length+' 支</div>'
+    '<div class="slabel">'+recentLabel+' <span style="color:var(--muted);font-weight:400;font-size:13px">（點列查看詳細數據）</span></div>'
     + (todayVids.length===0
       ? '<div style="color:var(--muted);font-size:14px;padding:8px 0 16px">近48小時暫無新影片</div>'
       : '<div class="today-list" style="margin-bottom:14px">'
@@ -844,14 +848,18 @@ function initOverview() {
             var lt=loyaltyTier(v);
             var age=daysBetween(v.created_time);
             var nf = v.newFollowers || 0;
-            var nfStr = nf > 0 ? '<span style="font-size:12px;color:#1a9e95;font-weight:700;flex-shrink:0;margin-left:6px">+'+fmtNum(nf)+'粉</span>' : '';
-            return '<div class="today-row">'
-              +'<span style="font-size:12px;color:var(--muted);min-width:34px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
-              +'<span style="font-size:13px;flex-shrink:0;margin-right:4px">'+(v.platform==='fb'?'📘':'📸')+'</span>'
-              +'<span style="flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(v.description||v.caption||'')+'">'+truncTitle(v.description||v.caption||'',28)+'</span>'
-              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 6px">'+tierLabel(lt)+'</span>'
+            var nfStr = nf > 0
+              ? '<span style="font-size:12px;color:#1a9e95;font-weight:700;flex-shrink:0;white-space:nowrap">+'+fmtNum(nf)+'粉</span>'
+              : '<span style="font-size:12px;color:var(--muted);flex-shrink:0">粉—</span>';
+            var safeId = (v.id||'').replace(/['"\\]/g,'');
+            return '<div class="today-row" onclick="showVidDetail(\''+safeId+'\')">'
+              +'<span style="font-size:12px;color:var(--muted);min-width:30px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
+              +'<span style="font-size:13px;flex-shrink:0">'+(v.platform==='fb'?'📘':'📸')+'</span>'
+              +'<span style="flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+truncTitle(v.description||v.caption||'',16)+'</span>'
+              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 5px">'+tierLabel(lt)+'</span>'
               +nfStr
-              +'<span style="font-size:15px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0;margin-left:6px">'+(v.score||0)+'分</span>'
+              +'<span style="font-size:15px;font-weight:700;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0;margin-left:5px">'+(v.score||0)+'分</span>'
+              +'<span style="font-size:12px;color:var(--muted);flex-shrink:0;margin-left:4px">›</span>'
               +'</div>';
           }).join('')
         + '</div>')
@@ -1741,6 +1749,64 @@ window.addEventListener('DOMContentLoaded', function() {
   initiated.overview = true;
   initOverview();
 });
+
+// ── 影片詳細 drawer ─────────────────────────────────────────────────────────
+var _vidMap = {};
+(STATIC_DATA.videos || []).forEach(function(v){ _vidMap[v.id] = v; });
+
+function showVidDetail(id) {
+  var v = _vidMap[id]; if (!v) return;
+  var title = v.description || v.caption || '（無標題）';
+  var plays = v.plays || 0;
+  var comments = v.comments || 0;
+  var shares = v.shares || 0;
+  var reach = v.reach || 0;
+  var saved = v.saved || 0;
+  var nf = v.newFollowers || 0;
+  var cr = plays > 0 ? (comments/plays*100).toFixed(1) : '0.0';
+  var sr = plays > 0 ? (shares/plays*100).toFixed(1) : '0.0';
+  var sc = v.score || 0;
+  var age = daysBetween(v.created_time);
+  var scColor = sc>=80?'#1a9e95':sc>=65?'var(--pink)':'var(--warn)';
+  var ageStr = age===0?'今天':age===1?'昨天':age+'天前';
+  var platStr = v.platform==='fb'?'📘 Facebook':'📸 Instagram';
+  function cell(lbl, val, color) {
+    return '<div class="vd-cell"><div class="vd-lbl">'+lbl+'</div><div class="vd-val"'+(color?' style="color:'+color+'"':'')+'>'+val+'</div></div>';
+  }
+  var metrics = cell('播放',fmtNum(plays))
+    + cell('留言',fmtNum(comments))
+    + cell('分享',fmtNum(shares))
+    + cell('觸及',fmtNum(reach))
+    + cell('留言率',cr+'%', cr>=2?'#1a9e95':cr>=1?'#b5924e':'#be3a67')
+    + cell('分享率',sr+'%')
+    + (v.platform==='ig' ? cell('儲存',fmtNum(saved)) : '')
+    + (nf>0 ? cell('新增粉絲','+'+fmtNum(nf),'#1a9e95') : cell('新增粉絲','—'));
+  document.getElementById('vdTitle').textContent = title;
+  document.getElementById('vdMeta').textContent = platStr+' · '+ageStr;
+  document.getElementById('vdScore').innerHTML = '<span style="color:'+scColor+'">'+sc+'</span><span style="font-size:14px;color:var(--muted)"> 分</span>';
+  document.getElementById('vdMetrics').innerHTML = metrics;
+  document.getElementById('vidDrawer').classList.add('vd-open');
+  document.getElementById('vidBackdrop').classList.add('vd-open');
+}
+function closeVidDrawer() {
+  document.getElementById('vidDrawer').classList.remove('vd-open');
+  document.getElementById('vidBackdrop').classList.remove('vd-open');
+}
 </script>
+
+<div id="vidBackdrop" onclick="closeVidDrawer()"></div>
+<div id="vidDrawer">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+    <div style="flex:1;min-width:0;padding-right:12px">
+      <div id="vdTitle" style="font-size:15px;font-weight:800;line-height:1.45;word-break:break-all"></div>
+      <div id="vdMeta" style="font-size:13px;color:var(--muted);margin-top:5px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+      <div id="vdScore" style="font-size:26px;font-weight:800;line-height:1"></div>
+      <button onclick="closeVidDrawer()" style="border:none;background:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0">✕</button>
+    </div>
+  </div>
+  <div id="vdMetrics" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+</div>
 </body>
 </html>
