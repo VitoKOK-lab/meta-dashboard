@@ -870,7 +870,7 @@ function initOverview() {
             +'<span class="rising-gain">+'+fmtNum(gain)+' 播</span>'
             +'<span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</span>'
             +'<span style="font-size:13px;color:var(--muted);flex-shrink:0;margin:0 6px">'+age+'天前</span>'
-            +'<span class="rising-verdict '+(caught?'rv-good':'rv-miss')+'">'+(caught?'✅ 接住了':'⚠️ 沒接住')+'</span>'
+            +'<span class="rising-verdict '+(caught?'rv-good':'rv-miss')+'">'+(caught?'✅ 有效流量':'⚠️ 無效流量')+'</span>'
             +'</div>';
         }).join('')
       + '</div>')
@@ -951,11 +951,11 @@ function initOverview() {
     + '<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">'
     + '<span style="font-size:16px">📖</span> 指標說明（點擊展開）</summary>'
     + '<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
-    + '<strong>🚀 演算法正在推 — 接住了嗎？</strong><br>'
+    + '<strong>🚀 演算法正在推 — 有效還是無效流量？</strong><br>'
     + '平台偵測到播放量快速上升，正在把這片推給更多陌生人。<br>'
-    + '✅ <strong>接住了</strong> = 新觀眾有留言或轉發 → 平台繼續推，流量滾雪球<br>'
-    + '⚠️ <strong>沒接住</strong> = 觀眾只看不互動就走 → 平台停止推播<br>'
-    + '<strong>行動：</strong>馬上去「沒接住」的片留言區互動，或用限時動態呼粉絲去看，帶貨片補「留言+1 領取」<br><br>'
+    + '✅ <strong>有效流量</strong> = 新觀眾有留言或轉發 → 平台繼續推，流量滾雪球<br>'
+    + '⚠️ <strong>無效流量</strong> = 觀眾只看不互動就走 → 平台停止推播<br>'
+    + '<strong>行動：</strong>馬上去「無效流量」的片留言區互動，或用限時動態呼粉絲去看，帶貨片補「留言+1 領取」<br><br>'
     + '<strong>📊 分數說明（頻道相對制）</strong><br>'
     + '分數是跟自己頻道內同類型影片比，50分 = 中位數（正常），65分以上 = 前25%（優質），80分以上 = 前10%（強）<br>'
     + '流量型：播放量佔35% + 轉發30% + 留言20% + 觸及15%<br>'
