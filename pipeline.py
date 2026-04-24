@@ -707,6 +707,20 @@ def main():
     force_weekly  = '--weekly'  in sys.argv
     force_history = '--history' in sys.argv  # 每20天：拉5年內所有歷史影片
     force_backfill = '--backfill' in sys.argv  # 一次性補齊粉絲90天歷史
+    html_only     = '--html-only' in sys.argv  # 只重建 HTML，不打 API
+
+    if html_only:
+        print('=' * 50)
+        print('  [html-only] 從現有資料重建 index.html')
+        print('=' * 50)
+        videos_dict = load_db()
+        fh = load_follower_history()
+        recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
+        stats  = compute_stats(recent)
+        avg_fb, avg_ig = compute_averages(stats)
+        generate_html(recent, avg_fb, avg_ig, follower_history=fh)
+        print('完成！HTML:{} 支'.format(len(recent)))
+        return
 
     if force_backfill:
         backfill_follower_history()
