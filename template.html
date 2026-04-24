@@ -208,9 +208,10 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .theme-sec{margin-bottom:20px}
 .theme-sec:last-child{margin-bottom:0}
 .theme-sec-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.theme-kw-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}
+.theme-kw-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
 .theme-kw-row:last-child{border-bottom:none}
-.theme-kw-name{font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.theme-kw-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.theme-kw-meta{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
 .trend-pill{font-size:12px;font-weight:800;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .t-up{background:rgba(13,148,136,.12);color:#1a9e95}
 .t-down{background:rgba(190,58,103,.1);color:var(--warn)}
@@ -1002,63 +1003,82 @@ function initTheme() {
     var kd = {};
     all.filter(function(v){ return v.type===type; }).forEach(function(v) {
       var age = daysBetween(v.created_time);
+      var plays = v.plays || 0;
+      var cr = plays > 0 ? (v.comments || 0) / plays * 100 : 0;
       extractKw(v).forEach(function(kw) {
-        if (!kd[kw]) kd[kw] = { scores:[], recent:[], prev:[] };
-        kd[kw].scores.push(v.score||0);
-        if (age<=30) kd[kw].recent.push(v.score||0);
-        else if (age<=60) kd[kw].prev.push(v.score||0);
+        if (!kd[kw]) kd[kw] = { scores:[], recent:[], prev:[], plays:[], commentRates:[], lastAge:9999, bestScore:0, bestTitle:'' };
+        var d = kd[kw];
+        d.scores.push(v.score || 0);
+        d.plays.push(plays);
+        d.commentRates.push(cr);
+        if (age < d.lastAge) d.lastAge = age;
+        if ((v.score||0) > d.bestScore) {
+          d.bestScore = v.score||0;
+          d.bestTitle = truncTitle(v.description||v.caption||'', 28);
+        }
+        if (age<=30) d.recent.push(v.score||0);
+        else if (age<=60) d.prev.push(v.score||0);
       });
     });
     Object.keys(kd).forEach(function(k){ if (kd[k].scores.length<3) delete kd[k]; });
     return kd;
   }
 
-  function trendPill(kd) {
-    if (!kd.recent.length) return '<span class="trend-pill t-new">新</span>';
-    if (!kd.prev.length)   return '<span class="trend-pill t-new">近期</span>';
-    var pct = arrAvg(kd.prev)>0 ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
+  function trendPill(d) {
+    if (!d.recent.length) return '<span class="trend-pill t-new">新</span>';
+    if (!d.prev.length)   return '<span class="trend-pill t-new">近期</span>';
+    var pct = arrAvg(d.prev)>0 ? Math.round((arrAvg(d.recent)-arrAvg(d.prev))/arrAvg(d.prev)*100) : 0;
     if (pct>=8)  return '<span class="trend-pill t-up">↑ +'+pct+'%</span>';
     if (pct<=-8) return '<span class="trend-pill t-down">↓ '+pct+'%</span>';
     return '<span class="trend-pill t-flat">→</span>';
   }
 
-  function classify(kd) {
-    var a = arrAvg(kd.scores);
-    var pct = (kd.prev.length&&arrAvg(kd.prev)>0) ? Math.round((arrAvg(kd.recent)-arrAvg(kd.prev))/arrAvg(kd.prev)*100) : 0;
-    // 分類邏輯：
-    //   值得加碼 = 整體平均高(>=60) 且 近期沒有大幅衰退(>=-10%)
-    //   考慮停拍 = 整體平均低(<40)，平均低才代表這主題一直都不行
-    //             ※ 高分但近期下滑 → 只放「持續觀察」，不算停拍
+  function classify(d) {
+    var a = arrAvg(d.scores);
+    var pct = (d.prev.length&&arrAvg(d.prev)>0) ? Math.round((arrAvg(d.recent)-arrAvg(d.prev))/arrAvg(d.prev)*100) : 0;
+    // 值得加碼 = 整體平均高(>=60) 且 近期沒有大幅衰退(>=-10%)
+    // 考慮停拍 = 整體平均低(<40)，一直都不行才停
+    // ※ 高分但近期下滑 → 持續觀察，不算停拍
     if (a>=60 && pct>=-10) return 'add';
     if (a<40)              return 'stop';
     return 'hold';
   }
 
-  function renderKwRows(kd, limit) {
+  // 統一 row builder：顯示具體數字讓行動有依據
+  function makeRow(kw, d) {
+    var a = arrAvg(d.scores);
+    var avgPlays = Math.round(arrAvg(d.plays));
+    var avgCr = arrAvg(d.commentRates).toFixed(1);
+    var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
+    var dayStr = d.lastAge < 9999 ? d.lastAge+'天前' : '—';
+    var readyBadge = (d.lastAge >= 21 && d.lastAge < 9999)
+      ? '<span style="background:#e8f8f7;color:#1a9e95;font-size:11px;border-radius:3px;padding:1px 5px;font-weight:700;white-space:nowrap;flex-shrink:0">可拍</span>' : '';
+    var metaLine = fmtNum(avgPlays)+' 播放・'+avgCr+'% 留言・'+d.scores.length+'支・上次 '+dayStr;
+    return '<div class="theme-kw-row">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">'
+      +'<span class="theme-kw-name'+(kw[0]==='#'?' kw-hash':'')+'">'+kw+'</span>'
+      +trendPill(d)
+      +readyBadge
+      +'</div>'
+      +'<div class="theme-kw-meta">'+metaLine+'</div>'
+      +'</div>'
+      +'<span class="theme-kw-score" style="color:'+sc+'">'+Math.round(a)+'分</span>'
+      +'</div>';
+  }
+
+  function renderKwRows(kd, limit, asc) {
     limit = limit || 10;
-    // 正面優先：加碼區依分數降冪，停拍區依分數升冪（最差的排最前讓人知道要避開）
-    // 這裡 caller 決定方向，統一傳 sorted keys 進來
-    var keys = Object.keys(kd).sort(function(a,b){ return arrAvg(kd[b].scores)-arrAvg(kd[a].scores); });
-    if (!keys.length) return '<div style="color:var(--muted);font-size:14px;padding:8px 0">資料不足（需3支以上）</div>';
-
-    function makeRow(kw) {
-      var a = arrAvg(kd[kw].scores), aStr = a.toFixed(0);
-      var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
-      return '<div class="theme-kw-row">'
-        +'<span class="theme-kw-name'+(kw[0]==='#'?' kw-hash':'')+'">'+kw+'</span>'
-        +trendPill(kd[kw])
-        +'<span class="theme-kw-score" style="color:'+sc+'">'+aStr+'分</span>'
-        +'<span class="theme-kw-cnt">'+kd[kw].scores.length+'支</span>'
-        +'</div>';
-    }
-
-    var top  = keys.slice(0, limit);
-    var rest = keys.slice(limit);
-    var html = top.map(makeRow).join('');
+    var keys = Object.keys(kd).sort(function(a,b){
+      return asc ? arrAvg(kd[a].scores)-arrAvg(kd[b].scores) : arrAvg(kd[b].scores)-arrAvg(kd[a].scores);
+    });
+    if (!keys.length) return '<div style="color:var(--muted);font-size:14px;padding:8px 0">'+(asc?'目前無此類主題':'資料不足（需3支以上）')+'</div>';
+    var top = keys.slice(0, limit), rest = keys.slice(limit);
+    var html = top.map(function(kw){ return makeRow(kw, kd[kw]); }).join('');
     if (rest.length) {
       html += '<details><summary style="font-size:13px;color:var(--muted);cursor:pointer;padding:6px 0;user-select:none">'
         +'還有 '+rest.length+' 個主題（點擊展開）</summary>'
-        +rest.map(makeRow).join('')
+        +rest.map(function(kw){ return makeRow(kw, kd[kw]); }).join('')
         +'</details>';
     }
     return html;
@@ -1071,39 +1091,21 @@ function initTheme() {
     }).sort(function(a,b){return (b.score||0)-(a.score||0);}).slice(0,5);
     if (!recs.length) return '<div style="color:var(--muted);font-size:14px;padding:6px 0">暫無符合條件影片</div>';
     return recs.map(function(v){
-      var title=truncTitle(v.description||v.caption||'',22);
+      var title=truncTitle(v.description||v.caption||'',28);
       var age=daysBetween(v.created_time);
       var sc=v.score||0;
+      var plays=v.plays||0;
+      var cr=plays>0?((v.comments||0)/plays*100).toFixed(1):'0.0';
+      var nf=v.newFollowers||0;
+      var nfStr=nf>0?' · <span style="color:#1a9e95;font-weight:700">+'+fmtNum(nf)+'粉</span>':'';
       return '<div class="theme-recycle-row">'
-        +'<span style="font-size:12px;color:var(--muted);min-width:34px;flex-shrink:0">'+age+'天</span>'
-        +'<span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</span>'
-        +'<span style="font-size:15px;font-weight:400;color:'+(sc>=80?'#1a9e95':'#b5924e')+';min-width:28px;text-align:right;flex-shrink:0">'+sc+'分</span>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:3px">'+age+'天前・'+fmtNum(plays)+' 播放・'+cr+'% 留言'+nfStr+'</div>'
+        +'</div>'
+        +'<span style="font-size:15px;font-weight:700;color:'+(sc>=80?'#1a9e95':'#b5924e')+';min-width:32px;text-align:right;flex-shrink:0">'+sc+'分</span>'
         +'</div>';
     }).join('');
-  }
-
-  function renderKwRowsAsc(kd, limit) {
-    // 停拍區：最差排最前（升冪），讓人一眼看到最需要避開的
-    limit = limit || 10;
-    var keys = Object.keys(kd).sort(function(a,b){ return arrAvg(kd[a].scores)-arrAvg(kd[b].scores); });
-    if (!keys.length) return '<div style="color:var(--muted);font-size:14px;padding:8px 0">目前無此類主題</div>';
-    function makeRow(kw) {
-      var a = arrAvg(kd[kw].scores), aStr = a.toFixed(0);
-      var sc = a>=65?'#1a9e95':a>=50?'#b5924e':'#be3a67';
-      return '<div class="theme-kw-row">'
-        +'<span class="theme-kw-name'+(kw[0]==='#'?' kw-hash':'')+'">'+kw+'</span>'
-        +trendPill(kd[kw])
-        +'<span class="theme-kw-score" style="color:'+sc+'">'+aStr+'分</span>'
-        +'<span class="theme-kw-cnt">'+kd[kw].scores.length+'支</span>'
-        +'</div>';
-    }
-    var top = keys.slice(0,limit), rest = keys.slice(limit);
-    var html = top.map(makeRow).join('');
-    if (rest.length) {
-      html += '<details><summary style="font-size:13px;color:var(--muted);cursor:pointer;padding:6px 0;user-select:none">'
-        +'還有 '+rest.length+' 個（點擊展開）</summary>'+rest.map(makeRow).join('')+'</details>';
-    }
-    return html;
   }
 
   function renderTypeCol(type, label, icon) {
@@ -1116,27 +1118,40 @@ function initTheme() {
       else holdKw[k]=kd[k];
     });
     var holdCnt = Object.keys(holdKw).length;
+
+    // 找「值得拍但超過21天沒拍」的高分主題 → 主動推薦
+    var readyKws = Object.keys(addKw)
+      .filter(function(k){ return addKw[k].lastAge >= 21; })
+      .sort(function(a,b){ return arrAvg(addKw[b].scores)-arrAvg(addKw[a].scores); })
+      .slice(0, 3);
+    var nextShoot = readyKws.length
+      ? '<div style="background:#e8f8f7;border:1px solid #a5d8d4;border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:13px;line-height:1.6">'
+        +'<strong>💡 下一支建議拍</strong>（高分且超過21天沒拍）<br>'
+        +readyKws.map(function(k){
+          var d=addKw[k];
+          return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #a5d8d4;border-radius:4px;padding:2px 8px;margin:3px 4px 0 0;font-weight:700">'
+            +k+' <span style="font-weight:400;color:var(--muted);font-size:11px">'+d.lastAge+'天前・'+Math.round(arrAvg(d.scores))+'分</span></span>';
+        }).join('')
+        +'</div>' : '';
+
     return '<div class="theme-col">'
       +'<div class="theme-col-head">'+icon+' '+label+'</div>'
+      +nextShoot
 
-      // 值得加碼：高分優先，最多10個展示
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#1a9e95">✅ 值得加碼（'+Object.keys(addKw).length+' 個主題）</div>'
-      +renderKwRows(addKw, 10)
+      +renderKwRows(addKw, 10, false)
       +'</div>'
 
-      // 考慮停拍：最差優先（讓人知道最要避開哪個）
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#be3a67">🚫 考慮停拍（'+Object.keys(stopKw).length+' 個主題）</div>'
-      +renderKwRowsAsc(stopKw, 10)
+      +renderKwRows(stopKw, 10, true)
       +'</div>'
 
-      // 持續觀察：折疊，不需要每次都看
       +(holdCnt ? '<details class="theme-sec"><summary style="font-size:13px;color:#b5924e;cursor:pointer;user-select:none;list-style:none;padding:4px 0">👀 持續觀察 '+holdCnt+' 個主題（點擊展開）</summary>'
-        +renderKwRows(holdKw, 10)
+        +renderKwRows(holdKw, 10, false)
         +'</details>' : '')
 
-      // 可復投
       +'<div class="theme-sec">'
       +'<div class="theme-sec-title" style="color:#b5924e">♻ 可復投影片（30-150天 · 分數≥65）</div>'
       +recycleHtml(type)
@@ -1155,9 +1170,10 @@ function initTheme() {
     +'<span style="font-size:16px">📖</span> 判斷邏輯說明（點擊展開）</summary>'
     +'<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
     +'✅ <strong>值得加碼</strong> = 平均分 ≥ 60 且近30天沒有明顯衰退 → 繼續拍同類主題<br>'
-    +'🚫 <strong>考慮停拍</strong> = 平均分 &lt; 40（底部25%）或近期下滑幅度 ≥ 15% → 換方向<br>'
-    +'👀 <strong>持續觀察</strong> = 中間地帶，資料還不夠多或走勢不明確<br>'
-    +'♻ <strong>可復投</strong> = 30-150天前發布、分數 ≥ 65 的舊片，換封面或重新剪輯再發，不用重拍<br><br>'
+    +'🚫 <strong>考慮停拍</strong> = 平均分 &lt; 40（底部25%），這主題一直都表現差<br>'
+    +'👀 <strong>持續觀察</strong> = 中間地帶，走勢不明確<br>'
+    +'♻ <strong>可復投</strong> = 30-150天前發布、分數 ≥ 65 的舊片，換封面或重剪再發，不用重拍<br>'
+    +'💡 <strong>可拍</strong> 標籤 = 這個主題超過 21 天沒拍，歷史分數高 → 可以安排了<br><br>'
     +'分數是頻道相對制，50分 = 頻道中位數，65分以上 = 前25%</div>'
     +'</details>';
 }
