@@ -255,6 +255,7 @@ def parse_ig_insights(data):
         'comments':        m.get('comments') or 0,
         'likes':           m.get('likes') or 0,
         'saved':           m.get('saved') or 0,
+        'new_followers':   m.get('follows') or 0,
         'avg_watch_ms':    avg_watch,
         'total_view_ms':   total_view,
         'completion_rate': None,
@@ -486,7 +487,7 @@ def fetch_insights_for(stale_list):
         print('  [IG] 更新 insights ({} 支)...'.format(len(ig_ids)))
         time.sleep(1.5)
         raw = batch_api([
-            '{}/insights?metric=reach,shares,comments,likes,saved,'
+            '{}/insights?metric=reach,shares,comments,likes,saved,follows,'
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])

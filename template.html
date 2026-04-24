@@ -174,9 +174,11 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 /* 小字數據帶 */
 .mini-section-divider{margin:22px 0 16px;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase}
 .mini-section-divider::before,.mini-section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
-.mini-kpi-row{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
-.mini-kpi-cell{flex:1;padding:10px 14px;border-right:1px solid var(--border);min-width:0;overflow:hidden}
-.mini-kpi-cell:last-child{border-right:none}
+.mini-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+@media(max-width:640px){.mini-kpi-row{grid-template-columns:repeat(2,1fr)}}
+.mini-kpi-cell{padding:10px 14px;border-right:1px solid var(--border);border-bottom:0;min-width:0;overflow:hidden}
+.mini-kpi-cell:nth-child(4n){border-right:none}
+@media(max-width:640px){.mini-kpi-cell:nth-child(2n){border-right:none}.mini-kpi-cell:nth-child(-n+2){border-bottom:1px solid var(--border)}}
 .mini-kpi-lbl{font-size:12px;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-kpi-val{font-size:20px;font-weight:400;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mini-kpi-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -840,12 +842,15 @@ function initOverview() {
             var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
             var lt=loyaltyTier(v);
             var age=daysBetween(v.created_time);
+            var nf = v.newFollowers || 0;
+            var nfStr = nf > 0 ? '<span style="font-size:12px;color:#1a9e95;font-weight:700;flex-shrink:0;margin-left:6px">+'+fmtNum(nf)+'粉</span>' : '';
             return '<div class="today-row">'
               +'<span style="font-size:12px;color:var(--muted);min-width:34px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
               +'<span style="font-size:13px;flex-shrink:0;margin-right:4px">'+(v.platform==='fb'?'📘':'📸')+'</span>'
               +'<span style="flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(v.description||v.caption||'')+'">'+truncTitle(v.description||v.caption||'',28)+'</span>'
               +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 6px">'+tierLabel(lt)+'</span>'
-              +'<span style="font-size:15px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0">'+(v.score||0)+'分</span>'
+              +nfStr
+              +'<span style="font-size:15px;font-weight:400;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0;margin-left:6px">'+(v.score||0)+'分</span>'
               +'</div>';
           }).join('')
         + '</div>')
@@ -1344,15 +1349,16 @@ function renderTop10() {
   var rankClass  = function(i) { return i===0?'gold-r':i===1?'silver-r':i===2?'bronze-r':''; };
   var scoreClass = currentTop20Type === 'traffic' ? 't-score' : 'c-score';
   var colHeaders = currentTop20Type === 'traffic'
-    ? ['#','影片','評分','播放','轉發率','留言率','觸及偏離','']
-    : ['#','影片','評分','播放','留言率','觸及偏離','儲存/新粉',''];
+    ? ['#','影片','評分','播放','轉發率','留言率','觸及偏離','新增粉絲']
+    : ['#','影片','評分','播放','留言率','觸及偏離','儲存','新增粉絲'];
 
   var rows = top10.map(function(v, i) {
     var dev     = reachDev(v);
     var devPct  = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
     var devColor = dev >= 0.05 ? '#1a9e95' : dev <= -0.05 ? 'var(--warn)' : '#7a6428';
     var daysOld = daysBetween(v.created_time);
-    var extra   = v.platform === 'ig' ? fmtNum(v.saved || 0) : '+' + (v.newFollowers || 0);
+    var nf      = v.newFollowers || 0;
+    var nfStr   = nf > 0 ? '<span style="color:#1a9e95;font-weight:700">+' + fmtNum(nf) + '</span>' : '<span style="color:var(--muted)">—</span>';
     var title   = v.description || v.caption || '';
     var cols;
     if (currentTop20Type === 'traffic') {
@@ -1364,7 +1370,7 @@ function renderTop10() {
         '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
         '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
-        '<div>' + (daysOld>=30&&daysOld<=150?'<span class="reuse-badge">♻ 復投</span>':'') + '</div>',
+        '<div class="rt-num">' + nfStr + '</div>',
       ];
     } else {
       cols = [
@@ -1374,8 +1380,8 @@ function renderTop10() {
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
         '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
-        '<div class="rt-num">' + extra + '</div>',
-        '<div>' + (daysOld>=30&&daysOld<=150?'<span class="reuse-badge">♻ 復投</span>':'') + '</div>',
+        '<div class="rt-num">' + (v.platform==='ig'?fmtNum(v.saved||0):'—') + '</div>',
+        '<div class="rt-num">' + nfStr + '</div>',
       ];
     }
     return '<div class="rt-row">' + cols.join('') + '</div>';
