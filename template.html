@@ -196,6 +196,20 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .rising-verdict{font-size:13px;font-weight:800;padding:2px 8px;border-radius:4px;flex-shrink:0}
 .rv-good{background:rgba(13,148,136,.12);color:#1a9e95}
 .rv-miss{background:rgba(190,58,103,.1);color:var(--warn)}
+/* ── 粉絲趨勢圖 ── */
+.follower-bar-wrap{display:flex;align-items:flex-end;gap:1px;height:60px;border-bottom:2px solid var(--border);padding-bottom:0;position:relative;cursor:pointer}
+.follower-bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;flex:1;min-width:2px;height:100%}
+.follower-bar-pos{background:#1a9e95;border-radius:2px 2px 0 0;width:100%;transition:opacity .1s}
+.follower-bar-neg{background:#be3a67;border-radius:0 0 2px 2px;width:100%;transition:opacity .1s}
+.follower-bar-col:hover .follower-bar-pos,.follower-bar-col:hover .follower-bar-neg{opacity:.7}
+.follower-vid-dot{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--pink);flex-shrink:0}
+.follower-tooltip{margin-top:10px;padding:10px 12px;background:var(--off);border-radius:6px;font-size:13px;line-height:1.7;display:none}
+.follower-kpis{display:flex;gap:20px;margin-bottom:10px;flex-wrap:wrap}
+.follower-kpi{display:flex;flex-direction:column;gap:2px}
+.follower-kpi-lbl{font-size:12px;color:var(--muted)}
+.follower-kpi-row{display:flex;align-items:baseline;gap:6px}
+.follower-kpi-val{font-size:20px;font-weight:800;line-height:1}
+.follower-kpi-net{font-size:13px;font-weight:700}
 /* ── 近日上片 ── */
 .today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;transition:background .12s}
@@ -378,8 +392,8 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="tabs">
   <div class="tabs-in">
-    <div class="tab active" onclick="switchTab('overview',this)">📊 本週指令</div>
-    <div class="tab" onclick="switchTab('theme',this)">🎯 題材策略</div>
+    <div class="tab active" onclick="switchTab('overview',this)">📊 近期</div>
+    <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
     <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
     <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
   </div>
@@ -450,8 +464,8 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
 <div class="mob-nav">
   <div class="mob-nav-in">
-    <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>指令</div>
-    <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>題材</div>
+    <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>近期</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>關鍵字</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
     <div class="mob-tab" onclick="mobileSwitchTab('search',this)"><span class="mi">🔍</span>尋找</div>
   </div>
@@ -700,6 +714,117 @@ function togglePanel(id, btn) {
   btn.textContent = btn.textContent.replace(open ? '▾' : '▴', open ? '▴' : '▾');
 }
 
+// ── 粉絲趨勢圖 ───────────────────────────────────────────────────────────────
+function renderFollowerChart() {
+  var hist = (STATIC_DATA.followerHistory || []).slice().sort(function(a,b){ return a.date<b.date?-1:1; });
+  var vids = STATIC_DATA.videos || [];
+
+  // Build video-by-date index (TW date)
+  var vidsByDate = {};
+  vids.forEach(function(v){
+    var d = v.created_date || (v.created_time||'').slice(0,10);
+    if (!vidsByDate[d]) vidsByDate[d] = [];
+    vidsByDate[d].push(v);
+  });
+
+  // Latest snapshot for KPI header
+  var latest  = hist.length ? hist[hist.length-1] : null;
+  var fbTotal = latest ? (latest.fb_total||0) : 0;
+  var igTotal = latest ? (latest.ig_total||0) : 0;
+  var fbNet   = latest ? (latest.fb_net||0)   : 0;
+  var igNet   = latest ? (latest.ig_net||0)   : 0;
+  function netStr(n){ return (n>0?'+':'')+n; }
+  function netColor(n){ return n>0?'#1a9e95':n<0?'#be3a67':'var(--muted)'; }
+
+  var kpiHtml = '<div class="follower-kpis">'
+    +'<div class="follower-kpi"><div class="follower-kpi-lbl">📘 FB粉絲</div><div class="follower-kpi-row"><span class="follower-kpi-val">'+(fbTotal?fmtNum(fbTotal):'—')+'</span>'+(latest?'<span class="follower-kpi-net" style="color:'+netColor(fbNet)+'">今日'+netStr(fbNet)+'</span>':'')+'</div></div>'
+    +'<div class="follower-kpi"><div class="follower-kpi-lbl">📸 IG粉絲</div><div class="follower-kpi-row"><span class="follower-kpi-val">'+(igTotal?fmtNum(igTotal):'—')+'</span>'+(latest?'<span class="follower-kpi-net" style="color:'+netColor(igNet)+'">今日'+netStr(igNet)+'</span>':'')+'</div></div>'
+    +'</div>';
+
+  if (hist.length < 3) {
+    return '<div class="cmd-card" style="margin-bottom:14px">'
+      +'<div class="cmd-card-label">粉絲增減趨勢</div>'
+      +kpiHtml
+      +'<div style="color:var(--muted);font-size:13px;padding:6px 0">資料累積中，幾天後即可看到趨勢圖…</div>'
+      +'</div>';
+  }
+
+  // Take last 60 days
+  var days = hist.slice(-60);
+  var nets = days.map(function(d){ return (d.fb_net||0)+(d.ig_net||0); });
+  var maxPos = Math.max.apply(null, nets.concat([1]));
+  var maxNeg = Math.abs(Math.min.apply(null, nets.concat([-1])));
+  var maxAbs = Math.max(maxPos, maxNeg, 1);
+  var heightPx = 54; // total chart area height (px, for inline style)
+  var posAreaH = Math.round(heightPx * maxPos / (maxPos+maxNeg));
+  var negAreaH = heightPx - posAreaH;
+
+  var cols = days.map(function(d, i){
+    var net = (d.fb_net||0)+(d.ig_net||0);
+    var dayVids = vidsByDate[d.date] || [];
+    var dot = dayVids.length ? '<div class="follower-vid-dot"></div>' : '';
+    var posH = net>0 ? Math.max(Math.round(net/maxAbs*posAreaH), 2) : 0;
+    var negH = net<0 ? Math.max(Math.round(Math.abs(net)/maxAbs*negAreaH), 2) : 0;
+    // encode data for click handler
+    var enc = encodeURIComponent(JSON.stringify({
+      date: d.date,
+      net: net, fbNet: d.fb_net||0, igNet: d.ig_net||0,
+      fbTotal: d.fb_total||0, igTotal: d.ig_total||0,
+      vids: dayVids.map(function(v){ return {t:truncTitle(v.description||v.caption||'',22), s:v.score||0, p:v.platform}; })
+    }));
+    return '<div class="follower-bar-col" onclick="followerColClick(this)" data-enc="'+enc+'">'
+      +dot
+      +'<div class="follower-bar-pos" style="height:'+posH+'px"></div>'
+      +'<div style="height:'+(posAreaH-posH)+'px"></div>'
+      +'<div style="height:'+(negAreaH-negH)+'px"></div>'
+      +'<div class="follower-bar-neg" style="height:'+negH+'px"></div>'
+      +'</div>';
+  }).join('');
+
+  // Month labels (show first day of each month)
+  var monthLabels = '<div style="display:flex;gap:1px;padding-top:2px">';
+  var lastM = '';
+  days.forEach(function(d){
+    var m = d.date.slice(5,7);
+    var label = m!==lastM ? '<div style="flex:1;font-size:10px;color:var(--muted);overflow:hidden;white-space:nowrap">'+parseInt(m)+'月</div>' : '<div style="flex:1"></div>';
+    monthLabels += label;
+    lastM = m;
+  });
+  monthLabels += '</div>';
+
+  return '<div class="cmd-card" style="margin-bottom:14px">'
+    +'<div class="cmd-card-label">粉絲增減趨勢 · 近60天 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:6px">● 發片日 &nbsp; 綠=漲粉 紅=掉粉</span></div>'
+    +kpiHtml
+    +'<div class="follower-bar-wrap" style="height:'+heightPx+'px">'+cols+'</div>'
+    +monthLabels
+    +'<div class="follower-tooltip" id="followerTip"></div>'
+    +'</div>';
+}
+
+function followerColClick(el) {
+  var enc = el.getAttribute('data-enc');
+  if (!enc) return;
+  try { var d = JSON.parse(decodeURIComponent(enc)); } catch(e){ return; }
+  var tip = document.getElementById('followerTip');
+  if (!tip) return;
+  var nc = d.net>0?'#1a9e95':d.net<0?'#be3a67':'var(--muted)';
+  var ns = (d.net>0?'+':'')+d.net;
+  var html = '<strong>'+d.date+'</strong> · 淨增粉 <strong style="color:'+nc+'">'+ns+'</strong>'
+    +' <span style="color:var(--muted)">(FB '+(d.fbNet>=0?'+':'')+d.fbNet+' / IG '+(d.igNet>=0?'+':'')+d.igNet+')</span>';
+  if (d.fbTotal) html += ' · FB '+fmtNum(d.fbTotal)+'人';
+  if (d.igTotal) html += ' · IG '+fmtNum(d.igTotal)+'人';
+  if (d.vids && d.vids.length) {
+    html += '<br>📹 當天發片：'
+      +d.vids.map(function(v){
+        return '<span style="font-weight:700">'+(v.p==='fb'?'📘':'📸')+v.t+'</span>（'+v.s+'分）';
+      }).join('、');
+  } else {
+    html += '<br><span style="color:var(--muted)">當天沒有發片</span>';
+  }
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+}
+
 // ── 總覽 ─────────────────────────────────────────────────────────────────
 function initOverview() {
   var all  = STATIC_DATA.videos;
@@ -838,8 +963,11 @@ function initOverview() {
   // ── RENDER ──
   document.getElementById('cmdCenter').innerHTML =
 
-    // ① 今日 / 最近上片（最重要，最先看）
-    '<div class="slabel">'+recentLabel+' <span style="color:var(--muted);font-weight:400;font-size:13px">（點列查看詳細數據）</span></div>'
+    // ① 粉絲增減趨勢（最頂端，掉粉偵測）
+    renderFollowerChart()
+
+    // ② 近日上片
+    + '<div class="slabel">'+recentLabel+' <span style="color:var(--muted);font-weight:400;font-size:13px">（點列查看詳細數據）</span></div>'
     + (todayVids.length===0
       ? '<div style="color:var(--muted);font-size:14px;padding:8px 0 16px">近48小時暫無新影片</div>'
       : '<div class="today-list" style="margin-bottom:14px">'
@@ -928,7 +1056,7 @@ function initOverview() {
     + wkData.map(function(x){return '<div class="cadence-lbl" style="flex:1">'+x.label+'</div>';}).join('')
     + '</div></div>'
     + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">主題勝率 · 詳細請看「題材策略」</div>'
+    + '<div class="cmd-card-label">主題勝率 · 詳細請看「關鍵字」分頁</div>'
     + (kwTop.length===0
       ? '<div style="color:var(--muted);font-size:14px;padding:10px 0">資料不足</div>'
       : kwTop.slice(0,6).map(function(x,xi){
