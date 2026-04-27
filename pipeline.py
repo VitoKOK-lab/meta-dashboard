@@ -442,12 +442,16 @@ def _percentile_rank(sorted_list, value):
             hi = mid
     return lo / float(len(sorted_list))
 
+# 計算互動率百分位時，要求至少這個播放量才納入分佈
+# 避免「100播放+1留言」因樣本太小而取得虛假高分
+MIN_PLAYS_FOR_RATE = 30
+
 def _sorted_rates(videos, key):
-    # 含 0，讓「完全沒有轉發/留言」也有百分位位置，而非強制得 0 分
+    # 只納入播放數 >= MIN_PLAYS_FOR_RATE 的影片，排除小樣本噪音
     vals = []
     for v in videos:
         p = v.get('plays') or 0
-        if p > 0:
+        if p >= MIN_PLAYS_FOR_RATE:
             vals.append((v.get(key) or 0) / float(p))
     return sorted(vals)
 
@@ -525,25 +529,32 @@ def score_video(v, stats):
     reach_list = stats['fb_reach'] if v.get('platform') == 'fb' else stats['ig_reach']
     reach_pct  = p(reach_list, reach)
 
+    # 播放數不足 MIN_PLAYS_FOR_RATE 時，互動率分數歸零（避免小樣本虛假高分）
+    valid_rates = plays >= MIN_PLAYS_FOR_RATE
+
     if v.get('type') == 'traffic':
-        raw = (p(stats['tr_plays'],   plays) * 0.35
-             + p(stats['tr_share'],   sr)    * 0.30
-             + p(stats['tr_comment'], cr)    * 0.20
-             + reach_pct                     * 0.15)
+        sr_score = p(stats['tr_share'],   sr) if valid_rates else 0.0
+        cr_score = p(stats['tr_comment'], cr) if valid_rates else 0.0
+        raw = (p(stats['tr_plays'], plays) * 0.35
+             + sr_score                    * 0.30
+             + cr_score                    * 0.20
+             + reach_pct                   * 0.15)
     else:  # commerce
         saves_rate = (v.get('saved') or 0) / float(plays) if v.get('platform') == 'ig' else 0.0
+        cr_score = p(stats['cm_comment'], cr) if valid_rates else 0.0
+        sr_score = p(stats['cm_share'],   sr) if valid_rates else 0.0
         if v.get('platform') == 'ig':
-            sv = p(stats['cm_saves'], saves_rate) if saves_rate > 0 else 0.0
-            raw = (p(stats['cm_comment'], cr)  * 0.40
-                 + sv                           * 0.25
-                 + reach_pct                    * 0.20
-                 + p(stats['cm_share'],   sr)   * 0.10
-                 + p(stats['cm_plays'], plays)  * 0.05)
+            sv = p(stats['cm_saves'], saves_rate) if (valid_rates and saves_rate > 0) else 0.0
+            raw = (cr_score                        * 0.40
+                 + sv                              * 0.25
+                 + reach_pct                       * 0.20
+                 + sr_score                        * 0.10
+                 + p(stats['cm_plays'], plays)     * 0.05)
         else:  # FB 帶貨
-            raw = (p(stats['cm_comment'], cr)  * 0.50
-                 + reach_pct                    * 0.25
-                 + p(stats['cm_share'],   sr)   * 0.15
-                 + p(stats['cm_plays'], plays)  * 0.10)
+            raw = (cr_score                        * 0.50
+                 + reach_pct                       * 0.25
+                 + sr_score                        * 0.15
+                 + p(stats['cm_plays'], plays)     * 0.10)
 
     completion = v.get('completion_rate')
     if completion is not None:
