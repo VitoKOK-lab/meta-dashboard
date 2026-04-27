@@ -315,6 +315,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .score-tile.st-good{background:rgba(13,148,136,.07);border-color:rgba(13,148,136,.3)}
 .score-tile.st-mid{background:rgba(155,44,126,.07);border-color:rgba(155,44,126,.3)}
 .score-tile.st-low{background:rgba(190,58,103,.07);border-color:rgba(190,58,103,.28)}
+.score-tile.st-b{background:rgba(181,146,78,.07);border-color:rgba(181,146,78,.4)}
 .score-tile.st-na{background:var(--off);border-color:var(--border)}
 .vcard-metrics{padding:14px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;border-bottom:1px solid var(--border)}
 .metric-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
@@ -491,30 +492,28 @@ let activePeriod = '7';
 let currentTop20Type = 'traffic';
 
 // ── 評分 helpers ──────────────────────────────────────────────────────────
-// 未及格：有播放但不足 MIN_PLAYS_FOR_RATE（由 pipeline 寫入 low_plays 旗標）
-function scoreStr(v) {
-  if (v.low_plays) return '未及格';
-  if (!v.plays) return '—';
-  return (v.score || 0) + '分';
-}
-function scoreCol(v) {
-  if (v.low_plays || !v.plays) return 'var(--muted)';
+// S≥80 / A≥65 / B≥50 / C<50 / F=未及格（播放不足）
+function scoreGrade(v) {
+  if (!v.plays)    return '—';
+  if (v.low_plays) return 'F';
   var s = v.score || 0;
-  return s >= 80 ? '#1a9e95' : s >= 65 ? 'var(--pink)' : 'var(--warn)';
+  return s >= 80 ? 'S' : s >= 65 ? 'A' : s >= 50 ? 'B' : 'C';
+}
+function scoreStr(v) { return scoreGrade(v); }  // 所有顯示點統一用 grade
+function scoreCol(v) {
+  var g = scoreGrade(v);
+  return g==='S'?'#1a9e95' : g==='A'?'#7b5ea7' : g==='B'?'#b5924e' : g==='C'?'#be3a67' : 'var(--muted)';
 }
 function scoreTileCls(v) {
-  if (v.low_plays || !v.plays) return 'st-na';
-  var s = v.score || 0;
-  return s >= 80 ? 'st-good' : s >= 65 ? 'st-mid' : 'st-low';
+  var g = scoreGrade(v);
+  return g==='S'?'st-good' : g==='A'?'st-mid' : g==='B'?'st-b' : g==='C'?'st-low' : 'st-na';
 }
 // 計算用（排除未及格影片的分數干擾）
 function scoreNum(v) { return (v.low_plays || !v.plays) ? 0 : (v.score || 0); }
-// score tile HTML（數字 + 分 分開排）
+// score tile HTML — 大字母，不顯示數字
 function scoreTileHtml(v) {
-  if (v.low_plays) return '<div class="score-tile st-na"><span class="st-num" style="color:var(--muted);font-size:12px;line-height:1.2">未及格</span></div>';
-  if (!v.plays)    return '<div class="score-tile st-na"><span class="st-num" style="color:var(--muted);font-size:18px">—</span></div>';
-  var s = v.score||0, c = scoreCol(v), cls = scoreTileCls(v);
-  return '<div class="score-tile '+cls+'"><span class="st-num" style="color:'+c+'">'+s+'</span><span class="st-lbl">分</span></div>';
+  var g = scoreGrade(v), c = scoreCol(v), cls = scoreTileCls(v);
+  return '<div class="score-tile '+cls+'"><span class="st-num" style="color:'+c+'">'+g+'</span></div>';
 }
 
 // ── 工具 ──────────────────────────────────────────────────────────────────
@@ -2070,7 +2069,7 @@ function runSearch(q) {
       return c !== v && Math.abs((c.score || 0) - (v.score || 0)) <= 10;
     }).sort(function(a, b) { return (b.plays || 0) - (a.plays || 0); }).slice(0, 5);
     var compsHtml = comps.length
-      ? '<div class="search-comps"><div class="search-comps-title">相似分數影片（±10分）</div>'
+      ? '<div class="search-comps"><div class="search-comps-title">相似等級影片</div>'
         + comps.map(function(c) {
             var ct = c.description || c.caption || '(無標題)';
             return '<div class="search-comp-row">'
@@ -2193,9 +2192,7 @@ function showVidDetail(id) {
     + (nf>0 ? cell('新增粉絲','+'+fmtNum(nf),'#1a9e95') : cell('新增粉絲','—'));
   document.getElementById('vdTitle').textContent = title;
   document.getElementById('vdMeta').textContent = platStr+' · '+ageStr;
-  document.getElementById('vdScore').innerHTML = v.low_plays
-    ? '<span style="color:var(--muted);font-size:15px">未及格</span>'
-    : '<span style="color:'+scColor+'">'+sc+'</span><span style="font-size:14px;color:var(--muted)"> 分</span>';
+  document.getElementById('vdScore').innerHTML = '<span style="color:'+scoreCol(v)+';font-size:36px;font-weight:700;line-height:1">'+scoreGrade(v)+'</span>';
   document.getElementById('vdMetrics').innerHTML = metrics;
   document.getElementById('vidDrawer').classList.add('vd-open');
   document.getElementById('vidBackdrop').classList.add('vd-open');
