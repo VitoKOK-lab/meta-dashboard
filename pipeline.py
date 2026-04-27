@@ -444,7 +444,7 @@ def _percentile_rank(sorted_list, value):
 
 # 計算互動率百分位時，要求至少這個播放量才納入分佈
 # 避免「100播放+1留言」因樣本太小而取得虛假高分
-MIN_PLAYS_FOR_RATE = 30
+MIN_PLAYS_FOR_RATE = 3000
 
 def _sorted_rates(videos, key):
     # 只納入播放數 >= MIN_PLAYS_FOR_RATE 的影片，排除小樣本噪音
@@ -520,6 +520,8 @@ def score_video(v, stats):
     plays = v.get('plays') or 0
     if plays == 0:
         return 0
+    if plays < MIN_PLAYS_FOR_RATE:
+        return 0  # 樣本不足，不評分（避免100播放+1留言 = 假高分）
 
     p  = _percentile_rank
     sr = (v.get('shares')   or 0) / float(plays)
@@ -722,13 +724,24 @@ def main():
 
     if html_only:
         print('=' * 50)
-        print('  [html-only] 從現有資料重建 index.html')
+        print('  [html-only] 重新計分 + 重建 index.html')
         print('=' * 50)
         videos_dict = load_db()
         fh = load_follower_history()
         recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
         stats  = compute_stats(recent)
         avg_fb, avg_ig = compute_averages(stats)
+        # 以最新計分規則（MIN_PLAYS_FOR_RATE）重算所有影片
+        rescored = 0
+        for v in videos_dict.values():
+            new_score = score_video(v, stats)
+            if new_score != (v.get('score') or 0):
+                v['score'] = new_score
+                rescored += 1
+        if rescored:
+            save_db(videos_dict)
+            recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
+            print('  重新計算分數: {} 支'.format(rescored))
         generate_html(recent, avg_fb, avg_ig, follower_history=fh)
         print('完成！HTML:{} 支'.format(len(recent)))
         return

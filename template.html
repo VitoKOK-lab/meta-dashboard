@@ -1526,7 +1526,7 @@ function initTheme() {
       +'</div>';
   }
 
-  function toggleRecycle(type) {
+  window.toggleRecycle = function(type) {
     var body = document.getElementById('recycleBody_'+type);
     var btn  = document.getElementById('recycleToggle_'+type);
     if (!body) return;
@@ -1534,15 +1534,15 @@ function initTheme() {
     body.style.display = open ? 'block' : 'none';
     btn.textContent = open ? '收起' : '展開';
     btn.classList.toggle('active', open);
-  }
+  };
 
   var _themeType = 'traffic';
-  function showThemeType(type, btn) {
+  window.showThemeType = function(type, btn) {
     _themeType = type;
     document.querySelectorAll('.theme-type-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     document.getElementById('themeColWrap').innerHTML = renderTypeCol(_themeType, _themeType==='traffic'?'流量型':'帶貨型', _themeType==='traffic'?'📈':'🛍');
-  }
+  };
 
   document.getElementById('themeContent').innerHTML =
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
