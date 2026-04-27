@@ -217,6 +217,24 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .live-metric.peak{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25)}
 .live-metric.peak .live-metric-val{color:#dc2626}
 .live-empty{text-align:center;padding:60px 0;color:var(--muted);font-size:15px}
+.live-trigger-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.live-trigger-btn{display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;transition:background .15s}
+.live-trigger-btn:hover{background:#dc2626}
+.live-trigger-btn.monitoring{background:#16a34a;animation:pulse-green 1.5s infinite}
+.live-trigger-btn:disabled{background:#9ca3af;cursor:not-allowed;animation:none}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.4)}50%{box-shadow:0 0 0 6px rgba(22,163,74,0)}}
+.live-trigger-note{font-size:12px;color:var(--muted)}
+/* Token modal */
+.token-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center}
+.token-modal{background:var(--black);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(420px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.token-modal h3{margin:0 0 8px;font-size:16px;color:var(--ink)}
+.token-modal p{margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.6}
+.token-modal input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:13px;font-family:monospace;border:1.5px solid var(--border);border-radius:8px;background:var(--off);color:var(--ink);outline:none}
+.token-modal input:focus{border-color:var(--teal)}
+.token-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+.token-modal-actions button{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;border:none;cursor:pointer}
+.btn-cancel{background:var(--off);color:var(--muted)}
+.btn-save{background:var(--teal);color:#fff}
 /* ── 近日上片 ── */
 .today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;transition:background .12s}
@@ -2045,6 +2063,87 @@ function runSearch(q) {
   }).join('');
 }
 
+// ── 直播監控觸發 ──────────────────────────────────────────────────────────
+var _liveMonitoring = false;
+
+function showTokenModal(onSave) {
+  var existing = localStorage.getItem('ghToken') || '';
+  var bg = document.createElement('div');
+  bg.className = 'token-modal-bg';
+  bg.innerHTML = '<div class="token-modal">'
+    + '<h3>🔑 設定 GitHub Token</h3>'
+    + '<p>需要一個 GitHub Fine-grained PAT，只需勾選 <strong>Actions → Read and write</strong> 權限。<br>Token 只存在你的瀏覽器，不會上傳到任何地方。</p>'
+    + '<input id="ghTokenInput" type="password" placeholder="github_pat_..." value="'+existing+'">'
+    + '<div class="token-modal-actions">'
+    + '<button class="btn-cancel" onclick="this.closest(\'.token-modal-bg\').remove()">取消</button>'
+    + '<button class="btn-save" onclick="saveGhToken(this)">儲存並觸發</button>'
+    + '</div>'
+    + '<p style="margin-top:10px;font-size:11px;color:var(--muted)">已有 Token？直接點觸發按鈕即可。<span style="cursor:pointer;text-decoration:underline" onclick="localStorage.removeItem(\'ghToken\');this.closest(\'.token-modal-bg\').remove()">清除已儲存的 Token</span></p>'
+    + '</div>';
+  document.body.appendChild(bg);
+  bg.addEventListener('click', function(e){ if(e.target===bg) bg.remove(); });
+  document.getElementById('ghTokenInput').focus();
+  window._ghTokenCallback = onSave;
+}
+
+window.saveGhToken = function(btn) {
+  var val = document.getElementById('ghTokenInput').value.trim();
+  if (!val) { alert('請輸入 Token'); return; }
+  localStorage.setItem('ghToken', val);
+  btn.closest('.token-modal-bg').remove();
+  if (window._ghTokenCallback) window._ghTokenCallback(val);
+};
+
+window.triggerLiveMonitor = function() {
+  var token = localStorage.getItem('ghToken');
+  if (!token) {
+    showTokenModal(function(t){ doTrigger(t); });
+    return;
+  }
+  doTrigger(token);
+};
+
+function doTrigger(token) {
+  var btn = document.getElementById('liveTriggerBtn');
+  var repo = (STATIC_DATA.ghRepo || 'VitoKOK-lab/meta-dashboard');
+  var url  = 'https://api.github.com/repos/' + repo + '/actions/workflows/monitor_live.yml/dispatches';
+  if (btn) { btn.disabled = true; btn.textContent = '觸發中…'; }
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ref: 'main' })
+  }).then(function(res) {
+    if (res.status === 204) {
+      _liveMonitoring = true;
+      if (btn) {
+        btn.disabled = false;
+        btn.className = 'live-trigger-btn monitoring';
+        btn.innerHTML = '🟢 監控中（直播結束自動停止）';
+      }
+      document.getElementById('liveTriggerNote').textContent = '已成功觸發，Actions 約 30 秒後開始運作';
+    } else if (res.status === 401) {
+      localStorage.removeItem('ghToken');
+      if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+      showTokenModal(function(t){ doTrigger(t); });
+      document.getElementById('liveTriggerNote').textContent = 'Token 無效，請重新輸入';
+    } else {
+      if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+      res.json().then(function(d){
+        document.getElementById('liveTriggerNote').textContent = '觸發失敗：' + (d.message || res.status);
+      }).catch(function(){
+        document.getElementById('liveTriggerNote').textContent = '觸發失敗（HTTP ' + res.status + '）';
+      });
+    }
+  }).catch(function(e) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+    document.getElementById('liveTriggerNote').textContent = '網路錯誤：' + e.message;
+  });
+}
+
 // ── 直播頁 ────────────────────────────────────────────────────────────────
 function renderLiveTab() {
   var container = document.getElementById('liveContent');
@@ -2145,7 +2244,15 @@ function renderLiveTab() {
       + '</div>';
   }).join('');
 
-  container.innerHTML = '<div class="slabel">📺 直播記錄</div>' + statsHtml + cardsHtml;
+  var triggerBar = '<div class="live-trigger-bar">'
+    + '<button id="liveTriggerBtn" class="live-trigger-btn'
+    + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
+    + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
+    + '</button>'
+    + '<span id="liveTriggerNote" class="live-trigger-note">直播前按一下，自動記錄 IG 數據，結束後自動存檔</span>'
+    + '</div>';
+
+  container.innerHTML = '<div class="slabel">📺 直播記錄</div>' + triggerBar + statsHtml + cardsHtml;
 }
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────

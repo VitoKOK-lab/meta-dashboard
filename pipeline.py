@@ -33,6 +33,7 @@ except ImportError:
 TOKEN = os.environ.get('META_TOKEN', '')
 FB_PAGE    = os.environ.get('FB_PAGE_ID', '1627804834169159')
 IG_ACCOUNT = os.environ.get('IG_ACCOUNT_ID', '17841456817621335')
+GH_REPO    = os.environ.get('GH_REPO', 'VitoKOK-lab/meta-dashboard')
 
 if not TOKEN:
     try:
@@ -831,6 +832,7 @@ def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_li
         'videos':          [to_js_video(v) for v in recent_videos],
         'followerHistory': follower_history or [],
         'lives':           [to_js_live(lv) for lv in (lives_list or [])],
+        'ghRepo':          GH_REPO,
     }
     html = template.replace('__STATIC_DATA__', json.dumps(payload, ensure_ascii=False))
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
