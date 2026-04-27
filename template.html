@@ -217,7 +217,18 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .live-metric.peak{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25)}
 .live-metric.peak .live-metric-val{color:#dc2626}
 .live-empty{text-align:center;padding:60px 0;color:var(--muted);font-size:15px}
-.live-trigger-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.live-trigger-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.live-schedule-row{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.live-sched-panel{background:var(--off);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-sched-panel select,.live-sched-panel input[type=time]{background:var(--black);border:1.5px solid var(--border);border-radius:7px;color:var(--ink);font-size:14px;padding:6px 10px;outline:none}
+.live-sched-panel select:focus,.live-sched-panel input[type=time]:focus{border-color:var(--teal)}
+.live-sched-confirm{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.live-sched-confirm:hover{opacity:.85}
+.live-sched-status{display:flex;align-items:center;gap:10px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:var(--ink)}
+.live-sched-cancel{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+.live-sched-cancel:hover{border-color:#ef4444;color:#ef4444}
+.sched-toggle-btn{background:transparent;border:1.5px solid var(--border);color:var(--muted);font-size:13px;font-weight:600;border-radius:8px;padding:7px 14px;cursor:pointer;transition:all .15s}
+.sched-toggle-btn:hover,.sched-toggle-btn.open{border-color:var(--teal);color:var(--teal)}
 .live-trigger-btn{display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;transition:background .15s}
 .live-trigger-btn:hover{background:#dc2626}
 .live-trigger-btn.monitoring{background:#16a34a;animation:pulse-green 1.5s infinite}
@@ -2064,7 +2075,136 @@ function runSearch(q) {
 }
 
 // ── 直播監控觸發 ──────────────────────────────────────────────────────────
-var _liveMonitoring = false;
+var _liveMonitoring  = false;
+var _scheduledTime   = null;   // Date object
+var _scheduleTimer   = null;   // setInterval handle
+var _schedPanelOpen  = false;
+
+// 頁面載入時從 localStorage 還原預約
+(function() {
+  var saved = localStorage.getItem('liveSchedule');
+  if (saved) {
+    var d = new Date(saved);
+    if (d > new Date()) {
+      _scheduledTime = d;
+      _startScheduleTimer();
+    } else {
+      localStorage.removeItem('liveSchedule');
+    }
+  }
+})();
+
+function _startScheduleTimer() {
+  if (_scheduleTimer) clearInterval(_scheduleTimer);
+  _scheduleTimer = setInterval(function() {
+    if (!_scheduledTime) { clearInterval(_scheduleTimer); return; }
+    if (new Date() >= _scheduledTime) {
+      clearInterval(_scheduleTimer);
+      _scheduledTime = null;
+      localStorage.removeItem('liveSchedule');
+      _refreshTriggerBar();
+      var token = localStorage.getItem('ghToken');
+      if (token) { doTrigger(token); }
+      else { showTokenModal(function(t){ doTrigger(t); }); }
+    } else {
+      _refreshTriggerBar();
+    }
+  }, 30000); // 每 30 秒更新倒計時
+}
+
+function _refreshTriggerBar() {
+  var bar = document.getElementById('liveTriggerBar');
+  if (bar) bar.outerHTML = _buildTriggerBarHtml();
+}
+
+function _countdownStr(target) {
+  var diff = Math.max(0, target - new Date());
+  var h = Math.floor(diff / 3600000);
+  var m = Math.floor((diff % 3600000) / 60000);
+  return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+}
+
+function _buildTriggerBarHtml() {
+  var html = '<div id="liveTriggerBar">';
+
+  if (_scheduledTime) {
+    // 顯示倒計時狀態
+    var tw = new Date(_scheduledTime.getTime() + 8*3600000);
+    var dateStr = tw.toISOString().slice(0,10) === new Date(Date.now()+8*3600000).toISOString().slice(0,10) ? '今天' : '明天';
+    var timeStr = tw.toISOString().slice(11,16);
+    html += '<div class="live-sched-status">'
+      + '🕐 已預約 <strong>' + dateStr + ' ' + timeStr + '</strong>'
+      + '（還有 ' + _countdownStr(_scheduledTime) + ' 自動開始）'
+      + '&nbsp;<button class="live-sched-cancel" onclick="cancelSchedule()">取消預約</button>'
+      + '</div>';
+  } else {
+    // 一般狀態：立即觸發 + 預約按鈕
+    html += '<div class="live-trigger-bar">'
+      + '<button id="liveTriggerBtn" class="live-trigger-btn'
+      + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
+      + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
+      + '</button>'
+      + '<button class="sched-toggle-btn' + (_schedPanelOpen ? ' open' : '') + '" onclick="toggleSchedPanel()">📅 預約時間</button>'
+      + '<span id="liveTriggerNote" class="live-trigger-note">'
+      + (_liveMonitoring ? '' : '直播前按一下，自動記錄 IG 數據，結束後自動存檔')
+      + '</span>'
+      + '</div>';
+    if (_schedPanelOpen) {
+      var todayVal = _localDateStr(0);
+      var tmrVal   = _localDateStr(1);
+      html += '<div class="live-sched-panel">'
+        + '<select id="schedDay"><option value="'+todayVal+'">今天</option><option value="'+tmrVal+'">明天</option></select>'
+        + '<input type="time" id="schedTime" step="900">'
+        + '<button class="live-sched-confirm" onclick="confirmSchedule()">確認預約</button>'
+        + '</div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function _localDateStr(offsetDays) {
+  var d = new Date(Date.now() + (offsetDays||0)*86400000 + 8*3600000);
+  return d.toISOString().slice(0,10);
+}
+
+window.toggleSchedPanel = function() {
+  _schedPanelOpen = !_schedPanelOpen;
+  _refreshTriggerBar();
+  if (_schedPanelOpen) {
+    // 預設時間：現在往後 1 小時，取整 15 分鐘
+    var now = new Date(Date.now() + 8*3600000 + 3600000);
+    var hh = now.getUTCHours().toString().padStart(2,'0');
+    var mm = (Math.round(now.getUTCMinutes()/15)*15 % 60).toString().padStart(2,'0');
+    var el = document.getElementById('schedTime');
+    if (el) el.value = hh + ':' + mm;
+  }
+};
+
+window.confirmSchedule = function() {
+  var dayVal  = document.getElementById('schedDay').value;   // YYYY-MM-DD
+  var timeVal = document.getElementById('schedTime').value;  // HH:MM
+  if (!timeVal) { alert('請選擇時間'); return; }
+
+  // 解析台灣時間 → UTC
+  var isoStr = dayVal + 'T' + timeVal + ':00+08:00';
+  var target = new Date(isoStr);
+  if (target <= new Date()) { alert('請選擇未來的時間'); return; }
+
+  _scheduledTime  = target;
+  _schedPanelOpen = false;
+  localStorage.setItem('liveSchedule', target.toISOString());
+  _startScheduleTimer();
+  _refreshTriggerBar();
+};
+
+window.cancelSchedule = function() {
+  _scheduledTime = null;
+  if (_scheduleTimer) clearInterval(_scheduleTimer);
+  localStorage.removeItem('liveSchedule');
+  _schedPanelOpen = false;
+  _refreshTriggerBar();
+};
 
 function showTokenModal(onSave) {
   var existing = localStorage.getItem('ghToken') || '';
@@ -2152,14 +2292,7 @@ function renderLiveTab() {
     .sort(function(a, b) { return b.startTime.localeCompare(a.startTime); });
 
   // 觸發按鈕永遠顯示（不管有沒有直播記錄）
-  var triggerBarHtml = '<div class="slabel">📺 直播記錄</div>'
-    + '<div class="live-trigger-bar">'
-    + '<button id="liveTriggerBtn" class="live-trigger-btn'
-    + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
-    + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
-    + '</button>'
-    + '<span id="liveTriggerNote" class="live-trigger-note">直播前按一下，自動記錄 IG 數據，結束後自動存檔</span>'
-    + '</div>';
+  var triggerBarHtml = '<div class="slabel">📺 直播記錄</div>' + _buildTriggerBarHtml();
 
   if (!lives.length) {
     container.innerHTML = triggerBarHtml
