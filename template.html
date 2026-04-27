@@ -15,19 +15,23 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
 .hdr{background:var(--white);position:sticky;top:0;z-index:200;border-bottom:2px solid var(--teal);box-shadow:0 1px 8px rgba(0,0,0,.07)}
-.hdr-in{max-width:1400px;margin:0 auto;padding:0 28px;display:flex;align-items:stretch;justify-content:space-between;min-height:56px;gap:16px}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-mark{width:30px;height:30px;background:var(--pink);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
-.brand-name{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:.3px;line-height:1.3}
-.brand-name small{display:block;font-size:12px;font-weight:400;color:var(--muted);letter-spacing:.5px}
-@media(max-width:640px){.brand-name{font-size:13px;white-space:nowrap}.brand-name small{display:none}}
-.hdr-right{display:flex;align-items:center;gap:10px}
-.snapshot-badge{font-size:14px;font-weight:700;color:var(--muted);background:var(--off);border:1px solid var(--border);border-radius:6px;padding:4px 10px;white-space:nowrap}
-.tabs{background:var(--white);border-bottom:1px solid var(--border)}
-.tabs-in{max-width:1400px;margin:0 auto;padding:0 28px;display:flex}
-.tab{padding:12px 22px;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.hdr-in{max-width:1400px;margin:0 auto;padding:0 16px 0 20px;display:flex;align-items:stretch;min-height:52px;gap:0}
+.brand{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-right:12px;border-right:1px solid var(--border)}
+.brand-mark{width:26px;height:26px;background:var(--pink);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.brand-name{font-size:13px;font-weight:800;color:var(--ink);letter-spacing:.3px;line-height:1.3;white-space:nowrap}
+.brand-name small{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.5px}
+@media(max-width:640px){.brand-name small{display:none}}
+.hdr-tabs{display:flex;flex:1;overflow-x:auto;scrollbar-width:none}
+.hdr-tabs::-webkit-scrollbar{display:none}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-left:8px}
+.snapshot-badge{font-size:12px;font-weight:700;color:var(--muted);background:var(--off);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap}
+.tab{padding:0 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;display:flex;align-items:center;height:100%}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+/* filter toggle buttons */
+.flt-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.flt-btn{font-size:12px;font-weight:600;padding:4px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;transition:all .15s}
+.flt-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
 .page{max-width:1400px;margin:0 auto;padding:24px 28px 60px}
 .section{display:none}
 .section.active{display:block}
@@ -389,26 +393,29 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
       <div class="brand-mark">◈</div>
       <div class="brand-name">泰熙爾札娜 IP<small>影片成效儀表板</small></div>
     </div>
+    <div class="hdr-tabs">
+      <div class="tab active" onclick="switchTab('overview',this)">📊 近期</div>
+      <div class="tab" onclick="switchTab('summary',this)">📋 總覽</div>
+      <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
+      <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
+      <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
+    </div>
     <div class="hdr-right">
       <span class="snapshot-badge" id="snapshotBadge">載入中…</span>
     </div>
   </div>
 </header>
 
-<div class="tabs">
-  <div class="tabs-in">
-    <div class="tab active" onclick="switchTab('overview',this)">📊 近期</div>
-    <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
-    <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
-    <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
-  </div>
-</div>
-
 <div class="page">
 
   <!-- 本週指令 -->
   <div class="section active" id="sec-overview">
     <div id="cmdCenter"></div>
+  </div>
+
+  <!-- 總覽 -->
+  <div class="section" id="sec-summary">
+    <div id="summaryCenter"></div>
   </div>
 
   <!-- 題材策略 -->
@@ -1039,11 +1046,19 @@ function initOverview() {
   // ── 近日上片（永遠顯示 48 小時內）──
   var todayVids = all.filter(function(v){ return daysBetween(v.created_time)<=1; })
     .sort(function(a,b){ return new Date(b.created_time)-new Date(a.created_time); });
-  var recentLabel = '近日上片';
 
-  // ── 行動清單 emoji ──
-  var actionIcon = { good:'✅', warn:'⚠️', act:'💡' };
-  var cadenceSummary = '近4週均速 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍':'⚡');
+  // ── 商品名提取（帶貨型最後一個 # ）──
+  var PRODUCT_STOP = new Set(['分享','推薦','廣告','優惠','限時','商品','購物','福利','爆款','開箱','直播','新品','精選','連結','詳情','合作','代購','贈品','限量','活動','折扣','特價','上架','測評','體驗','好物','清單','必買','必看','流量']);
+  function extractProduct(v) {
+    if (v.type !== 'commerce') return '';
+    var text = v.description || v.caption || '';
+    var tags = [];
+    text.replace(/#([^\s#，。！？、；：\n]+)/g, function(m, t) { tags.push(t); });
+    if (!tags.length) return '';
+    var last = tags[tags.length - 1].trim();
+    if (last.length < 2 || PRODUCT_STOP.has(last) || /^\d+$/.test(last)) return '';
+    return last;
+  }
 
   // ── RENDER ──
   document.getElementById('cmdCenter').innerHTML =
@@ -1055,30 +1070,17 @@ function initOverview() {
     + renderFollowerChart()
 
     // ③ 近日上片
-    + '<div class="slabel">'+recentLabel+' <span style="color:var(--muted);font-weight:400;font-size:13px">（點列查看詳細數據）</span></div>'
-    + (todayVids.length===0
-      ? '<div style="color:var(--muted);font-size:14px;padding:8px 0 16px">近48小時暫無新影片</div>'
-      : '<div class="today-list" style="margin-bottom:14px">'
-        + todayVids.slice(0,10).map(function(v){
-            var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
-            var lt=loyaltyTier(v);
-            var age=daysBetween(v.created_time);
-            var nf = v.newFollowers || 0;
-            var nfStr = nf > 0
-              ? '<span style="font-size:12px;color:#1a9e95;font-weight:700;flex-shrink:0;white-space:nowrap">+'+fmtNum(nf)+'粉</span>'
-              : '<span style="font-size:12px;color:var(--muted);flex-shrink:0">粉—</span>';
-            var safeId = (v.id||'').replace(/['"\\]/g,'');
-            return '<div class="today-row" onclick="showVidDetail(\''+safeId+'\')">'
-              +'<span style="font-size:12px;color:var(--muted);min-width:30px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
-              +'<span style="font-size:13px;flex-shrink:0">'+(v.platform==='fb'?'📘':'📸')+'</span>'
-              +'<span style="flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+truncTitle(v.description||v.caption||'',16)+'</span>'
-              +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 5px">'+tierLabel(lt)+'</span>'
-              +nfStr
-              +'<span style="font-size:15px;font-weight:700;color:'+sc+';min-width:30px;text-align:right;flex-shrink:0;margin-left:5px">'+(v.score||0)+'分</span>'
-              +'<span style="font-size:12px;color:var(--muted);flex-shrink:0;margin-left:4px">›</span>'
-              +'</div>';
-          }).join('')
-        + '</div>')
+    + '<div class="slabel">近日上片 <span style="color:var(--muted);font-weight:400;font-size:13px">（點列查看詳細數據）</span></div>'
+    + '<div class="flt-row" id="recentFltRow">'
+    + '<button class="flt-btn active" onclick="setRecentFlt(\'type\',\'all\',this)">全部</button>'
+    + '<button class="flt-btn" onclick="setRecentFlt(\'type\',\'traffic\',this)">📈 流量型</button>'
+    + '<button class="flt-btn" onclick="setRecentFlt(\'type\',\'commerce\',this)">🛍 帶貨型</button>'
+    + '<span style="width:1px;background:var(--border);margin:0 4px;align-self:stretch"></span>'
+    + '<button class="flt-btn active" onclick="setRecentFlt(\'plat\',\'all\',this)">全部</button>'
+    + '<button class="flt-btn" onclick="setRecentFlt(\'plat\',\'fb\',this)">📘 FB</button>'
+    + '<button class="flt-btn" onclick="setRecentFlt(\'plat\',\'ig\',this)">📸 IG</button>'
+    + '</div>'
+    + '<div id="recentList" style="margin-bottom:14px"></div>'
 
     // ② 演算法起飛（緊急行動，有資料才顯示）
     + (rising.length===0 ? '' :
@@ -1101,96 +1103,87 @@ function initOverview() {
         }).join('')
       + '</div>')
 
-    // ④ 行動清單（今天要做什麼）
-    + '<div class="cmd-card" style="margin-bottom:14px">'
-    + '<div class="cmd-card-label">本週行動清單</div>'
-    + actions.map(function(a){
-        return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';
-      }).join('')
-    + '</div>'
+    + '';
 
-    // ④ 頻道近況 + 本月效率（週報性質，2欄）
-    + '<div class="cmd-row-2">'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">頻道近況 · 近30天</div>'
-    + '<div class="health-emoji">'+hEmoji+'</div>'
-    + '<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
-    + '<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
-    + '<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
-    + '</div>'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">本月產出效率</div>'
-    + '<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
-    + '<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
-    + '<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
-    + '<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'
-    + (prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')
-    + '</div></div>'
-    + '</div>'
+  // 初始渲染近日上片列表
+  renderRecentList(todayVids);
+}
 
-    // ⑤ 發片節奏 + 主題勝率
-    + '<div class="cmd-row-2">'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">發片節奏 · 近 8 週</div>'
-    + '<div style="font-size:14px;color:var(--muted);margin-bottom:10px">'+cadenceSummary+'</div>'
-    + '<div class="cadence-chart">'
-    + wkData.map(function(x,i){
-        var h=Math.max(Math.round(x.cnt/maxWk*52),x.cnt>0?6:2);
-        return '<div class="cadence-bar-col">'
-          +'<span class="cadence-num">'+(x.cnt||'·')+'</span>'
-          +'<div class="cadence-bar-fill '+(i===7?'cur':'past')+'" style="height:'+h+'px"></div>'
+// ── 近日上片 filter 狀態 ──────────────────────────────────────────────────
+var _recentTypeFlt = 'all', _recentPlatFlt = 'all', _todayVidsCache = [];
+
+function setRecentFlt(dim, val, btn) {
+  if (dim === 'type') {
+    _recentTypeFlt = val;
+    document.querySelectorAll('#recentFltRow .flt-btn').forEach(function(b){
+      if (['all','traffic','commerce'].includes(b.textContent.replace(/📈|🛍|\s/g,'').trim()) ||
+          b.textContent.includes('全部') && b !== document.querySelectorAll('#recentFltRow .flt-btn')[3] &&
+          b !== document.querySelectorAll('#recentFltRow .flt-btn')[4] &&
+          b !== document.querySelectorAll('#recentFltRow .flt-btn')[5]) {
+        // handled below
+      }
+    });
+    // simpler: toggle by index group
+    var btns = document.querySelectorAll('#recentFltRow .flt-btn');
+    [btns[0],btns[1],btns[2]].forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  } else {
+    _recentPlatFlt = val;
+    var btns = document.querySelectorAll('#recentFltRow .flt-btn');
+    [btns[3],btns[4],btns[5]].forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  renderRecentList(_todayVidsCache);
+}
+
+function renderRecentList(vids) {
+  _todayVidsCache = vids;
+  var filtered = vids.filter(function(v){
+    if (_recentTypeFlt !== 'all' && v.type !== _recentTypeFlt) return false;
+    if (_recentPlatFlt !== 'all' && v.platform !== _recentPlatFlt) return false;
+    return true;
+  });
+  var PRODUCT_STOP2 = new Set(['分享','推薦','廣告','優惠','限時','商品','購物','福利','爆款','開箱','直播','新品','精選','連結','詳情','合作','代購','贈品','限量','活動','折扣','特價','上架','測評','體驗','好物','清單','必買','必看','流量']);
+  function getProduct(v) {
+    if (v.type !== 'commerce') return '';
+    var tags = []; (v.description||v.caption||'').replace(/#([^\s#，。！？、；：\n]+)/g,function(m,t){tags.push(t);});
+    if (!tags.length) return '';
+    var last = tags[tags.length-1].trim();
+    if (last.length < 2 || PRODUCT_STOP2.has(last) || /^\d+$/.test(last)) return '';
+    return last;
+  }
+  var el = document.getElementById('recentList');
+  if (!el) return;
+  if (filtered.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:8px 0 16px">近48小時'+(vids.length?'無符合條件的影片':'暫無新影片')+'</div>';
+    return;
+  }
+  el.innerHTML = '<div class="today-list">'
+    + filtered.slice(0,15).map(function(v){
+        var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
+        var lt=loyaltyTier(v);
+        var age=daysBetween(v.created_time);
+        var nf=v.newFollowers||0;
+        var nfStr=nf>0?'<span style="font-size:12px;color:#1a9e95;font-weight:700;flex-shrink:0;white-space:nowrap">+'+fmtNum(nf)+'粉</span>':'';
+        var safeId=(v.id||'').replace(/['"\\]/g,'');
+        var typeBadge=v.type==='commerce'
+          ?'<span style="font-size:10px;background:#fff3e0;color:#e65100;border-radius:3px;padding:1px 4px;flex-shrink:0;font-weight:700">🛍</span>'
+          :'<span style="font-size:10px;background:#e8f5e9;color:#1b5e20;border-radius:3px;padding:1px 4px;flex-shrink:0;font-weight:700">📈</span>';
+        var prod=getProduct(v);
+        var prodBadge=prod?'<span style="font-size:11px;background:rgba(155,44,126,.1);color:var(--pink);border-radius:3px;padding:1px 5px;flex-shrink:0;font-weight:700;margin-left:3px">'+prod+'</span>':'';
+        return '<div class="today-row" onclick="showVidDetail(\''+safeId+'\')">'
+          +'<span style="font-size:12px;color:var(--muted);min-width:30px;flex-shrink:0">'+(age===0?'今天':'昨天')+'</span>'
+          +'<span style="font-size:13px;flex-shrink:0">'+(v.platform==='fb'?'📘':'📸')+'</span>'
+          +typeBadge
+          +'<span style="flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+truncTitle(v.description||v.caption||'',15)+'</span>'
+          +prodBadge
+          +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 4px">'+tierLabel(lt)+'</span>'
+          +nfStr
+          +'<span style="font-size:15px;font-weight:700;color:'+sc+';min-width:28px;text-align:right;flex-shrink:0;margin-left:4px">'+(v.score||0)+'分</span>'
+          +'<span style="font-size:12px;color:var(--muted);flex-shrink:0;margin-left:3px">›</span>'
           +'</div>';
       }).join('')
-    + '</div>'
-    + '<div style="display:flex;gap:5px">'
-    + wkData.map(function(x){return '<div class="cadence-lbl" style="flex:1">'+x.label+'</div>';}).join('')
-    + '</div></div>'
-    + '<div class="cmd-card">'
-    + '<div class="cmd-card-label">主題勝率 · 詳細請看「關鍵字」分頁</div>'
-    + (kwTop.length===0
-      ? '<div style="color:var(--muted);font-size:14px;padding:10px 0">資料不足</div>'
-      : kwTop.slice(0,6).map(function(x,xi){
-          var barW=Math.round(x.avg/maxAvg*100);
-          var sc=x.avg>=65?'#1a9e95':x.avg>=50?'#b5924e':'#be3a67';
-          return '<div class="winrate-row">'
-            +'<span class="winrate-kw'+(x.kw[0]==='#'?' kw-hash':'')+'">'+x.kw
-            +(xi===0?'<span style="font-size:12px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆</span>':'')
-            +'</span>'
-            +'<div class="winrate-bar-wrap"><div class="winrate-bar-fill" style="width:'+barW+'%;background:'+sc+'"></div></div>'
-            +'<span class="winrate-score" style="color:'+sc+'">'+x.avg.toFixed(0)+'分</span>'
-            +'<span class="winrate-cnt">'+x.cnt+'支</span>'
-            +'</div>';
-        }).join(''))
-    + '</div></div>'
-
-    // ⑥ 詳細數字（最後，查閱用）
-    + '<div class="mini-section-divider">詳細數字</div>'
-    + '<div class="mini-kpi-row">'
-    + miniKpiCell('🛍 賣貨影片被看幾次',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
-    + miniKpiCell('🔖 IG 觀眾收藏數',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves),'想買的信號')
-    + miniKpiCell('💬 賣貨影片留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR),'每百次播放留言數')
-    + miniKpiCell('👥 FB 新增粉絲','+'+thisFbNewF,momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':'尚無上月資料'),'本月新追蹤')
-    + '</div>'
-
-    // ⑦ 說明（最底，不需要每次看）
-    + '<details style="margin-top:28px">'
-    + '<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">'
-    + '<span style="font-size:16px">📖</span> 指標說明（點擊展開）</summary>'
-    + '<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
-    + '<strong>🚀 演算法正在推 — 有效還是無效流量？</strong><br>'
-    + '平台偵測到播放量快速上升，正在把這片推給更多陌生人。<br>'
-    + '✅ <strong>有效流量</strong> = 新觀眾有留言或轉發 → 平台繼續推，流量滾雪球<br>'
-    + '⚠️ <strong>無效流量</strong> = 觀眾只看不互動就走 → 平台停止推播<br>'
-    + '<strong>行動：</strong>馬上去「無效流量」的片留言區互動，或用限時動態呼粉絲去看，帶貨片補「留言+1 領取」<br><br>'
-    + '<strong>📊 分數說明（頻道相對制）</strong><br>'
-    + '分數是跟自己頻道內同類型影片比，50分 = 中位數（正常），65分以上 = 前25%（優質），80分以上 = 前10%（強）<br>'
-    + '流量型：播放量佔35% + 轉發30% + 留言20% + 觸及15%<br>'
-    + '帶貨型：留言為主（50%）+ IG儲存25% + 觸及 — 播放量只佔5-10%，因為帶貨片天生流量小<br><br>'
-    + '<strong>🔖 忠實度（原粉互動率）</strong><br>'
-    + '（留言+轉發）÷ 播放，衡量有多少觀眾看完後主動互動。🟢優質 = 頻道前30%，🟡正常，🔴待優化 = 後30%'
-    + '</div>'
-    + '</details>'
-    + '';
+    + '</div>';
 }
 
 function miniKpiCell(lbl, val, sub, hint) {
@@ -1200,6 +1193,150 @@ function miniKpiCell(lbl, val, sub, hint) {
     + (hint?'<div style="font-size:12px;color:var(--border);margin-top:1px">'+hint+'</div>':'')
     + '</div>';
 }
+
+// ── 總覽 ──────────────────────────────────────────────────────────────────
+function initSummary() {
+  var all = STATIC_DATA.videos;
+  var now = new Date();
+  var dayOfMonth = now.getDate();
+  var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  var lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  var lastMonthSameEnd = new Date(now.getFullYear(), now.getMonth()-1, dayOfMonth+1);
+  var thisMonth    = all.filter(function(v){ return new Date(v.created_time) >= thisMonthStart; });
+  var lastMonthSame= all.filter(function(v){ var d=new Date(v.created_time); return d>=lastMonthStart&&d<lastMonthSameEnd; });
+  var lastMonthAll = all.filter(function(v){ var d=new Date(v.created_time); return d>=lastMonthStart&&d<thisMonthStart; });
+
+  var recent30=all.filter(function(v){return daysBetween(v.created_time)<=30;});
+  var prev30  =all.filter(function(v){var d=daysBetween(v.created_time);return d>30&&d<=60;});
+  var avgR=recent30.length?recent30.reduce(function(s,v){return s+(v.score||0);},0)/recent30.length:0;
+  var avgP=prev30.length  ?prev30.reduce(function(s,v){return s+(v.score||0);},0)/prev30.length  :0;
+  var hPct=avgP>0?Math.round((avgR-avgP)/avgP*100):0;
+  var hColor=Math.abs(hPct)<5?'#b5924e':hPct>0?'#1a9e95':'#be3a67';
+  var hEmoji,hSentence;
+  if(avgP===0){hEmoji='📊';hSentence='開始累積數據中';}
+  else if(hPct>10){hEmoji='🚀';hSentence='越來越好！品質持續提升';}
+  else if(hPct>4){hEmoji='📈';hSentence='小幅進步，方向正確';}
+  else if(hPct>=-4){hEmoji='➡️';hSentence='穩定發揮，維持現狀';}
+  else if(hPct>=-10){hEmoji='📉';hSentence='稍微滑落，需要留意';}
+  else{hEmoji='⚠️';hSentence='品質明顯下滑，需要檢視';}
+
+  var thisQual=thisMonth.filter(function(v){return (v.score||0)>=65;});
+  var prevQual=lastMonthAll.filter(function(v){return (v.score||0)>=65;});
+  var qualRate=thisMonth.length?Math.round(thisQual.length/thisMonth.length*100):0;
+  var prevQualRate=lastMonthAll.length?Math.round(prevQual.length/lastMonthAll.length*100):0;
+  var qualTrend=prevQualRate>0?qualRate-prevQualRate:0;
+  var qualColor=qualTrend>0?'#1a9e95':qualTrend<-5?'#be3a67':'#b5924e';
+
+  // 行動清單
+  var weekCounts4=0;
+  for(var ww=0;ww<4;ww++) weekCounts4+=all.filter(function(v){var d=daysBetween(v.created_time);return d>ww*7&&d<=(ww+1)*7;}).length;
+  var avgWeekly=Math.round(weekCounts4/4);
+  var thisW=all.filter(function(v){return daysBetween(v.created_time)<=7;}).length;
+  var actions=[];
+  if(thisW===0) actions.push({t:'warn',msg:'本週還沒有新影片！近月均速 '+avgWeekly+' 支/週，今天就要開拍。'});
+  else if(avgWeekly>1&&thisW<avgWeekly-1) actions.push({t:'warn',msg:'本週只發了 '+thisW+' 支，低於近月均速（'+avgWeekly+' 支/週），需要補齊。'});
+  else actions.push({t:'good',msg:'本週發片節奏正常（'+thisW+' 支），繼續維持。'});
+  var badCom=all.filter(function(v){return v.type==='commerce'&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
+  if(badCom.length>=3) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數偏低，複盤這些片的共同點。'});
+  var hidden=all.filter(function(v){return loyaltyTier(v)!=='tier3'&&reachDev(v)<-0.3&&daysBetween(v.created_time)<=60;});
+  if(hidden.length>=2) actions.push({t:'act',msg:'有 '+hidden.length+' 支影片鐵粉喜歡但流量低，值得改標題重發或加投廣告。'});
+  var fbR=all.filter(function(v){return v.platform==='fb'&&daysBetween(v.created_time)<=30;}).length;
+  var igR=all.filter(function(v){return v.platform==='ig'&&daysBetween(v.created_time)<=30;}).length;
+  if(fbR>0&&igR>0&&Math.max(fbR,igR)/Math.min(fbR,igR)>=2){var more=fbR>igR?'FB':'IG',less=fbR>igR?'IG':'FB';actions.push({t:'act',msg:'近30天 '+more+' 遠多於 '+less+'，建議補齊 '+less+'。'});}
+  if(avgP>0&&avgR<avgP*0.85) actions.push({t:'warn',msg:'近30天平均分 '+avgR.toFixed(0)+' vs 前30天 '+avgP.toFixed(0)+'，品質下滑 '+Math.abs(hPct)+'%。'});
+  if(actions.length===1&&actions[0].t==='good') actions.push({t:'good',msg:'帶貨影片品質穩定，繼續這個方向。'});
+  var actionIcon={good:'✅',warn:'⚠️',act:'💡'};
+
+  // 發片節奏
+  var wkData=[];
+  for(var w2=7;w2>=0;w2--){var c=all.filter(function(v){var d=daysBetween(v.created_time);return d>w2*7&&d<=(w2+1)*7;}).length;wkData.push({cnt:c,label:w2===0?'本週':w2===1?'上週':'-'+w2+'週'});}
+  var maxWk=Math.max.apply(null,wkData.map(function(x){return x.cnt;}));if(maxWk<1)maxWk=1;
+  var cadenceSummary='近4週均速 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍':'⚡');
+
+  // 主題勝率
+  var STOP3=new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那','什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實','現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
+  var kwS={},kwC={};
+  all.forEach(function(v){var txt=(v.description||v.caption||''),tags=[];txt=txt.replace(/#([^\s#，。！？、；：\n]+)/g,function(m,t){tags.push('#'+t);return ' ';});var tokens=txt.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean).concat(tags);var seen=new Set();tokens.forEach(function(w){w=w.trim();if(!w)return;var isH=w[0]==='#';if(!isH&&(w.length<2||STOP3.has(w)||/^\d+$/.test(w)))return;if(seen.has(w))return;seen.add(w);kwS[w]=(kwS[w]||0)+(v.score||0);kwC[w]=(kwC[w]||0)+1;});});
+  var kwTop=Object.keys(kwC).filter(function(k){return kwC[k]>=3;}).map(function(k){return{kw:k,avg:kwS[k]/kwC[k],cnt:kwC[k]};}).sort(function(a,b){return b.avg-a.avg;}).slice(0,8);
+  var maxAvg=kwTop.length?kwTop[0].avg:100;
+
+  // 詳細數字
+  var thisComPlays=thisMonth.filter(function(v){return v.type==='commerce';}).reduce(function(s,v){return s+(v.plays||0);},0);
+  var prevComPlays=lastMonthSame.filter(function(v){return v.type==='commerce';}).reduce(function(s,v){return s+(v.plays||0);},0);
+  var thisIgSaves=thisMonth.filter(function(v){return v.platform==='ig';}).reduce(function(s,v){return s+(v.saved||0);},0);
+  var prevIgSaves=lastMonthSame.filter(function(v){return v.platform==='ig';}).reduce(function(s,v){return s+(v.saved||0);},0);
+  var thisCom=thisMonth.filter(function(v){return v.type==='commerce'&&v.plays>0;});
+  var prevCom=lastMonthSame.filter(function(v){return v.type==='commerce'&&v.plays>0;});
+  var comCR=thisCom.length?thisCom.reduce(function(s,v){return s+(v.comments||0);},0)/thisCom.reduce(function(s,v){return s+(v.plays||0);},0)*100:0;
+  var prevComCR=prevCom.length?prevCom.reduce(function(s,v){return s+(v.comments||0);},0)/prevCom.reduce(function(s,v){return s+(v.plays||0);},0)*100:0;
+  var thisFbNewF=thisMonth.filter(function(v){return v.platform==='fb';}).reduce(function(s,v){return s+(v.newFollowers||0);},0);
+  var prevFbNewF=lastMonthSame.filter(function(v){return v.platform==='fb';}).reduce(function(s,v){return s+(v.newFollowers||0);},0);
+  var prevFbCount=lastMonthSame.filter(function(v){return v.platform==='fb';}).length;
+  // 流量型數字
+  var thisTrPlays=thisMonth.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.plays||0);},0);
+  var prevTrPlays=lastMonthSame.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.plays||0);},0);
+  var thisTrShares=thisMonth.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.shares||0);},0);
+  var prevTrShares=lastMonthSame.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.shares||0);},0);
+
+  document.getElementById('summaryCenter').innerHTML =
+
+    // 行動清單
+    '<div class="cmd-card" style="margin-bottom:14px">'
+    +'<div class="cmd-card-label">本週行動清單</div>'
+    +actions.map(function(a){return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';}).join('')
+    +'</div>'
+
+    // 頻道近況 + 本月效率
+    +'<div class="cmd-row-2">'
+    +'<div class="cmd-card"><div class="cmd-card-label">頻道近況 · 近30天</div>'
+    +'<div class="health-emoji">'+hEmoji+'</div>'
+    +'<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
+    +'<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
+    +'<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
+    +'</div>'
+    +'<div class="cmd-card"><div class="cmd-card-label">本月產出效率</div>'
+    +'<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
+    +'<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
+    +'<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
+    +'<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'+(prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')+'</div>'
+    +'</div></div>'
+
+    // 發片節奏 + 主題勝率
+    +'<div class="cmd-row-2">'
+    +'<div class="cmd-card"><div class="cmd-card-label">發片節奏 · 近 8 週</div>'
+    +'<div style="font-size:14px;color:var(--muted);margin-bottom:10px">'+cadenceSummary+'</div>'
+    +'<div class="cadence-chart">'+wkData.map(function(x,i){var h=Math.max(Math.round(x.cnt/maxWk*52),x.cnt>0?6:2);return '<div class="cadence-bar-col"><span class="cadence-num">'+(x.cnt||'·')+'</span><div class="cadence-bar-fill '+(i===7?'cur':'past')+'" style="height:'+h+'px"></div></div>';}).join('')+'</div>'
+    +'<div style="display:flex;gap:5px">'+wkData.map(function(x){return '<div class="cadence-lbl" style="flex:1">'+x.label+'</div>';}).join('')+'</div>'
+    +'</div>'
+    +'<div class="cmd-card"><div class="cmd-card-label">主題勝率 · 詳細看「關鍵字」分頁</div>'
+    +(kwTop.length===0?'<div style="color:var(--muted);font-size:14px;padding:10px 0">資料不足</div>'
+      :kwTop.slice(0,6).map(function(x,xi){var barW=Math.round(x.avg/maxAvg*100);var sc=x.avg>=65?'#1a9e95':x.avg>=50?'#b5924e':'#be3a67';return '<div class="winrate-row"><span class="winrate-kw'+(x.kw[0]==='#'?' kw-hash':'')+'">'+x.kw+(xi===0?'<span style="font-size:12px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆</span>':'')+'</span><div class="winrate-bar-wrap"><div class="winrate-bar-fill" style="width:'+barW+'%;background:'+sc+'"></div></div><span class="winrate-score" style="color:'+sc+'">'+x.avg.toFixed(0)+'分</span><span class="winrate-cnt">'+x.cnt+'支</span></div>';}).join(''))
+    +'</div></div>'
+
+    // 詳細數字（優化：流量+帶貨都顯示）
+    +'<div class="mini-section-divider">本月數字</div>'
+    +'<div class="mini-kpi-row">'
+    +miniKpiCell('📈 流量影片播放',fmtNum(thisTrPlays),momStr(thisTrPlays,prevTrPlays),'本月累計')
+    +miniKpiCell('🔁 流量影片轉發',fmtNum(thisTrShares),momStr(thisTrShares,prevTrShares),'傳播力指標')
+    +miniKpiCell('🛍 帶貨影片播放',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
+    +miniKpiCell('💬 帶貨留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR),'購買意圖訊號')
+    +'</div>'
+    +'<div class="mini-kpi-row" style="margin-top:8px">'
+    +miniKpiCell('🔖 IG 收藏數',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves),'想買但未買')
+    +miniKpiCell('👥 FB 新增粉絲','+'+(thisFbNewF||0),momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':''),'本月新追蹤')
+    +miniKpiCell('📊 近30天均分',avgR.toFixed(0)+'分',(hPct>=0?'▲ +':'▼ ')+Math.abs(hPct)+'% vs 前30天','頻道健康')
+    +miniKpiCell('🎯 優質片比例',qualRate+'%',(qualTrend>=0?'▲ +':'▼ ')+Math.abs(qualTrend)+'% vs 上月','分數≥65分')
+    +'</div>'
+
+    +'<details style="margin-top:28px">'
+    +'<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px"><span style="font-size:16px">📖</span> 指標說明（點擊展開）</summary>'
+    +'<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
+    +'<strong>📊 分數說明（頻道相對制）</strong><br>分數是跟自己頻道內同類型影片比，50分 = 中位數，65分以上 = 前25%（優質），80分以上 = 前10%（強）<br>互動率計分需至少30次播放才有效，避免小樣本假高分<br><br>'
+    +'<strong>🛍 帶貨型</strong>：留言為主（50%）+ IG儲存25% + 觸及 — 播放量只佔5-10%<br>'
+    +'<strong>📈 流量型</strong>：播放量35% + 轉發30% + 留言20% + 觸及15%<br><br>'
+    +'<strong>🔖 忠實度</strong>：（留言+轉發）÷ 播放，🟢前30% 🟡正常 🔴後30%'
+    +'</div></details>'
+    +'';
 
 // ── 題材策略 ──────────────────────────────────────────────────────────────
 function initTheme() {
@@ -1379,17 +1516,41 @@ function initTheme() {
         +'</details>' : '')
 
       +'<div class="theme-sec">'
-      +'<div class="theme-sec-title" style="color:#b5924e">♻ 可復投影片（30-150天 · 分數≥65）</div>'
-      +recycleHtml(type)
+      +'<div class="theme-sec-title" style="color:#b5924e;display:flex;align-items:center;justify-content:space-between">'
+      +'<span>♻ 可復投影片（30-150天 · 分數≥65）</span>'
+      +'<button class="flt-btn" id="recycleToggle_'+type+'" onclick="toggleRecycle(\''+type+'\')" style="font-size:11px;padding:2px 8px">展開</button>'
+      +'</div>'
+      +'<div id="recycleBody_'+type+'" style="display:none">'+recycleHtml(type)+'</div>'
       +'</div>'
       +'</div>';
   }
 
+  function toggleRecycle(type) {
+    var body = document.getElementById('recycleBody_'+type);
+    var btn  = document.getElementById('recycleToggle_'+type);
+    if (!body) return;
+    var open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    btn.textContent = open ? '收起' : '展開';
+    btn.classList.toggle('active', open);
+  }
+
+  var _themeType = 'traffic';
+  function showThemeType(type, btn) {
+    _themeType = type;
+    document.querySelectorAll('.theme-type-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('themeColWrap').innerHTML = renderTypeCol(_themeType, _themeType==='traffic'?'流量型':'帶貨型', _themeType==='traffic'?'📈':'🛍');
+  }
+
   document.getElementById('themeContent').innerHTML =
-    '<div class="slabel" style="margin-bottom:16px">主題策略 · 依歷史表現分類建議</div>'
-    +'<div class="theme-cols">'
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
+    +'<div class="slabel" style="margin-bottom:0;flex-shrink:0">主題策略</div>'
+    +'<button class="flt-btn theme-type-btn active" onclick="showThemeType(\'traffic\',this)">📈 流量型</button>'
+    +'<button class="flt-btn theme-type-btn" onclick="showThemeType(\'commerce\',this)">🛍 帶貨型</button>'
+    +'</div>'
+    +'<div id="themeColWrap">'
     +renderTypeCol('traffic','流量型','📈')
-    +renderTypeCol('commerce','帶貨型','🛍')
     +'</div>'
     +'<details style="margin-top:28px">'
     +'<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">'
@@ -1910,7 +2071,7 @@ function runSearch(q) {
 }
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { overview: false, theme: false, top20: false, search: false };
+var initiated = { overview: false, summary: false, theme: false, top20: false, search: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -1920,6 +2081,7 @@ function switchTab(id, el) {
   if (!initiated[id]) {
     initiated[id] = true;
     if (id === 'overview') initOverview();
+    if (id === 'summary') initSummary();
     if (id === 'theme') initTheme();
     if (id === 'top20') renderTop10();
   }
