@@ -764,159 +764,209 @@ function renderFollowerChart() {
     + '</div>';
 }
 
-// ── 每日內容簡報 ──────────────────────────────────────────────────────────
+// ── 老闆晨報 ──────────────────────────────────────────────────────────────
 function renderContentBrief(all, rising, todayVids) {
-  // 取近30支有播放數的影片做分析
-  var recent = all.slice()
-    .sort(function(a,b){ return b.created_time.localeCompare(a.created_time); })
-    .slice(0, 40)
-    .filter(function(v){ return (v.plays||0) > 50; });
-  if (recent.length < 3) return '';
+  var GCOL = {S:'#1a9e95',A:'#7b5ea7',B:'#b5924e',C:'#be3a67',F:'#9ca3af'};
 
-  // ── ① 影片長度分桶 ──
-  var buckets = [
-    {label:'<30秒', min:0,  max:30,    vids:[]},
-    {label:'30-60秒', min:30, max:60,  vids:[]},
-    {label:'60-90秒', min:60, max:90,  vids:[]},
-    {label:'>90秒',  min:90, max:99999,vids:[]}
-  ];
-  recent.forEach(function(v) {
-    var s = v.length_sec || 0;
-    for (var i=0; i<buckets.length; i++) {
-      if (s >= buckets[i].min && s < buckets[i].max) { buckets[i].vids.push(v); break; }
-    }
-  });
-  var validBuckets = buckets.filter(function(b){ return b.vids.length >= 2; });
-  validBuckets.forEach(function(b) {
-    b.avgScore = b.vids.reduce(function(s,v){ return s+(v.score||0); },0)/b.vids.length;
-    b.avgComp  = b.vids.reduce(function(s,v){
-      var c = v.completion_rate || (v.avg_watch_ms && v.length_sec ? v.avg_watch_ms/(v.length_sec*1000)*100 : 0);
-      return s + c;
-    },0)/b.vids.length;
-  });
-  var bestBucket = validBuckets.slice().sort(function(a,b){ return b.avgScore-a.avgScore; })[0];
-
-  // ── ② 留言觸發關鍵字 ──
-  var STOP = new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那',
+  // 關鍵字提取（用於工作指令推薦）
+  var KSTOP = new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那',
     '什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實',
     '現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
   function _xKw(v) {
-    var text = (v.description||v.caption||''), hashtags = [];
-    text = text.replace(/#([^\s#，。！？、；：\n]+)/g, function(m,t){ hashtags.push('#'+t); return ' '; });
-    var words = text.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean);
-    var result=[], seen=new Set();
-    words.concat(hashtags).forEach(function(w){
-      w=w.trim(); if(!w) return;
-      if(w[0]!=='#' && (w.length<2||STOP.has(w)||/^\d+$/.test(w))) return;
-      if(!seen.has(w)){ seen.add(w); result.push(w); }
+    var text=(v.description||v.caption||''), tags=[];
+    text=text.replace(/#([^\s#，。！？、；：\n]+)/g,function(m,t){tags.push('#'+t);return ' ';});
+    var res=[],seen=new Set();
+    text.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean).concat(tags).forEach(function(w){
+      w=w.trim();if(!w)return;
+      if(w[0]!=='#'&&(w.length<2||KSTOP.has(w)||/^\d+$/.test(w)))return;
+      if(!seen.has(w)){seen.add(w);res.push(w);}
     });
-    return result.slice(0,8);
+    return res.slice(0,8);
   }
-  var byComment = recent.filter(function(v){ return (v.plays||0)>0; })
-    .sort(function(a,b){ return (b.comments/b.plays)-(a.comments/a.plays); }).slice(0,5);
-  var kwFreq = {};
-  byComment.forEach(function(v){ _xKw(v).forEach(function(k){ kwFreq[k]=(kwFreq[k]||0)+1; }); });
-  var topKw = Object.keys(kwFreq).sort(function(a,b){ return kwFreq[b]-kwFreq[a]; }).slice(0,4);
 
-  // ── ③ 分享率前3 ──
-  var byShare = recent.filter(function(v){ return (v.plays||0)>50&&(v.shares||0)>0; })
-    .sort(function(a,b){ return (b.shares/b.plays)-(a.shares/a.plays); }).slice(0,3);
+  var html = '';
 
-  // ── ④ 行動建議 ──
-  var actions = '';
+  // ════════════════════════════════════════════
+  // ① 昨今成效：每支影片一張卡
+  // ════════════════════════════════════════════
+  var recent2 = all.filter(function(v){ return daysBetween(v.created_time) <= 1; })
+    .sort(function(a,b){ return b.created_time.localeCompare(a.created_time); });
+
+  html += '<div class="brief-section">';
+  html += '<div class="slabel" style="margin-bottom:8px">📅 昨今成效</div>';
+
+  if (recent2.length === 0) {
+    html += '<div style="color:var(--muted);font-size:13px;padding:6px 0">近48小時沒有新影片</div>';
+  } else {
+    recent2.forEach(function(v) {
+      var age     = daysBetween(v.created_time);
+      var ageStr  = age === 0 ? '今天' : '昨天';
+      var grade   = scoreGrade(v);
+      var gcol    = GCOL[grade] || 'var(--muted)';
+      var plays   = v.plays || 0;
+      var prev    = v.plays_prev || 0;
+      var gain    = prev > 0 ? plays - prev : null;
+      var nf      = v.newFollowers || 0;
+      var cr      = plays > 0 ? (v.comments||0)/plays*100 : 0;
+      var sr      = plays > 0 ? (v.shares||0)/plays*100 : 0;
+      var title   = truncTitle(v.description||v.caption||'', 24);
+      var safeId  = String(v.id||'').replace(/['"\\]/g,'');
+      var platIcon= v.platform==='fb'?'📘 FB':'📸 IG';
+      var typeIcon= v.type==='commerce'?'🛍':'📈';
+      var isViral = (age===0&&plays>=3000)||(gain!==null&&gain>=1000);
+
+      // 信號徽章
+      var badges = [];
+      if (isViral)
+        badges.push('<span style="background:#fff7ed;color:#f97316;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px">🔥 爆紅中</span>');
+      if (nf >= 10)
+        badges.push('<span style="background:#e8f8f7;color:#1a9e95;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px">👥 +'+nf+' 粉</span>');
+      if (v.type==='commerce' && plays>=200 && cr>=1)
+        badges.push('<span style="background:rgba(123,94,167,.1);color:#7b5ea7;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px">🛍 帶貨熱</span>');
+      if (v.type==='commerce' && plays>=200 && v.platform==='ig' && (v.saved||0)/plays*100>=0.5)
+        badges.push('<span style="background:#fff0f6;color:#be3a67;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px">🏷 加入收藏</span>');
+      if (age===0 && plays<1500)
+        badges.push('<span style="background:var(--off);color:var(--muted);font-size:11px;border-radius:4px;padding:2px 6px">⏳ 觀察中</span>');
+
+      // 數字列
+      var nums = fmtNum(plays)+' 播';
+      if (gain!==null && gain>0) nums += ' <span style="color:#1a9e95;font-weight:700">↑+'+fmtNum(gain)+'</span>';
+      if (cr>0) nums += '　留言 '+cr.toFixed(1)+'%';
+      if (sr>0) nums += '　分享 '+sr.toFixed(1)+'%';
+      if (v.platform==='ig' && (v.saved||0)>0) nums += '　收藏 '+fmtNum(v.saved);
+
+      html += '<div onclick="showVidDetail(\''+safeId+'\')" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--white);border-radius:8px;margin-bottom:7px;border:1.5px solid '+(isViral?'#f97316':'var(--border)')+';cursor:pointer">'
+        +'<div style="font-size:22px;font-weight:800;color:'+gcol+';min-width:22px;line-height:1.2;margin-top:1px">'+grade+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+title+'</div>'
+          +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+platIcon+' '+typeIcon+' '+ageStr+' · '+nums+'</div>'
+          +(badges.length?'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">'+badges.join('')+'</div>':'')
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--muted);flex-shrink:0;align-self:center">›</div>'
+        +'</div>';
+    });
+  }
+  html += '</div>';
+
+  // ════════════════════════════════════════════
+  // ② 本週快報
+  // ════════════════════════════════════════════
+  var thisWeek = all.filter(function(v){ return daysBetween(v.created_time)<=7; });
+  var lastWeek = all.filter(function(v){ var d=daysBetween(v.created_time); return d>7&&d<=14; });
+
+  var gd={S:0,A:0,B:0,C:0,F:0};
+  thisWeek.forEach(function(v){ var g=scoreGrade(v); if(gd[g]!==undefined) gd[g]++; });
+
+  var twP=thisWeek.reduce(function(s,v){return s+(v.plays||0);},0);
+  var lwP=lastWeek.reduce(function(s,v){return s+(v.plays||0);},0);
+  var pDelta=lwP>0?Math.round((twP-lwP)/lwP*100):null;
+
+  var twNf=thisWeek.reduce(function(s,v){return s+(v.newFollowers||0);},0);
+  var twCr=twP>0?thisWeek.reduce(function(s,v){return s+(v.comments||0);},0)/twP*100:0;
+  var lwCr=lwP>0?lastWeek.reduce(function(s,v){return s+(v.comments||0);},0)/lwP*100:0;
+  var crDelta=lwCr>0?twCr-lwCr:null;
+
+  function dStr(val,unit,decimals){
+    if(val===null)return '';
+    var d=decimals||0;
+    var s=val>=0?'▲ +':'▼ ';
+    var col=val>=0?'#1a9e95':'#be3a67';
+    return ' <span style="color:'+col+';font-weight:700">'+s+Math.abs(val).toFixed(d)+unit+' vs 上週</span>';
+  }
+
+  var gradeBar = ['S','A','B','C','F'].filter(function(g){return gd[g]>0;}).map(function(g){
+    return '<span style="color:'+GCOL[g]+';font-weight:700;margin-right:8px">'+g+'<span style="color:var(--muted);font-weight:400;font-size:12px">×'+gd[g]+'</span></span>';
+  }).join('');
+
+  html += '<div class="brief-section" style="margin-top:10px">';
+  html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
+    +'<span class="slabel" style="margin-bottom:0">📊 本週 '+thisWeek.length+' 支</span>'
+    +'<span style="font-size:14px">'+gradeBar+'</span>'
+    +'</div>';
+  html += '<div style="font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap">'
+    +'<span>播放 '+fmtNum(twP)+dStr(pDelta,'%',0)+'</span>'
+    +(twNf>0?'<span>👥 本週帶粉 <strong style="color:#1a9e95">+'+fmtNum(twNf)+'</strong></span>':'')
+    +'<span>留言率 '+twCr.toFixed(2)+'%'+dStr(crDelta,'%pt',2)+'</span>'
+    +'</div>';
+  html += '</div>';
+
+  // ════════════════════════════════════════════
+  // ③ 今日工作指令
+  // ════════════════════════════════════════════
+  var tasks = [];
+
+  // 🔥 趁熱追拍
   if (rising.length > 0) {
-    var top = rising[0];
-    actions += '<div class="brief-action">🔥 <strong>'+truncTitle(top.description||top.caption||'',14)+'</strong> 演算法正在推 → 趁熱拍相似主題或延伸內容</div>';
+    var hot = rising[0];
+    var hotGain = (hot.plays||0)-(hot.plays_prev||0);
+    tasks.push({icon:'🔥',col:'#f97316',label:'趁熱追拍',
+      detail:'《'+truncTitle(hot.description||hot.caption||'',18)+'》↑+'+fmtNum(hotGain)+' 播，拍同主題延伸片'});
   }
-  if (todayVids.length === 0) {
-    actions += '<div class="brief-action">📅 近48小時還沒發片，今天可以安排一支上架</div>';
-  }
-  // 建議下一支：均分≥60 且距上次≥14天
-  var kwMap = {};
+
+  // 📤 今天 FB/IG 沒發
+  var fbT=all.filter(function(v){return v.platform==='fb'&&daysBetween(v.created_time)===0;});
+  var igT=all.filter(function(v){return v.platform==='ig'&&daysBetween(v.created_time)===0;});
+  if(!fbT.length&&!igT.length) tasks.push({icon:'📤',col:'var(--warn)',label:'今天還沒發片',detail:'FB 和 IG 都還沒上片'});
+  else if(!fbT.length) tasks.push({icon:'📤',col:'var(--warn)',label:'FB 今天沒發',detail:'IG 已發，建議補 FB'});
+  else if(!igT.length) tasks.push({icon:'📤',col:'var(--warn)',label:'IG 今天沒發',detail:'FB 已發，建議補 IG'});
+
+  // 🎬 建議拍：高等級 + 14天沒拍的主題
+  var kwMap={};
   all.forEach(function(v){
     var age=daysBetween(v.created_time);
     _xKw(v).forEach(function(k){
-      if(!kwMap[k]) kwMap[k]={scores:[],lastAge:9999};
-      kwMap[k].scores.push(v.score||0);
+      if(!kwMap[k]) kwMap[k]={scores:[],lastAge:9999,nf:0};
+      kwMap[k].scores.push(scoreNum(v));
+      kwMap[k].nf+=(v.newFollowers||0);
       if(age<kwMap[k].lastAge) kwMap[k].lastAge=age;
     });
   });
-  var shootNext = Object.keys(kwMap).filter(function(k){
-    var d=kwMap[k]; if(d.scores.length<3) return false;
-    var avg=d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length;
-    return avg>=65 && d.lastAge>=14;
+  var shootNext=Object.keys(kwMap).filter(function(k){
+    var d=kwMap[k]; if(d.scores.length<3||d.lastAge<14) return false;
+    return d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length>=65;
   }).sort(function(a,b){
-    var aa=kwMap[a].scores.reduce(function(s,x){return s+x;},0)/kwMap[a].scores.length;
-    var ba=kwMap[b].scores.reduce(function(s,x){return s+x;},0)/kwMap[b].scores.length;
-    return ba-aa;
+    var sa=kwMap[a].scores.reduce(function(s,x){return s+x;},0)/kwMap[a].scores.length;
+    var sb=kwMap[b].scores.reduce(function(s,x){return s+x;},0)/kwMap[b].scores.length;
+    return sb-sa;
   }).slice(0,2);
-  if (shootNext.length > 0) {
-    var recs = shootNext.map(function(k){
-      var d=kwMap[k]; var avg=Math.round(d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length);
-      return '<strong>'+k+'</strong>（均'+avgGrade(avg)+'，上次'+d.lastAge+'天前）';
-    }).join(' 或 ');
-    actions += '<div class="brief-action">📝 建議下一支拍：'+recs+'</div>';
+  if(shootNext.length){
+    var recs=shootNext.map(function(k){
+      var d=kwMap[k];
+      var avg=d.scores.reduce(function(s,x){return s+x;},0)/d.scores.length;
+      return '<strong>'+k+'</strong>（均'+avgGrade(avg)+'・'+d.lastAge+'天沒拍'+(d.nf>0?'・曾帶+'+fmtNum(d.nf)+'粉':'')+'）';
+    }).join('　');
+    tasks.push({icon:'🎬',col:'#7b5ea7',label:'建議今天拍',detail:recs});
   }
 
-  // ── 組合 HTML ──
-  var html = '<div class="brief-section">';
-  html += '<div class="slabel">📋 今日內容簡報</div>';
-
-  if (actions) html += '<div style="margin-bottom:12px">'+actions+'</div>';
-
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
-
-  // 長度洞察
-  html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
-  html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">最佳影片長度</div>';
-  if (bestBucket) {
-    html += '<div style="font-size:20px;font-weight:800;color:var(--teal)">'+bestBucket.label+'</div>';
-    html += '<div style="font-size:12px;color:var(--muted);margin-top:2px">均分 '+Math.round(bestBucket.avgScore)+'分'+(bestBucket.avgComp>1?' · 完播 '+Math.round(bestBucket.avgComp)+'%':'')+' ／ '+bestBucket.vids.length+'支</div>';
-    html += '<div style="display:flex;gap:3px;margin-top:7px;flex-wrap:wrap">';
-    validBuckets.forEach(function(b){
-      var best=b===bestBucket;
-      html += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:'+(best?'#d1fae5':'#e5e7eb')+';color:'+(best?'#065f46':'#6b7280')+';font-weight:'+(best?'700':'400')+'">'+b.label+'</span>';
-    });
-    html += '</div>';
-  } else {
-    html += '<div style="font-size:13px;color:var(--muted)">資料累積中</div>';
+  // ♻️ 復投：高分+帶過粉的30-120天舊片
+  var recyc=all.filter(function(v){
+    var age=daysBetween(v.created_time);
+    var g=scoreGrade(v);
+    return age>=30&&age<=120&&(g==='S'||g==='A');
+  }).sort(function(a,b){
+    var wa=(b.newFollowers||0)*3+(scoreNum(b));
+    var wb=(a.newFollowers||0)*3+(scoreNum(a));
+    return wa-wb;
+  })[0];
+  if(recyc){
+    var rAge=daysBetween(recyc.created_time);
+    var rNf=recyc.newFollowers||0;
+    tasks.push({icon:'♻️',col:'#1a9e95',label:'考慮復投',
+      detail:'《'+truncTitle(recyc.description||recyc.caption||'',18)+'》'+rAge+'天前 '+scoreGrade(recyc)+(rNf>0?' · 帶+'+rNf+'粉':'')});
   }
-  html += '</div>';
 
-  // 留言觸發主題
-  html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
-  html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">留言最多的主題</div>';
-  if (topKw.length > 0) {
-    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
-    topKw.forEach(function(kw){
-      html += '<span style="font-size:12px;font-weight:700;color:var(--pink);background:rgba(155,44,126,.08);border-radius:4px;padding:2px 6px">'+kw+'</span>';
-    });
-    html += '</div>';
-    html += '<div style="font-size:11px;color:var(--muted)">↑ 這些主題引發觀眾留言討論</div>';
-  } else {
-    html += '<div style="font-size:13px;color:var(--muted)">資料累積中</div>';
-  }
-  html += '</div>';
-
-  html += '</div>'; // close 2-col grid
-
-  // 分享率前3
-  if (byShare.length > 0) {
-    html += '<div style="background:var(--off);border-radius:8px;padding:10px 12px">';
-    html += '<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:1px;margin-bottom:6px">分享率最高的片 <span style="font-weight:400;font-size:11px">（轉發＝情感共鳴或實用資訊 → 腳本可參考）</span></div>';
-    byShare.forEach(function(v){
-      var sr=((v.shares||0)/(v.plays||1)*100).toFixed(1);
-      var safeId=String(v.id||'').replace(/['"\\]/g,'');
-      html += '<div class="brief-share-row" onclick="showVidDetail(\''+safeId+'\')">'
-        +'<span style="font-size:13px;font-weight:700;color:var(--teal);flex-shrink:0;min-width:36px">'+sr+'%</span>'
-        +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+truncTitle(v.description||v.caption||'',24)+'</span>'
-        +'<span style="font-size:12px;color:var(--muted);flex-shrink:0">›</span>'
+  if(tasks.length){
+    html += '<div class="brief-section" style="margin-top:10px">';
+    html += '<div class="slabel" style="margin-bottom:8px">📋 今日工作指令</div>';
+    tasks.forEach(function(t){
+      html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-left:3px solid '+t.col+';background:var(--off);border-radius:0 6px 6px 0;margin-bottom:7px;font-size:13px">'
+        +'<span style="font-size:16px;flex-shrink:0;line-height:1.4">'+t.icon+'</span>'
+        +'<div style="line-height:1.6"><span style="font-weight:700">'+t.label+'</span><span style="color:var(--muted)"> — </span>'+t.detail+'</div>'
         +'</div>';
     });
     html += '</div>';
   }
 
-  html += '</div>';
   return html;
 }
 
