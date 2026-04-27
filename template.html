@@ -315,6 +315,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .score-tile.st-good{background:rgba(13,148,136,.07);border-color:rgba(13,148,136,.3)}
 .score-tile.st-mid{background:rgba(155,44,126,.07);border-color:rgba(155,44,126,.3)}
 .score-tile.st-low{background:rgba(190,58,103,.07);border-color:rgba(190,58,103,.28)}
+.score-tile.st-na{background:var(--off);border-color:var(--border)}
 .vcard-metrics{padding:14px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;border-bottom:1px solid var(--border)}
 .metric-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .metric-val{font-size:16px;font-weight:800;margin-top:2px}
@@ -488,6 +489,33 @@ const STATIC_DATA = __STATIC_DATA__;
 const AVG = { fb: STATIC_DATA.avg_fb, ig: STATIC_DATA.avg_ig };
 let activePeriod = '7';
 let currentTop20Type = 'traffic';
+
+// ── 評分 helpers ──────────────────────────────────────────────────────────
+// 未及格：有播放但不足 MIN_PLAYS_FOR_RATE（由 pipeline 寫入 low_plays 旗標）
+function scoreStr(v) {
+  if (v.low_plays) return '未及格';
+  if (!v.plays) return '—';
+  return (v.score || 0) + '分';
+}
+function scoreCol(v) {
+  if (v.low_plays || !v.plays) return 'var(--muted)';
+  var s = v.score || 0;
+  return s >= 80 ? '#1a9e95' : s >= 65 ? 'var(--pink)' : 'var(--warn)';
+}
+function scoreTileCls(v) {
+  if (v.low_plays || !v.plays) return 'st-na';
+  var s = v.score || 0;
+  return s >= 80 ? 'st-good' : s >= 65 ? 'st-mid' : 'st-low';
+}
+// 計算用（排除未及格影片的分數干擾）
+function scoreNum(v) { return (v.low_plays || !v.plays) ? 0 : (v.score || 0); }
+// score tile HTML（數字 + 分 分開排）
+function scoreTileHtml(v) {
+  if (v.low_plays) return '<div class="score-tile st-na"><span class="st-num" style="color:var(--muted);font-size:12px;line-height:1.2">未及格</span></div>';
+  if (!v.plays)    return '<div class="score-tile st-na"><span class="st-num" style="color:var(--muted);font-size:18px">—</span></div>';
+  var s = v.score||0, c = scoreCol(v), cls = scoreTileCls(v);
+  return '<div class="score-tile '+cls+'"><span class="st-num" style="color:'+c+'">'+s+'</span><span class="st-lbl">分</span></div>';
+}
 
 // ── 工具 ──────────────────────────────────────────────────────────────────
 function daysBetween(isoStr) {
@@ -676,8 +704,8 @@ function renderVideoCard(v, idx) {
   var devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
   var devStr = (dev >= 0 ? '+' : '') + devPct + '%';
   var barColor = v.type === 'commerce' ? 'var(--pink)' : 'var(--teal)';
-  var scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
-  var tileCls = v.score >= 80 ? 'st-good' : v.score >= 65 ? 'st-mid' : 'st-low';
+  var scoreColor = scoreCol(v);
+  var tileCls = scoreTileCls(v);
   var shareBar   = v.plays ? Math.min(v.shares / v.plays / 0.03 * 100, 100).toFixed(0) : 0;
   var commentBar = v.plays ? Math.min(v.comments / v.plays / 0.02 * 100, 100).toFixed(0) : 0;
   var likeBar    = v.plays ? Math.min(v.likes / v.plays / 0.15 * 100, 100).toFixed(0) : 0;
@@ -700,7 +728,7 @@ function renderVideoCard(v, idx) {
     + '<div class="vcard-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div>'
     + '<div class="vcard-date">' + fmtDate(v.created_time) + ' 發布 · ' + vidLen + '</div>'
     + '</div>'
-    + '<div class="score-tile ' + tileCls + '"><span class="st-num" style="color:' + scoreColor + '">' + v.score + '</span><span class="st-lbl">分</span></div>'
+    + scoreTileHtml(v)
     + '</div>'
     + renderRetentionStrip(v)
     + '<div class="vcard-metrics">'
@@ -950,7 +978,7 @@ function initOverview() {
   else if (avgWeekly>1 && thisW < avgWeekly-1) actions.push({t:'warn',msg:'本週只發了 '+thisW+' 支，低於近月均速（'+avgWeekly+' 支/週），需要補齊。'});
   else                                         actions.push({t:'good',msg:'本週發片節奏正常（'+thisW+' 支），繼續維持。'});
   // 新百分位制：50分是中位數，35分（底部四分位）才是真正需要注意的
-  var badCom = all.filter(function(v){return v.type==='commerce'&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
+  var badCom = all.filter(function(v){return v.type==='commerce'&&!v.low_plays&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
   if (badCom.length>=3) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數偏低（底部25%），複盤這些片的共同點，減少類似主題。'});
   var hidden = all.filter(function(v){return loyaltyTier(v)!=='tier3'&&reachDev(v)<-0.3&&daysBetween(v.created_time)<=60;});
   if (hidden.length>=2) actions.push({t:'act',msg:'有 '+hidden.length+' 支影片鐵粉喜歡但流量低，值得改標題重發或加投廣告。'});
@@ -1160,7 +1188,7 @@ function renderRecentList(vids) {
   }
   el.innerHTML = '<div class="today-list">'
     + filtered.slice(0,15).map(function(v){
-        var sc=v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
+        var sc=scoreCol(v);
         var lt=loyaltyTier(v);
         var age=daysBetween(v.created_time);
         var nf=v.newFollowers||0;
@@ -1179,7 +1207,7 @@ function renderRecentList(vids) {
           +prodBadge
           +'<span class="badge '+lt+'" style="flex-shrink:0;margin:0 4px">'+tierLabel(lt)+'</span>'
           +nfStr
-          +'<span style="font-size:15px;font-weight:700;color:'+sc+';min-width:28px;text-align:right;flex-shrink:0;margin-left:4px">'+(v.score||0)+'分</span>'
+          +'<span style="font-size:'+(v.low_plays?'12px':'15px')+';font-weight:700;color:'+sc+';min-width:28px;text-align:right;flex-shrink:0;margin-left:4px">'+scoreStr(v)+'</span>'
           +'<span style="font-size:12px;color:var(--muted);flex-shrink:0;margin-left:3px">›</span>'
           +'</div>';
       }).join('')
@@ -1236,7 +1264,7 @@ function initSummary() {
   if(thisW===0) actions.push({t:'warn',msg:'本週還沒有新影片！近月均速 '+avgWeekly+' 支/週，今天就要開拍。'});
   else if(avgWeekly>1&&thisW<avgWeekly-1) actions.push({t:'warn',msg:'本週只發了 '+thisW+' 支，低於近月均速（'+avgWeekly+' 支/週），需要補齊。'});
   else actions.push({t:'good',msg:'本週發片節奏正常（'+thisW+' 支），繼續維持。'});
-  var badCom=all.filter(function(v){return v.type==='commerce'&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
+  var badCom=all.filter(function(v){return v.type==='commerce'&&!v.low_plays&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
   if(badCom.length>=3) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數偏低，複盤這些片的共同點。'});
   var hidden=all.filter(function(v){return loyaltyTier(v)!=='tier3'&&reachDev(v)<-0.3&&daysBetween(v.created_time)<=60;});
   if(hidden.length>=2) actions.push({t:'act',msg:'有 '+hidden.length+' 支影片鐵粉喜歡但流量低，值得改標題重發或加投廣告。'});
@@ -1372,15 +1400,16 @@ function initTheme() {
       extractKw(v).forEach(function(kw) {
         if (!kd[kw]) kd[kw] = { scores:[], recent:[], prev:[], plays:[], commentRates:[], lastAge:9999, bestScore:0, bestTitle:'' };
         var d = kd[kw];
-        d.scores.push(v.score || 0);
+        var sn = scoreNum(v);  // 0 for 未及格/no-plays，不影響平均
+        d.scores.push(sn);
         d.plays.push(plays);
         d.commentRates.push(cr);
         if (age < d.lastAge) d.lastAge = age;
-        if ((v.score||0) > d.bestScore) {
-          d.bestScore = v.score||0;
+        if (sn > d.bestScore) {
+          d.bestScore = sn;
           d.bestTitle = truncTitle(v.description||v.caption||'', 28);
         }
-        if (age<=30) d.recent.push(v.score||0);
+        if (age<=30) d.recent.push(sn);
         else if (age<=60) d.prev.push(v.score||0);
       });
     });
@@ -1709,7 +1738,7 @@ function renderRecentTable() {
         var age    = daysBetween(v.created_time);
         var ageStr = age===0?'今天':age===1?'昨天':age+'天前';
         var title  = v.description || v.caption || '';
-        var sc     = v.score>=80?'#1a9e95':v.score>=65?'var(--pink)':'var(--warn)';
+        var sc     = scoreCol(v);
         var lt     = loyaltyTier(v);
         var cr     = v.plays ? (v.comments/v.plays*100).toFixed(2)+'%' : '—';
         var plat   = v.platform==='fb'?'📘 FB':'📸 IG';
@@ -1718,7 +1747,7 @@ function renderRecentTable() {
           + '<div style="font-size:12px;color:var(--muted)">' + plat + '</div></div>'
           + '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title,24) + '</div>'
           + '<div class="rt-date">' + fmtDate(v.created_time) + '</div></div>'
-          + '<div class="rt-score" style="color:' + sc + '">' + (v.score||0) + '</div>'
+          + '<div class="rt-score" style="color:' + sc + ';font-size:' + (v.low_plays?'11px':'') + '">' + scoreStr(v) + '</div>'
           + '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>'
           + '<div class="rt-num">' + cr + '</div>'
           + '<div><span class="badge ' + lt + '">' + tierLabel(lt) + '</span></div>'
@@ -1769,7 +1798,7 @@ function renderTop10() {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
         '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
-        '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
+        '<div class="rt-score ' + scoreClass + '" style="' + (v.low_plays?'font-size:11px':'') + '">' + scoreStr(v) + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
@@ -1780,7 +1809,7 @@ function renderTop10() {
       cols = [
         '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
         '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
-        '<div class="rt-score ' + scoreClass + '">' + v.score + '</div>',
+        '<div class="rt-score ' + scoreClass + '" style="' + (v.low_plays?'font-size:11px':'') + '">' + scoreStr(v) + '</div>',
         '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
         '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
         '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
@@ -1988,7 +2017,7 @@ function toggleKwPanel(idx, rowEl) {
   var vids = (_kwVidMap[kw] || []).slice().sort(function(a,b){ return (b.plays||0)-(a.plays||0); });
   panel.innerHTML = vids.map(function(v) {
     var title = v.description || v.caption || '(無標題)';
-    var scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
+    var scoreColor = scoreCol(v);
     var dev = reachDev(v);
     var devPct = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
     var devClass = dev >= 0.05 ? 'pos' : dev <= -0.05 ? 'neg' : 'neu';
@@ -1997,7 +2026,7 @@ function toggleKwPanel(idx, rowEl) {
     return '<div class="kw-vid-row">'
       + '<span style="font-size:12px;color:var(--muted);min-width:54px;flex-shrink:0">' + fmtDate(v.created_time) + '</span>'
       + '<span style="flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + title + '</span>'
-      + '<span style="font-size:15px;font-weight:600;color:' + scoreColor + ';min-width:32px;text-align:right;flex-shrink:0">' + (v.score||0) + '分</span>'
+      + '<span style="font-size:'+(v.low_plays?'12px':'15px')+';font-weight:600;color:' + scoreColor + ';min-width:32px;text-align:right;flex-shrink:0">' + scoreStr(v) + '</span>'
       + '<span style="font-size:14px;font-weight:700;min-width:64px;text-align:right;flex-shrink:0">' + fmtNum(v.plays||0) + ' 播</span>'
       + '<span class="devbadge ' + devClass + '" style="margin-left:6px;flex-shrink:0">' + devPct + '</span>'
       + '<span class="badge ' + lt + '" style="margin-left:6px;flex-shrink:0">' + tl + '</span>'
@@ -2029,7 +2058,7 @@ function runSearch(q) {
     var title = v.description || v.caption || '(無標題)';
     var age = daysBetween(v.created_time);
     var platIcon = v.platform === 'fb' ? '📘 FB' : '📸 IG';
-    var scoreColor = v.score >= 80 ? '#1a9e95' : v.score >= 65 ? 'var(--pink)' : 'var(--warn)';
+    var scoreColor = scoreCol(v);
     var lr = loyaltyRate(v).toFixed(2);
     var lt = loyaltyTier(v);
     var tl = tierLabel(lt);
@@ -2045,7 +2074,7 @@ function runSearch(q) {
         + comps.map(function(c) {
             var ct = c.description || c.caption || '(無標題)';
             return '<div class="search-comp-row">'
-              + '<span class="search-comp-score" style="color:' + (c.score >= 80 ? '#1a9e95' : c.score >= 65 ? 'var(--pink)' : 'var(--warn)') + '">' + (c.score || 0) + '分</span>'
+              + '<span class="search-comp-score" style="color:' + scoreCol(c) + '">' + scoreStr(c) + '</span>'
               + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px">' + ct + '</span>'
               + '<span style="font-size:13px;color:var(--muted);margin-left:8px;white-space:nowrap">' + fmtNum(c.plays || 0) + ' 播</span>'
               + '</div>';
@@ -2056,7 +2085,7 @@ function runSearch(q) {
       + '<div class="search-result-head">'
       + '<div class="search-result-title">' + title + '</div>'
       + '<div class="search-result-meta">' + fmtDate(v.created_time) + ' · ' + age + '天前 · ' + platIcon
-      + ' · <span style="color:' + scoreColor + ';font-weight:800">' + (v.score || 0) + '分</span>'
+      + ' · <span style="color:' + scoreColor + ';font-weight:800">' + scoreStr(v) + '</span>'
       + ' · <span class="badge ' + lt + '">' + tl + '</span>'
       + '</div>'
       + '</div>'
@@ -2148,7 +2177,7 @@ function showVidDetail(id) {
   var sr = plays > 0 ? (shares/plays*100).toFixed(1) : '0.0';
   var sc = v.score || 0;
   var age = daysBetween(v.created_time);
-  var scColor = sc>=80?'#1a9e95':sc>=65?'var(--pink)':'var(--warn)';
+  var scColor = scoreCol(v);
   var ageStr = age===0?'今天':age===1?'昨天':age+'天前';
   var platStr = v.platform==='fb'?'📘 Facebook':'📸 Instagram';
   function cell(lbl, val, color) {
@@ -2164,7 +2193,9 @@ function showVidDetail(id) {
     + (nf>0 ? cell('新增粉絲','+'+fmtNum(nf),'#1a9e95') : cell('新增粉絲','—'));
   document.getElementById('vdTitle').textContent = title;
   document.getElementById('vdMeta').textContent = platStr+' · '+ageStr;
-  document.getElementById('vdScore').innerHTML = '<span style="color:'+scColor+'">'+sc+'</span><span style="font-size:14px;color:var(--muted)"> 分</span>';
+  document.getElementById('vdScore').innerHTML = v.low_plays
+    ? '<span style="color:var(--muted);font-size:15px">未及格</span>'
+    : '<span style="color:'+scColor+'">'+sc+'</span><span style="font-size:14px;color:var(--muted)"> 分</span>';
   document.getElementById('vdMetrics').innerHTML = metrics;
   document.getElementById('vidDrawer').classList.add('vd-open');
   document.getElementById('vidBackdrop').classList.add('vd-open');

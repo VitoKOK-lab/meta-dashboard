@@ -444,7 +444,7 @@ def _percentile_rank(sorted_list, value):
 
 # 計算互動率百分位時，要求至少這個播放量才納入分佈
 # 避免「100播放+1留言」因樣本太小而取得虛假高分
-MIN_PLAYS_FOR_RATE = 3000
+MIN_PLAYS_FOR_RATE = 1500
 
 def _sorted_rates(videos, key):
     # 只納入播放數 >= MIN_PLAYS_FOR_RATE 的影片，排除小樣本噪音
@@ -521,7 +521,7 @@ def score_video(v, stats):
     if plays == 0:
         return 0
     if plays < MIN_PLAYS_FOR_RATE:
-        return 0  # 樣本不足，不評分（避免100播放+1留言 = 假高分）
+        return 0  # 樣本不足，由 low_plays 旗標在前端顯示「未及格」
 
     p  = _percentile_rank
     sr = (v.get('shares')   or 0) / float(plays)
@@ -531,32 +531,17 @@ def score_video(v, stats):
     reach_list = stats['fb_reach'] if v.get('platform') == 'fb' else stats['ig_reach']
     reach_pct  = p(reach_list, reach)
 
-    # 播放數不足 MIN_PLAYS_FOR_RATE 時，互動率分數歸零（避免小樣本虛假高分）
-    valid_rates = plays >= MIN_PLAYS_FOR_RATE
-
     if v.get('type') == 'traffic':
-        sr_score = p(stats['tr_share'],   sr) if valid_rates else 0.0
-        cr_score = p(stats['tr_comment'], cr) if valid_rates else 0.0
-        raw = (p(stats['tr_plays'], plays) * 0.35
-             + sr_score                    * 0.30
-             + cr_score                    * 0.20
-             + reach_pct                   * 0.15)
-    else:  # commerce
-        saves_rate = (v.get('saved') or 0) / float(plays) if v.get('platform') == 'ig' else 0.0
-        cr_score = p(stats['cm_comment'], cr) if valid_rates else 0.0
-        sr_score = p(stats['cm_share'],   sr) if valid_rates else 0.0
-        if v.get('platform') == 'ig':
-            sv = p(stats['cm_saves'], saves_rate) if (valid_rates and saves_rate > 0) else 0.0
-            raw = (cr_score                        * 0.40
-                 + sv                              * 0.25
-                 + reach_pct                       * 0.20
-                 + sr_score                        * 0.10
-                 + p(stats['cm_plays'], plays)     * 0.05)
-        else:  # FB 帶貨
-            raw = (cr_score                        * 0.50
-                 + reach_pct                       * 0.25
-                 + sr_score                        * 0.15
-                 + p(stats['cm_plays'], plays)     * 0.10)
+        raw = (p(stats['tr_plays'],   plays) * 0.35
+             + p(stats['tr_share'],   sr)    * 0.30
+             + p(stats['tr_comment'], cr)    * 0.20
+             + reach_pct                     * 0.15)
+    else:  # 帶貨型（FB/IG 統一計分）
+        # 留言率 50% + 觸及 25% + 轉發率 15% + 播放量 10%
+        raw = (p(stats['cm_comment'], cr)    * 0.50
+             + reach_pct                     * 0.25
+             + p(stats['cm_share'],   sr)    * 0.15
+             + p(stats['cm_plays'],   plays) * 0.10)
 
     completion = v.get('completion_rate')
     if completion is not None:
@@ -734,6 +719,8 @@ def main():
         # 以最新計分規則（MIN_PLAYS_FOR_RATE）重算所有影片
         rescored = 0
         for v in videos_dict.values():
+            plays = v.get('plays') or 0
+            v['low_plays'] = (0 < plays < MIN_PLAYS_FOR_RATE)
             new_score = score_video(v, stats)
             if new_score != (v.get('score') or 0):
                 v['score'] = new_score
@@ -828,7 +815,9 @@ def main():
     # 百分位制：每次都全量重算，因為任何影片的 insights 更新都會移動整體分佈
     rescored = 0
     for v in videos_dict.values():
-        if (v.get('plays') or 0) > 0:
+        plays = v.get('plays') or 0
+        v['low_plays'] = (0 < plays < MIN_PLAYS_FOR_RATE)
+        if plays > 0:
             v['score'] = score_video(v, stats)
             rescored += 1
     print('  重新計算分數: {} 支'.format(rescored))
