@@ -198,6 +198,25 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .brief-share-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;border-top:1px solid var(--border);font-size:13px}
 .brief-share-row:first-child{border-top:none}
 .brief-share-row:hover{opacity:.75}
+/* ── 直播 ── */
+.live-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.live-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.live-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex:1;min-width:100px;text-align:center}
+.live-stat-val{font-size:22px;font-weight:700;color:var(--ink);line-height:1.2}
+.live-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.live-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;transition:box-shadow .15s}
+.live-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.live-card-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.live-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:2px 7px;white-space:nowrap;flex-shrink:0}
+.live-title{font-size:14px;font-weight:600;color:var(--ink);line-height:1.4;flex:1}
+.live-meta{font-size:12px;color:var(--muted)}
+.live-metrics{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.live-metric{background:var(--off);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--ink);display:flex;flex-direction:column;align-items:center;min-width:60px}
+.live-metric-val{font-size:15px;font-weight:700;line-height:1.2}
+.live-metric-lbl{font-size:10px;color:var(--muted);margin-top:1px}
+.live-metric.peak{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25)}
+.live-metric.peak .live-metric-val{color:#dc2626}
+.live-empty{text-align:center;padding:60px 0;color:var(--muted);font-size:15px}
 /* ── 近日上片 ── */
 .today-list{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .today-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;transition:background .12s}
@@ -380,6 +399,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
       <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
       <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
       <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
+      <div class="tab" onclick="switchTab('live',this)">📺 直播</div>
     </div>
     <div class="hdr-right">
       <span class="snapshot-badge" id="snapshotBadge">載入中…</span>
@@ -443,6 +463,11 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div id="searchResults"></div>
   </div>
 
+  <!-- 直播 -->
+  <div class="section" id="sec-live">
+    <div id="liveContent"></div>
+  </div>
+
 </div>
 
 <div class="mob-nav">
@@ -450,7 +475,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>近期</div>
     <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>關鍵字</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
-    <div class="mob-tab" onclick="mobileSwitchTab('search',this)"><span class="mi">🔍</span>尋找</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('live',this)"><span class="mi">📺</span>直播</div>
   </div>
 </div>
 
@@ -2020,8 +2045,99 @@ function runSearch(q) {
   }).join('');
 }
 
+// ── 直播頁 ────────────────────────────────────────────────────────────────
+function renderLiveTab() {
+  var container = document.getElementById('liveContent');
+  if (!container) return;
+  var lives = (STATIC_DATA.lives || []).slice()
+    .sort(function(a, b) { return b.startTime.localeCompare(a.startTime); });
+
+  if (!lives.length) {
+    container.innerHTML = '<div class="live-empty">📺 尚無直播資料<br><span style="font-size:13px;margin-top:8px;display:block">執行完整 pipeline 後即可顯示</span></div>';
+    return;
+  }
+
+  function fmt(n) {
+    if (!n) return '0';
+    return n >= 10000 ? (n/10000).toFixed(1)+'萬' : n.toLocaleString();
+  }
+  function fmtDur(sec) {
+    if (!sec) return '—';
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    return h > 0 ? h+'h '+m+'m' : m+'m';
+  }
+  function fmtWatch(ms) {
+    if (!ms) return '—';
+    var s = Math.round(ms / 1000);
+    var m = Math.floor(s / 60);
+    s = s % 60;
+    return m > 0 ? m+'m '+s+'s' : s+'s';
+  }
+  function retainPct(lv) {
+    if (!lv.durationSec || !lv.avgWatchMs) return null;
+    var pct = (lv.avgWatchMs / 1000) / lv.durationSec * 100;
+    return Math.min(Math.round(pct), 100);
+  }
+  function daysBetween(iso) {
+    if (!iso) return 9999;
+    var d = new Date(iso.replace('Z','').split('+')[0]);
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+
+  // 彙總統計（最近 90 天）
+  var recent90 = lives.filter(function(lv){ return daysBetween(lv.startTime) <= 90; });
+  var totalLiveViews = 0, totalPlays = 0, totalComments = 0, totalDur = 0;
+  recent90.forEach(function(lv) {
+    totalLiveViews += lv.liveViews || 0;
+    totalPlays     += lv.plays     || 0;
+    totalComments  += lv.comments  || 0;
+    totalDur       += lv.durationSec || 0;
+  });
+  var avgLiveViews = recent90.length ? Math.round(totalLiveViews / recent90.length) : 0;
+
+  var statsHtml = '<div class="live-stat-row">'
+    + '<div class="live-stat"><div class="live-stat-val">'+recent90.length+'</div><div class="live-stat-lbl">近90天場數</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmt(avgLiveViews)+'</div><div class="live-stat-lbl">平均峰值人數</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">總VOD觀看</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmtDur(totalDur)+'</div><div class="live-stat-lbl">累計直播時長</div></div>'
+    + '</div>';
+
+  // 每場直播卡片
+  var cardsHtml = lives.map(function(lv) {
+    var age = daysBetween(lv.startTime);
+    var ageStr = age === 0 ? '今天' : age === 1 ? '昨天' : age + '天前';
+    var ret = retainPct(lv);
+    var retStr = ret !== null ? ret + '%' : '—';
+
+    // 留言率（相對 peak viewers）
+    var crPeak = lv.liveViews > 0 ? (lv.comments / lv.liveViews * 100).toFixed(1) : null;
+
+    return '<div class="live-card">'
+      + '<div class="live-card-head">'
+      + '<span class="live-badge">直播</span>'
+      + '<div>'
+      + '<div class="live-title">'+(lv.title || '（無標題）')+'</div>'
+      + '<div class="live-meta">'+lv.date+'・'+ageStr+'・時長 '+fmtDur(lv.durationSec)+'</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="live-metrics">'
+      + '<div class="live-metric peak"><div class="live-metric-val">'+fmt(lv.liveViews)+'</div><div class="live-metric-lbl">🔴 峰值人數</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">VOD 觀看</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.comments)+'</div><div class="live-metric-lbl">留言'+(crPeak?'  '+crPeak+'%':'')+'</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.shares)+'</div><div class="live-metric-lbl">轉發</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.likes)+'</div><div class="live-metric-lbl">按讚</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmtWatch(lv.avgWatchMs)+'</div><div class="live-metric-lbl">平均觀看</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+retStr+'</div><div class="live-metric-lbl">留存率</div></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  container.innerHTML = '<div class="slabel">📺 直播記錄</div>' + statsHtml + cardsHtml;
+}
+
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { overview: false, summary: false, theme: false, top20: false, search: false };
+var initiated = { overview: false, summary: false, theme: false, top20: false, search: false, live: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -2034,6 +2150,7 @@ function switchTab(id, el) {
     if (id === 'summary') initSummary();
     if (id === 'theme') initTheme();
     if (id === 'top20') renderTop10();
+    if (id === 'live') renderLiveTab();
   }
   if (id === 'search') {
     setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
@@ -2043,7 +2160,7 @@ function switchTab(id, el) {
 }
 
 function mobileSwitchTab(id, el) {
-  var tabMap = { overview: 0, theme: 1, top20: 2, search: 3 };
+  var tabMap = { overview: 0, theme: 1, top20: 2, search: 3, live: 4 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]] !== undefined) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });

@@ -49,6 +49,7 @@ BASE_DIR              = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH             = os.path.join(BASE_DIR, 'data', 'videos.json')
 ARCHIVE_PATH          = os.path.join(BASE_DIR, 'data', 'archive.json')
 FOLLOWER_HISTORY_PATH = os.path.join(BASE_DIR, 'data', 'follower_history.json')
+LIVES_PATH            = os.path.join(BASE_DIR, 'data', 'lives.json')
 TEMPLATE_PATH         = os.path.join(BASE_DIR, 'template.html')
 OUTPUT_PATH           = os.path.join(BASE_DIR, 'index.html')
 API_BASE              = 'https://graph.facebook.com/v19.0'
@@ -189,6 +190,122 @@ def save_follower_history(history):
         json.dump({'updated_at': utc_now().isoformat(), 'history': history},
                   f, ensure_ascii=False, separators=(',', ':'))
     return history
+
+# ── 直播記錄 ──────────────────────────────────────────────────────────────────
+def load_lives():
+    """讀取 data/lives.json，回傳 {id: live_dict}"""
+    if not os.path.exists(LIVES_PATH):
+        return {}
+    try:
+        with open(LIVES_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f).get('lives', {})
+    except Exception:
+        return {}
+
+def save_lives(lives_dict):
+    data_dir = os.path.dirname(LIVES_PATH)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    payload = {
+        'updated_at': utc_now().isoformat(),
+        'count': len(lives_dict),
+        'lives': lives_dict,
+    }
+    with open(LIVES_PATH, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
+    print('  data/lives.json 已儲存 {} 場'.format(len(lives_dict)))
+
+def fetch_live_videos(since_days=90):
+    """抓 FB 粉專過去 N 天的直播記錄（VOD = 已結束）"""
+    now_ts   = int(time.time())
+    cutoff_ts = now_ts - since_days * 86400
+    lives = []
+    cursor = None
+    page = 0
+    while True:
+        try:
+            if cursor:
+                data = api_get(cursor)
+            else:
+                data = api_get('{}/live_videos'.format(FB_PAGE), {
+                    'fields': 'id,title,description,broadcast_start_time,live_views,status,length',
+                    'limit': 50,
+                })
+        except RuntimeError as e:
+            print('    直播列表錯誤: {}'.format(e))
+            break
+        items = data.get('data') or []
+        hit_cutoff = False
+        for item in items:
+            status = item.get('status', '')
+            # 只取已結束的直播（VOD = 已轉存）
+            if status not in ('VOD', 'LIVE_STOPPED'):
+                continue
+            ts = item.get('broadcast_start_time', '')
+            if ts:
+                s = ts.replace('Z', '').split('+')[0][:19]
+                try:
+                    item_ts = int(time.mktime(
+                        datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S').timetuple()
+                    ))
+                except ValueError:
+                    item_ts = 0
+                if item_ts < cutoff_ts:
+                    hit_cutoff = True
+                    break
+            title = (item.get('title') or item.get('description') or '').strip()
+            lives.append({
+                'id':                  item['id'],
+                'title':               title[:300],
+                'broadcast_start_time': ts,
+                'broadcast_date':      to_tw_date(ts),
+                'live_views':          item.get('live_views') or 0,
+                'duration_sec':        item.get('length') or 0,
+                'status':              status,
+            })
+        cursor = (data.get('paging') or {}).get('next')
+        page += 1
+        print('    直播 頁{} → {}場'.format(page, len(items)))
+        if hit_cutoff or not cursor or not items:
+            break
+        time.sleep(0.3)
+    return lives
+
+def parse_live_insights(data):
+    """解析直播 video_insights（用 total_video_views 而非 blue_reels_play_count）"""
+    m = {}
+    for d in (data.get('data') or []):
+        vals = d.get('values') or [{}]
+        m[d['name']] = vals[0].get('value') if vals else None
+    social    = m.get('post_video_social_actions') or {}
+    likes_map = m.get('post_video_likes_by_reaction_type') or {}
+    return {
+        'plays':        m.get('total_video_views') or m.get('blue_reels_play_count') or 0,
+        'reach':        m.get('total_video_views_unique') or m.get('post_impressions_unique') or 0,
+        'avg_watch_ms': m.get('post_video_avg_time_watched') or 0,
+        'comments':     social.get('COMMENT') or 0,
+        'shares':       social.get('SHARE') or 0,
+        'likes':        sum(likes_map.values()) if likes_map else 0,
+    }
+
+def fetch_live_insights_stale(lives_dict, refresh_days=28):
+    """回傳需要更新 insights 的直播 ID list，並呼叫 API 更新"""
+    today = utc_now().strftime('%Y-%m-%d')
+    stale = [
+        lid for lid, lv in lives_dict.items()
+        if days_ago_from(lv.get('broadcast_start_time', '')) <= refresh_days
+        and lv.get('insights_at', '')[:10] < today
+    ]
+    if not stale:
+        return
+    print('  [直播] 更新 insights ({} 場)...'.format(len(stale)))
+    raw = batch_api(['{}/video_insights'.format(lid) for lid in stale])
+    now_iso = utc_now().isoformat()
+    for i, lid in enumerate(stale):
+        ins = parse_live_insights(raw[i]) if raw[i] else {}
+        if ins and lid in lives_dict:
+            lives_dict[lid].update(ins)
+            lives_dict[lid]['insights_at'] = now_iso
 
 def backfill_follower_history():
     """一次性補齊過去 90 天的粉絲快照"""
@@ -678,7 +795,23 @@ def to_js_video(v):
         'playsPrevAt':    v.get('plays_prev_at', ''),
     }
 
-def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None):
+def to_js_live(lv):
+    return {
+        'id':            lv['id'],
+        'title':         lv.get('title', ''),
+        'date':          lv.get('broadcast_date', ''),
+        'startTime':     lv.get('broadcast_start_time', ''),
+        'liveViews':     lv.get('live_views', 0),
+        'durationSec':   lv.get('duration_sec', 0),
+        'plays':         lv.get('plays', 0),
+        'reach':         lv.get('reach', 0),
+        'comments':      lv.get('comments', 0),
+        'shares':        lv.get('shares', 0),
+        'likes':         lv.get('likes', 0),
+        'avgWatchMs':    lv.get('avg_watch_ms', 0),
+    }
+
+def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_list=None):
     if not os.path.exists(TEMPLATE_PATH):
         print('ERROR: 找不到 template.html')
         sys.exit(1)
@@ -692,12 +825,14 @@ def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None):
         'avg_ig':          round(avg_ig, 1),
         'videos':          [to_js_video(v) for v in recent_videos],
         'followerHistory': follower_history or [],
+        'lives':           [to_js_live(lv) for lv in (lives_list or [])],
     }
     html = template.replace('__STATIC_DATA__', json.dumps(payload, ensure_ascii=False))
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
         f.write(html)
     size_kb = os.path.getsize(OUTPUT_PATH) // 1024
-    print('  index.html → {} KB（嵌入 {} 支）'.format(size_kb, len(recent_videos)))
+    print('  index.html → {} KB（嵌入 {} 支 + {} 場直播）'.format(
+        size_kb, len(recent_videos), len(lives_list or [])))
 
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 def main():
@@ -729,8 +864,11 @@ def main():
             save_db(videos_dict)
             recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
             print('  重新計算分數: {} 支'.format(rescored))
-        generate_html(recent, avg_fb, avg_ig, follower_history=fh)
-        print('完成！HTML:{} 支'.format(len(recent)))
+        lives_dict = load_lives()
+        lives_list = sorted(lives_dict.values(),
+                            key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
+        generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
+        print('完成！HTML:{} 支 + {} 場直播'.format(len(recent), len(lives_list)))
         return
 
     if force_backfill:
@@ -826,8 +964,29 @@ def main():
     save_db(videos_dict)
     save_archive(videos_dict)
 
-    # 步驟 4：粉絲每日快照
-    print('\n[4] 粉絲快照...')
+    # 步驟 4：直播記錄
+    print('\n[4] 直播記錄（FB live_videos）...')
+    lives_dict = load_lives()
+    live_fetch_days = 90 if is_first else 14
+    new_lives = fetch_live_videos(since_days=live_fetch_days)
+    new_live_count = 0
+    for lv in new_lives:
+        if lv['id'] not in lives_dict:
+            lives_dict[lv['id']] = lv
+            new_live_count += 1
+        else:
+            lives_dict[lv['id']].update({
+                'title':      lv['title'],
+                'live_views': lv['live_views'],
+                'duration_sec': lv['duration_sec'],
+            })
+    print('  新直播: {} 場（共 {} 場）'.format(new_live_count, len(lives_dict)))
+    if lives_dict:
+        fetch_live_insights_stale(lives_dict, refresh_days=28)
+        save_lives(lives_dict)
+
+    # 步驟 5：粉絲每日快照
+    print('\n[5] 粉絲快照...')
     fh = load_follower_history()
     today_str = tw_now().strftime('%Y-%m-%d')
     existing_dates = {h['date'] for h in fh}
@@ -841,12 +1000,15 @@ def main():
     else:
         print('  今日快照已存在（{}筆），跳過'.format(len(fh)))
 
-    # 步驟 5：生成 HTML
-    print('\n[5] 生成 index.html...')
+    # 步驟 6：生成 HTML
+    print('\n[6] 生成 index.html...')
     recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
-    generate_html(recent, avg_fb, avg_ig, follower_history=fh)
+    lives_list = sorted(lives_dict.values(),
+                        key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
+    generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
 
-    print('\n完成！DB:{} 支 / HTML:{} 支'.format(len(videos_dict), len(recent)))
+    print('\n完成！DB:{} 支 / HTML:{} 支 / 直播:{} 場'.format(
+        len(videos_dict), len(recent), len(lives_dict)))
 
 if __name__ == '__main__':
     main()
