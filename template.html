@@ -2151,8 +2151,19 @@ function renderLiveTab() {
   var lives = (STATIC_DATA.lives || []).slice()
     .sort(function(a, b) { return b.startTime.localeCompare(a.startTime); });
 
+  // 觸發按鈕永遠顯示（不管有沒有直播記錄）
+  var triggerBarHtml = '<div class="slabel">📺 直播記錄</div>'
+    + '<div class="live-trigger-bar">'
+    + '<button id="liveTriggerBtn" class="live-trigger-btn'
+    + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
+    + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
+    + '</button>'
+    + '<span id="liveTriggerNote" class="live-trigger-note">直播前按一下，自動記錄 IG 數據，結束後自動存檔</span>'
+    + '</div>';
+
   if (!lives.length) {
-    container.innerHTML = '<div class="live-empty">📺 尚無直播資料<br><span style="font-size:13px;margin-top:8px;display:block">執行完整 pipeline 後即可顯示</span></div>';
+    container.innerHTML = triggerBarHtml
+      + '<div class="live-empty">尚無直播記錄<br><span style="font-size:13px;margin-top:8px;display:block">下次直播時按上面的按鈕即可開始記錄</span></div>';
     return;
   }
 
@@ -2244,15 +2255,7 @@ function renderLiveTab() {
       + '</div>';
   }).join('');
 
-  var triggerBar = '<div class="live-trigger-bar">'
-    + '<button id="liveTriggerBtn" class="live-trigger-btn'
-    + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
-    + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
-    + '</button>'
-    + '<span id="liveTriggerNote" class="live-trigger-note">直播前按一下，自動記錄 IG 數據，結束後自動存檔</span>'
-    + '</div>';
-
-  container.innerHTML = '<div class="slabel">📺 直播記錄</div>' + triggerBar + statsHtml + cardsHtml;
+  container.innerHTML = triggerBarHtml + statsHtml + cardsHtml;
 }
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
