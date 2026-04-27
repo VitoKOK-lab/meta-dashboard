@@ -521,7 +521,9 @@ def parse_ig_insights(data):
         m[d['name']] = vals[0].get('value') if vals else None
     avg_watch  = m.get('ig_reels_avg_watch_time') or 0
     total_view = m.get('ig_reels_video_view_total_time') or 0
-    plays = int(round(total_view / avg_watch)) if avg_watch > 0 else 0
+    # 2025/4/21 起 Meta 用 views 取代 plays/impressions；舊版 fallback 用時間比值計算
+    plays_from_ratio = int(round(total_view / avg_watch)) if avg_watch > 0 else 0
+    plays = m.get('views') or plays_from_ratio
     return {
         'plays':           plays,
         'reach':           m.get('reach') or 0,
@@ -758,8 +760,10 @@ def fetch_insights_for(stale_list):
     if ig_ids:
         print('  [IG] 更新 insights ({} 支)...'.format(len(ig_ids)))
         time.sleep(1.5)
+        # 2025/4/21 起 Meta 廢棄 plays/impressions，改用 views
+        # 同時保留 ig_reels_* 做 avg_watch 計算（未廢棄）
         raw = batch_api([
-            '{}/insights?metric=reach,shares,comments,likes,saved,follows,'
+            '{}/insights?metric=views,reach,shares,comments,likes,saved,follows,'
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])
