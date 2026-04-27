@@ -802,6 +802,7 @@ def to_js_video(v):
 def to_js_live(lv):
     return {
         'id':            lv['id'],
+        'platform':      lv.get('platform', 'fb'),
         'title':         lv.get('title', ''),
         'date':          lv.get('broadcast_date', ''),
         'startTime':     lv.get('broadcast_start_time', ''),
@@ -1014,5 +1015,121 @@ def main():
     print('\n完成！DB:{} 支 / HTML:{} 支 / 直播:{} 場'.format(
         len(videos_dict), len(recent), len(lives_dict)))
 
+# ── IG 直播即時監控 ──────────────────────────────────────────────────────────
+def monitor_ig_live():
+    """
+    在 GitHub Actions 手動觸發時執行。
+    流程：等直播開始 → 每 5 分鐘記錄快照 → 偵測結束 → 存檔 + 重建 HTML
+    """
+    WAIT_SEC   = 15 * 60   # 等待直播開始最多 15 分鐘
+    POLL_SEC   = 5  * 60   # 直播中每 5 分鐘 poll 一次
+    MAX_SEC    = 6  * 3600 # 最長監控 6 小時（GitHub Actions 上限）
+    FIELDS     = 'id,timestamp,like_count,comments_count'
+
+    print('=' * 50)
+    print('  IG 直播監控模式')
+    print('  {}'.format(tw_now().strftime('%Y-%m-%d %H:%M')))
+    print('=' * 50)
+
+    live_id    = None
+    start_time = None
+    snapshots  = []
+
+    # Phase 1：等直播開始（最多 15 分鐘）
+    print('\n[等待] 偵測 IG 直播中（最多 15 分鐘）...')
+    waited = 0
+    while waited < WAIT_SEC:
+        try:
+            data  = api_get('{}/live_media'.format(IG_ACCOUNT), {'fields': FIELDS})
+            items = data.get('data') or []
+        except RuntimeError as e:
+            print('  API 錯誤: {}，60秒後重試'.format(e))
+            time.sleep(60)
+            waited += 60
+            continue
+        if items:
+            live_id    = items[0]['id']
+            start_time = items[0].get('timestamp') or utc_now().isoformat()
+            print('  直播已開始！ID={} 開播時間={}'.format(live_id, to_tw_date(start_time)))
+            break
+        print('  尚未開播，{}秒後再查...'.format(POLL_SEC))
+        time.sleep(POLL_SEC)
+        waited += POLL_SEC
+
+    if not live_id:
+        print('等待逾時（15分鐘內未偵測到直播），結束監控')
+        return
+
+    # Phase 2：直播進行中，每 5 分鐘記錄快照
+    print('\n[監控] 開始記錄直播數據...')
+    elapsed = 0
+    while elapsed < MAX_SEC:
+        time.sleep(POLL_SEC)
+        elapsed += POLL_SEC
+        try:
+            data  = api_get('{}/live_media'.format(IG_ACCOUNT), {'fields': FIELDS})
+            items = data.get('data') or []
+        except RuntimeError as e:
+            print('  API 錯誤: {}，繼續監控'.format(e))
+            continue
+        if not items:
+            print('  直播已結束（{}分鐘後偵測到）'.format(elapsed // 60))
+            break
+        live     = items[0]
+        comments = live.get('comments_count') or 0
+        likes    = live.get('like_count') or 0
+        snap     = {'time': utc_now().isoformat(), 'comments': comments, 'likes': likes}
+        snapshots.append(snap)
+        print('  快照#{} +{}分  留言={} 按讚={}'.format(
+            len(snapshots), elapsed // 60, comments, likes))
+
+    # Phase 3：存檔
+    if not snapshots:
+        print('未取得任何快照，不儲存')
+        return
+
+    peak_comments = max(s['comments'] for s in snapshots)
+    peak_likes    = max(s['likes']    for s in snapshots)
+    # 計算直播時長
+    try:
+        start_dt    = datetime.datetime.strptime(
+            start_time.replace('Z', '').split('+')[0][:19], '%Y-%m-%dT%H:%M:%S')
+        duration_sec = int((utc_now() - start_dt).total_seconds())
+    except Exception:
+        duration_sec = elapsed
+
+    lives_dict = load_lives()
+    entry_id   = 'ig_{}'.format(live_id)
+    lives_dict[entry_id] = {
+        'id':                   entry_id,
+        'platform':             'ig',
+        'title':                '',        # IG live API 不回傳標題
+        'broadcast_start_time': start_time,
+        'broadcast_date':       to_tw_date(start_time),
+        'live_views':           0,         # IG API 不提供同時在線人數
+        'duration_sec':         duration_sec,
+        'comments':             peak_comments,
+        'likes':                peak_likes,
+        'snapshots':            snapshots,
+        'insights_at':          utc_now().isoformat(),
+    }
+    save_lives(lives_dict)
+
+    # 重建 HTML
+    videos_dict = load_db()
+    fh          = load_follower_history()
+    recent      = get_recent(videos_dict, days=HTML_EMBED_DAYS)
+    stats       = compute_stats(recent)
+    avg_fb, avg_ig = compute_averages(stats)
+    lives_list  = sorted(lives_dict.values(),
+                         key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
+    generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
+
+    print('\n完成！時長={}分鐘  留言={}  按讚={}'.format(
+        duration_sec // 60, peak_comments, peak_likes))
+
 if __name__ == '__main__':
-    main()
+    if '--monitor-live' in sys.argv:
+        monitor_ig_live()
+    else:
+        main()

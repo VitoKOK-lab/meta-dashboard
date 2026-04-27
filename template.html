@@ -2085,51 +2085,63 @@ function renderLiveTab() {
     return Math.floor((Date.now() - d.getTime()) / 86400000);
   }
 
-  // 彙總統計（最近 90 天）
+  // 彙總統計（最近 90 天，FB only 有峰值人數）
   var recent90 = lives.filter(function(lv){ return daysBetween(lv.startTime) <= 90; });
+  var fbLives = recent90.filter(function(lv){ return lv.platform !== 'ig'; });
   var totalLiveViews = 0, totalPlays = 0, totalComments = 0, totalDur = 0;
   recent90.forEach(function(lv) {
-    totalLiveViews += lv.liveViews || 0;
-    totalPlays     += lv.plays     || 0;
-    totalComments  += lv.comments  || 0;
+    totalLiveViews += lv.liveViews  || 0;
+    totalPlays     += lv.plays      || 0;
+    totalComments  += lv.comments   || 0;
     totalDur       += lv.durationSec || 0;
   });
-  var avgLiveViews = recent90.length ? Math.round(totalLiveViews / recent90.length) : 0;
+  var avgLiveViews = fbLives.length ? Math.round(totalLiveViews / fbLives.length) : 0;
 
   var statsHtml = '<div class="live-stat-row">'
     + '<div class="live-stat"><div class="live-stat-val">'+recent90.length+'</div><div class="live-stat-lbl">近90天場數</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmt(avgLiveViews)+'</div><div class="live-stat-lbl">平均峰值人數</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">總VOD觀看</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmtDur(totalDur)+'</div><div class="live-stat-lbl">累計直播時長</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+(avgLiveViews ? fmt(avgLiveViews) : '—')+'</div><div class="live-stat-lbl">FB 峰值均值</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">FB VOD 觀看</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmtDur(totalDur)+'</div><div class="live-stat-lbl">累計時長</div></div>'
     + '</div>';
 
   // 每場直播卡片
   var cardsHtml = lives.map(function(lv) {
-    var age = daysBetween(lv.startTime);
+    var isIG  = lv.platform === 'ig';
+    var age   = daysBetween(lv.startTime);
     var ageStr = age === 0 ? '今天' : age === 1 ? '昨天' : age + '天前';
-    var ret = retainPct(lv);
+    var ret   = retainPct(lv);
     var retStr = ret !== null ? ret + '%' : '—';
-
-    // 留言率（相對 peak viewers）
     var crPeak = lv.liveViews > 0 ? (lv.comments / lv.liveViews * 100).toFixed(1) : null;
+
+    // 平台標籤
+    var platBadge = isIG
+      ? '<span class="live-badge" style="background:#e1306c">IG 直播</span>'
+      : '<span class="live-badge">FB 直播</span>';
+    var titleText = lv.title || (isIG ? '（IG 不提供標題）' : '（無標題）');
+
+    // FB 有峰值人數 + VOD，IG 只有留言/按讚/時長
+    var metricsHtml = '';
+    if (!isIG) {
+      metricsHtml += '<div class="live-metric peak"><div class="live-metric-val">'+fmt(lv.liveViews)+'</div><div class="live-metric-lbl">🔴 峰值人數</div></div>'
+        + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">VOD 觀看</div></div>'
+        + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.shares)+'</div><div class="live-metric-lbl">轉發</div></div>'
+        + '<div class="live-metric"><div class="live-metric-val">'+fmtWatch(lv.avgWatchMs)+'</div><div class="live-metric-lbl">平均觀看</div></div>'
+        + '<div class="live-metric"><div class="live-metric-val">'+retStr+'</div><div class="live-metric-lbl">留存率</div></div>';
+    } else {
+      metricsHtml += '<div class="live-metric" style="background:#fff0f6;border:1px solid #fcc8e2"><div class="live-metric-val" style="color:#c0376b;font-size:11px">API 限制</div><div class="live-metric-lbl">同時人數不提供</div></div>';
+    }
+    metricsHtml += '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.comments)+'</div><div class="live-metric-lbl">留言'+(crPeak?' '+crPeak+'%':'')+'</div></div>'
+      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.likes)+'</div><div class="live-metric-lbl">按讚</div></div>';
 
     return '<div class="live-card">'
       + '<div class="live-card-head">'
-      + '<span class="live-badge">直播</span>'
+      + platBadge
       + '<div>'
-      + '<div class="live-title">'+(lv.title || '（無標題）')+'</div>'
+      + '<div class="live-title">'+titleText+'</div>'
       + '<div class="live-meta">'+lv.date+'・'+ageStr+'・時長 '+fmtDur(lv.durationSec)+'</div>'
       + '</div>'
       + '</div>'
-      + '<div class="live-metrics">'
-      + '<div class="live-metric peak"><div class="live-metric-val">'+fmt(lv.liveViews)+'</div><div class="live-metric-lbl">🔴 峰值人數</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">VOD 觀看</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.comments)+'</div><div class="live-metric-lbl">留言'+(crPeak?'  '+crPeak+'%':'')+'</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.shares)+'</div><div class="live-metric-lbl">轉發</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.likes)+'</div><div class="live-metric-lbl">按讚</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmtWatch(lv.avgWatchMs)+'</div><div class="live-metric-lbl">平均觀看</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+retStr+'</div><div class="live-metric-lbl">留存率</div></div>'
-      + '</div>'
+      + '<div class="live-metrics">' + metricsHtml + '</div>'
       + '</div>';
   }).join('');
 
