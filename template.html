@@ -2292,7 +2292,7 @@ function renderLiveTab() {
     .sort(function(a, b) { return b.startTime.localeCompare(a.startTime); });
 
   // 觸發按鈕永遠顯示（不管有沒有直播記錄）
-  var triggerBarHtml = '<div class="slabel">📺 直播記錄</div>' + _buildTriggerBarHtml();
+  var triggerBarHtml = _buildTriggerBarHtml();
 
   if (!lives.length) {
     container.innerHTML = triggerBarHtml
