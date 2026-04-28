@@ -2415,7 +2415,8 @@ function switchTab(id, el) {
 }
 
 function mobileSwitchTab(id, el) {
-  var tabMap = { overview: 0, theme: 1, top20: 2, search: 3, live: 4 };
+  // 桌面 tab 順序：0=近期 1=總覽 2=關鍵字 3=排行榜 4=尋找 5=直播
+  var tabMap = { overview: 0, theme: 2, top20: 3, search: 4, live: 5 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]] !== undefined) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
