@@ -273,6 +273,22 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .theme-kw-row:last-child{border-bottom:none}
 .theme-kw-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .theme-kw-meta{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+/* ── 內容分類卡 ── */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;margin-bottom:22px}
+.cat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;transition:box-shadow .15s}
+.cat-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.09)}
+.cat-card.cat-ready{border-color:rgba(20,184,166,.4);background:#fafffe}
+.cat-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.cat-emoji{font-size:26px;flex-shrink:0;line-height:1}
+.cat-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.cat-viewer{font-size:11px;color:var(--muted);line-height:1.45}
+.cat-score-wrap{margin-left:auto;flex-shrink:0;text-align:right}
+.cat-score{font-size:24px;font-weight:700;line-height:1}
+.cat-score-lbl{font-size:10px;color:var(--muted)}
+.cat-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);margin-bottom:8px}
+.cat-divider{width:1px;height:12px;background:var(--border);flex-shrink:0}
+.cat-best{font-size:12px;color:var(--ink);background:var(--off);border-radius:6px;padding:5px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-suggest-box{background:#e8f8f7;border:1px solid #a5d8d4;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;line-height:1.9}
 .trend-pill{font-size:12px;font-weight:800;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .t-up{background:rgba(13,148,136,.12);color:#1a9e95}
 .t-down{background:rgba(190,58,103,.1);color:var(--warn)}
@@ -1455,6 +1471,32 @@ function initTheme() {
     '什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實',
     '現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
 
+  // ── 內容分類：從觀眾的角度定義 ────────────────────────────────────────────
+  var CATEGORIES = [
+    { id:'gem',    emoji:'💎', label:'珠寶知識',
+      viewer:'想了解這顆石頭，判斷值不值得買',
+      // 用具體石頭名，不用「珠寶」(每支都有)
+      seeds:['海藍寶','拉利瑪','祖母綠','透輝石','翡翠','鑽石','珍珠','水晶','碧璽','月光石','鈦晶',
+             '紫龍晶','查羅','克拉','貓眼','剛玉','藍寶石','紅寶石','戒指','吊墜','鑲嵌','玉石','猜猜'] },
+    { id:'deal',   emoji:'🛒', label:'限量優惠',
+      viewer:'看到好東西，想用划算的價格入手',
+      // 移除「寵粉/連結/留言/下單」(每支都有)，只留真正促銷詞
+      seeds:['限量','市價','特價','加送','贈送','折扣','搶購','只要','火速'] },
+    { id:'couple', emoji:'💑', label:'異國戀情',
+      viewer:'對跨文化感情好奇，想找到共鳴',
+      seeds:['異國婚姻','老外','外國人','AA制','婚姻','老公','老婆','另一半','求婚','交往','戀愛','嫁給','鑽戒','婚戒'] },
+    { id:'life',   emoji:'🌟', label:'人生智慧',
+      viewer:'想被激勵、找故事，尋找前進的力量',
+      seeds:['人生','翻身','大運','高手','格局','成長','勵志','智慧','眼光','痛苦','翻盤','命運',
+             '謀士','帝王','帝','王之','天下','勇氣','止損','秘密','覺醒','逆轉','女老闆','披荊','斬棘'] },
+    { id:'biz',    emoji:'💼', label:'商業觀點',
+      viewer:'想了解珠寶商機，有創業或投資念頭',
+      seeds:['商業思維','創業','加盟','入局','生意','老闆','合作','商機','職場','投資','加盟店','珠寶店老闆'] },
+    { id:'family', emoji:'🏠', label:'家庭關係',
+      viewer:'對家庭議題有感，想找情緒出口',
+      seeds:['婆媳','家庭','孩子','育兒','媽媽','爸爸','小孩','DNA入侵','教育','婆婆','媳婦'] },
+  ];
+
   function extractKw(v) {
     var text = (v.description || v.caption || '');
     var hashtags = [];
@@ -1471,6 +1513,118 @@ function initTheme() {
   }
 
   function arrAvg(arr) { return arr.length ? arr.reduce(function(s,x){return s+x;},0)/arr.length : 0; }
+
+  // ── 分類匹配：找出影片最符合哪個分類 ───────────────────────────────────────
+  function matchCategory(v) {
+    var text = (v.description || v.caption || '');
+    var best = null, bestN = 0;
+    CATEGORIES.forEach(function(cat) {
+      var n = 0;
+      cat.seeds.forEach(function(s) { if (text.indexOf(s) >= 0) n++; });
+      if (n > bestN) { bestN = n; best = cat.id; }
+    });
+    return bestN > 0 ? best : 'other';
+  }
+
+  // ── 建立分類統計 ────────────────────────────────────────────────────────────
+  function buildCategoryData() {
+    var cd = {};
+    CATEGORIES.forEach(function(cat) {
+      cd[cat.id] = { cat:cat, vids:[], scores:[], recent:[], prev:[], plays:[], lastAge:9999 };
+    });
+    all.forEach(function(v) {
+      var cid = matchCategory(v);
+      if (!cd[cid]) return;
+      var age = daysBetween(v.created_time);
+      var sn  = scoreNum(v);
+      var d   = cd[cid];
+      d.vids.push(v);
+      d.scores.push(sn);
+      d.plays.push(v.plays || 0);
+      if (age < d.lastAge) d.lastAge = age;
+      if (age <= 30) d.recent.push(sn);
+      else if (age <= 60) d.prev.push(sn);
+    });
+    return cd;
+  }
+
+  function catTrend(d) {
+    if (!d.prev.length) return '<span class="trend-pill t-new">新</span>';
+    if (!d.recent.length) return '<span class="trend-pill t-new">近期無片</span>';
+    var pct = arrAvg(d.prev) > 0 ? Math.round((arrAvg(d.recent)-arrAvg(d.prev))/arrAvg(d.prev)*100) : 0;
+    if (pct >=  8) return '<span class="trend-pill t-up">↑ +'+pct+'%</span>';
+    if (pct <= -8) return '<span class="trend-pill t-down">↓ '+pct+'%</span>';
+    return '<span class="trend-pill t-flat">→ 持平</span>';
+  }
+
+  // ── 渲染分類卡片 ────────────────────────────────────────────────────────────
+  function renderCategoryGrid(cd) {
+    var html = '<div class="cat-grid">';
+    CATEGORIES.forEach(function(cat) {
+      var d = cd[cat.id];
+      if (!d || d.vids.length < 2) return;
+      var avg      = arrAvg(d.scores);
+      var grade    = avgGrade(avg);
+      var gradeCol = avgGradeCol(avg);
+      var avgPlays = Math.round(arrAvg(d.plays));
+      var overdue  = d.lastAge >= 21 && d.lastAge < 9999 && avg >= 55;
+      var lastStr  = d.lastAge < 9999 ? d.lastAge + '天前' : '—';
+      var trend    = catTrend(d);
+      // 最高分影片
+      var best = d.vids.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); })[0];
+      var bestTitle = truncTitle(best.description||best.caption||'', 28);
+
+      html += '<div class="cat-card'+(overdue?' cat-ready':'')+'">'
+        + '<div class="cat-head">'
+        + '<span class="cat-emoji">'+cat.emoji+'</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="cat-label">'+cat.label+'</div>'
+        + '<div class="cat-viewer">觀眾：'+cat.viewer+'</div>'
+        + '</div>'
+        + '<div class="cat-score-wrap">'
+        + '<div class="cat-score" style="color:'+gradeCol+'">'+grade+'</div>'
+        + '<div class="cat-score-lbl">均分</div>'
+        + '</div>'
+        + '</div>'
+        + '<div class="cat-row">'
+        + '<span>'+d.vids.length+' 支</span>'
+        + '<div class="cat-divider"></div>'
+        + '<span>均 '+fmtNum(avgPlays)+' 播</span>'
+        + '<div class="cat-divider"></div>'
+        + '<span>上次 '+lastStr+'</span>'
+        + trend
+        + (overdue ? '<span style="background:#e8f8f7;color:#1a9e95;font-size:11px;font-weight:700;border-radius:3px;padding:1px 6px">💡 可拍</span>' : '')
+        + '</div>'
+        + (bestTitle ? '<div class="cat-best">🏆 '+bestTitle+'</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ── 「下一支建議拍」區塊 ─────────────────────────────────────────────────────
+  function renderSuggestBox(cd) {
+    var ready = [];
+    CATEGORIES.forEach(function(cat) {
+      var d = cd[cat.id];
+      if (!d || d.vids.length < 2) return;
+      var avg = arrAvg(d.scores);
+      if (d.lastAge >= 21 && d.lastAge < 9999 && avg >= 55) {
+        ready.push({ cat:cat, avg:avg, lastAge:d.lastAge });
+      }
+    });
+    if (!ready.length) return '';
+    ready.sort(function(a,b){ return b.avg - a.avg; });
+    return '<div class="cat-suggest-box">'
+      + '<strong>💡 下一支建議拍</strong>（高分分類 + 超過 21 天沒發）<br>'
+      + ready.map(function(r){
+          return '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.8);border:1px solid #a5d8d4;border-radius:5px;padding:2px 10px;margin:3px 4px 0 0;font-weight:700">'
+            + r.cat.emoji + ' ' + r.cat.label
+            + '<span style="font-weight:400;color:var(--muted);font-size:11px">'+r.lastAge+'天沒拍・均'+avgGrade(r.avg)+'</span>'
+            + '</span>';
+        }).join('')
+      + '</div>';
+  }
 
   function buildKwData(type) {
     var kd = {};
@@ -1654,26 +1808,42 @@ function initTheme() {
     document.getElementById('themeColWrap').innerHTML = renderTypeCol(_themeType, _themeType==='traffic'?'流量型':'帶貨型', _themeType==='traffic'?'📈':'🛍');
   };
 
+  var cd = buildCategoryData();
+
   document.getElementById('themeContent').innerHTML =
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
-    +'<div class="slabel" style="margin-bottom:0;flex-shrink:0">主題策略</div>'
-    +'<button class="flt-btn theme-type-btn active" onclick="showThemeType(\'traffic\',this)">📈 流量型</button>'
-    +'<button class="flt-btn theme-type-btn" onclick="showThemeType(\'commerce\',this)">🛍 帶貨型</button>'
-    +'</div>'
-    +'<div id="themeColWrap">'
-    +renderTypeCol('traffic','流量型','📈')
-    +'</div>'
-    +'<details style="margin-top:28px">'
-    +'<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">'
-    +'<span style="font-size:16px">📖</span> 判斷邏輯說明（點擊展開）</summary>'
-    +'<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
-    +'✅ <strong>值得加碼</strong> = 平均分 ≥ 60 且近30天沒有明顯衰退 → 繼續拍同類主題<br>'
-    +'🚫 <strong>考慮停拍</strong> = 平均分 &lt; 40（底部25%），這主題一直都表現差<br>'
-    +'👀 <strong>持續觀察</strong> = 中間地帶，走勢不明確<br>'
-    +'♻ <strong>可復投</strong> = 30-150天前發布、分數 ≥ 65 的舊片，換封面或重剪再發，不用重拍<br>'
-    +'💡 <strong>可拍</strong> 標籤 = 這個主題超過 21 天沒拍，歷史分數高 → 可以安排了<br><br>'
-    +'分數是頻道相對制，50分 = 頻道中位數，65分以上 = 前25%</div>'
-    +'</details>';
+    '<div class="slabel">內容分類分析</div>'
+
+    // ── 分類卡片
+    + renderCategoryGrid(cd)
+
+    // ── 建議下一支
+    + renderSuggestBox(cd)
+
+    // ── 折疊：個別關鍵字詳細分析
+    + '<details style="margin-top:8px">'
+    + '<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:6px 0">'
+    + '<span style="font-size:15px">🔍</span> 詳細關鍵字分析（點擊展開）</summary>'
+    + '<div style="margin-top:14px">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="flt-btn theme-type-btn active" onclick="showThemeType(\'traffic\',this)">📈 流量型</button>'
+    + '<button class="flt-btn theme-type-btn" onclick="showThemeType(\'commerce\',this)">🛍 帶貨型</button>'
+    + '</div>'
+    + '<div id="themeColWrap">'
+    + renderTypeCol('traffic','流量型','📈')
+    + '</div>'
+    + '</div>'
+    + '</details>'
+
+    + '<details style="margin-top:14px">'
+    + '<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;padding:6px 0">'
+    + '<span style="font-size:16px">📖</span> 評分邏輯說明（點擊展開）</summary>'
+    + '<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
+    + '💡 <strong>可拍</strong> = 均分 ≥ 55 且超過 21 天沒拍同類<br>'
+    + '✅ <strong>值得加碼</strong>（關鍵字層）= 平均分 ≥ 60 且近30天沒有明顯衰退<br>'
+    + '🚫 <strong>考慮停拍</strong>（關鍵字層）= 平均分 &lt; 40，一直表現差<br>'
+    + '♻ <strong>可復投</strong> = 30-150天前發布、分數 ≥ 65 的舊片，換封面重發<br><br>'
+    + '分數是頻道相對制：50分 = 頻道中位數，65分以上 = 前25%</div>'
+    + '</details>';
 }
 
 function kpiCard(label, val, sub, accent) {
