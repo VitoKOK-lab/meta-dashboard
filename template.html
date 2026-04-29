@@ -2343,6 +2343,15 @@ function renderLiveTab() {
     var isIG   = lv.platform === 'ig';
     var age    = daysBetween(lv.startTime);
     var ageStr = age === 0 ? '今天' : age === 1 ? '昨天' : age + '天前';
+    // 台灣時間（UTC+8）：週幾 + 幾點開播
+    var twDow = ''; var twTime = '';
+    if (lv.startTime) {
+      var twDate = new Date(new Date(lv.startTime.replace('Z','').split('+')[0]+'Z').getTime() + 8*3600000);
+      twDow  = ['日','一','二','三','四','五','六'][twDate.getUTCDay()];
+      var hh = twDate.getUTCHours().toString().padStart(2,'0');
+      var mm = twDate.getUTCMinutes().toString().padStart(2,'0');
+      twTime = hh + ':' + mm;
+    }
     var interact = (lv.comments || 0) + (lv.likes || 0);
     // 互動率：互動數 ÷ VOD觀看
     var engRate = (lv.plays > 0) ? (interact / lv.plays * 100) : 0;
@@ -2366,7 +2375,7 @@ function renderLiveTab() {
       + platBadge
       + '<div style="flex:1">'
       + '<div class="live-title">'+titleText+'</div>'
-      + '<div class="live-meta">'+lv.date+'・'+ageStr+'・時長 '+fmtDur(lv.durationSec)+'</div>'
+      + '<div class="live-meta">'+lv.date+'（'+twDow+'）・'+ageStr+' '+twTime+' 開播・時長 '+fmtDur(lv.durationSec)+'</div>'
       + '</div>'
       + '</div>'
       + '<div class="live-metrics">' + metricsHtml + '</div>'
