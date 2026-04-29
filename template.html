@@ -1539,11 +1539,14 @@ function initTheme() {
       var sn  = scoreNum(v);
       var d   = cd[cid];
       d.vids.push(v);
-      d.scores.push(sn);
-      d.plays.push(v.plays || 0);
+      // 只有有實際播放數據才計入分數，避免 0 分拉低平均
+      if (sn > 0) {
+        d.scores.push(sn);
+        if (age <= 30) d.recent.push(sn);
+        else if (age <= 60) d.prev.push(sn);
+      }
+      if (v.plays > 0) d.plays.push(v.plays);
       if (age < d.lastAge) d.lastAge = age;
-      if (age <= 30) d.recent.push(sn);
-      else if (age <= 60) d.prev.push(sn);
     });
     return cd;
   }
@@ -1563,11 +1566,11 @@ function initTheme() {
     CATEGORIES.forEach(function(cat) {
       var d = cd[cat.id];
       if (!d || d.vids.length < 2) return;
-      var avg      = arrAvg(d.scores);
-      var grade    = avgGrade(avg);
-      var gradeCol = avgGradeCol(avg);
-      var avgPlays = Math.round(arrAvg(d.plays));
-      var overdue  = d.lastAge >= 21 && d.lastAge < 9999 && avg >= 55;
+      var avg      = d.scores.length ? arrAvg(d.scores) : null;
+      var grade    = avg !== null ? avgGrade(avg) : '—';
+      var gradeCol = avg !== null ? avgGradeCol(avg) : 'var(--muted)';
+      var avgPlays = d.plays.length ? Math.round(arrAvg(d.plays)) : 0;
+      var overdue  = d.lastAge >= 21 && d.lastAge < 9999 && avg !== null && avg >= 55;
       var lastStr  = d.lastAge < 9999 ? d.lastAge + '天前' : '—';
       var trend    = catTrend(d);
       // 最高分影片
@@ -1609,7 +1612,7 @@ function initTheme() {
       var d = cd[cat.id];
       if (!d || d.vids.length < 2) return;
       var avg = arrAvg(d.scores);
-      if (d.lastAge >= 21 && d.lastAge < 9999 && avg >= 55) {
+      if (d.lastAge >= 21 && d.lastAge < 9999 && avg !== null && avg >= 55) {
         ready.push({ cat:cat, avg:avg, lastAge:d.lastAge });
       }
     });
