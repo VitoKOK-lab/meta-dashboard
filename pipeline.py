@@ -229,7 +229,7 @@ def fetch_live_videos(since_days=90):
                 data = api_get(cursor)
             else:
                 data = api_get('{}/live_videos'.format(FB_PAGE), {
-                    'fields': 'id,title,description,broadcast_start_time,live_views,status,length',
+                    'fields': 'id,title,description,broadcast_start_time,live_views,status,video{id,length}',
                     'limit': 50,
                 })
         except RuntimeError as e:
@@ -255,14 +255,16 @@ def fetch_live_videos(since_days=90):
                     hit_cutoff = True
                     break
             title = (item.get('title') or item.get('description') or '').strip()
+            video_obj = item.get('video') or {}
             lives.append({
-                'id':                  item['id'],
-                'title':               title[:300],
+                'id':                   item['id'],
+                'video_id':             video_obj.get('id', ''),
+                'title':                title[:300],
                 'broadcast_start_time': ts,
-                'broadcast_date':      to_tw_date(ts),
-                'live_views':          item.get('live_views') or 0,
-                'duration_sec':        item.get('length') or 0,
-                'status':              status,
+                'broadcast_date':       to_tw_date(ts),
+                'live_views':           item.get('live_views') or 0,
+                'duration_sec':         int(video_obj.get('length') or 0),
+                'status':               status,
             })
         cursor = (data.get('paging') or {}).get('next')
         page += 1
@@ -273,34 +275,37 @@ def fetch_live_videos(since_days=90):
     return lives
 
 def parse_live_insights(data):
-    """解析直播 video_insights（用 total_video_views 而非 blue_reels_play_count）"""
+    """解析直播 video_insights（FB live video 專用 total_video_* metrics）"""
     m = {}
     for d in (data.get('data') or []):
         vals = d.get('values') or [{}]
         m[d['name']] = vals[0].get('value') if vals else None
-    social    = m.get('post_video_social_actions') or {}
-    likes_map = m.get('post_video_likes_by_reaction_type') or {}
+    reactions = m.get('total_video_reactions_by_type_total') or {}
+    stories   = m.get('total_video_stories_by_action_type') or {}
     return {
-        'plays':        m.get('total_video_views') or m.get('blue_reels_play_count') or 0,
-        'reach':        m.get('total_video_views_unique') or m.get('post_impressions_unique') or 0,
-        'avg_watch_ms': m.get('post_video_avg_time_watched') or 0,
-        'comments':     social.get('COMMENT') or 0,
-        'shares':       social.get('SHARE') or 0,
-        'likes':        sum(likes_map.values()) if likes_map else 0,
+        'plays':        m.get('total_video_views') or 0,
+        'reach':        m.get('total_video_impressions_unique') or 0,
+        'avg_watch_ms': m.get('total_video_avg_time_watched') or 0,
+        'comments':     stories.get('comment') or 0,
+        'shares':       stories.get('share') or 0,
+        'likes':        sum(reactions.values()) if reactions else 0,
     }
 
 def fetch_live_insights_stale(lives_dict, refresh_days=28):
-    """回傳需要更新 insights 的直播 ID list，並呼叫 API 更新"""
+    """更新直播 insights，必須用 video_id（非 broadcast id）才能呼叫 video_insights"""
     today = utc_now().strftime('%Y-%m-%d')
+    # 只處理有 video_id 的記錄（broadcast id 無法查 video_insights）
     stale = [
         lid for lid, lv in lives_dict.items()
-        if days_ago_from(lv.get('broadcast_start_time', '')) <= refresh_days
+        if lv.get('video_id')
+        and days_ago_from(lv.get('broadcast_start_time', '')) <= refresh_days
         and lv.get('insights_at', '')[:10] < today
     ]
     if not stale:
+        print('  [直播] 沒有需要更新的 insights（或尚無 video_id）')
         return
     print('  [直播] 更新 insights ({} 場)...'.format(len(stale)))
-    raw = batch_api(['{}/video_insights'.format(lid) for lid in stale])
+    raw = batch_api(['{}/video_insights'.format(lives_dict[lid]['video_id']) for lid in stale])
     now_iso = utc_now().isoformat()
     for i, lid in enumerate(stale):
         ins = parse_live_insights(raw[i]) if raw[i] else {}
@@ -982,11 +987,16 @@ def main():
             lives_dict[lv['id']] = lv
             new_live_count += 1
         else:
+            old_vid = lives_dict[lv['id']].get('video_id', '')
             lives_dict[lv['id']].update({
-                'title':      lv['title'],
-                'live_views': lv['live_views'],
+                'title':        lv['title'],
+                'video_id':     lv['video_id'],     # 補齊舊記錄的 video_id
+                'live_views':   lv['live_views'],
                 'duration_sec': lv['duration_sec'],
             })
+            # video_id 剛被補入 → 清除 insights_at 強制重抓（避免舊標記阻擋更新）
+            if lv['video_id'] and not old_vid:
+                lives_dict[lv['id']].pop('insights_at', None)
     print('  新直播: {} 場（共 {} 場）'.format(new_live_count, len(lives_dict)))
     if lives_dict:
         fetch_live_insights_stale(lives_dict, refresh_days=28)
