@@ -2334,7 +2334,7 @@ function renderLiveTab() {
   var statsHtml = '<div class="live-stat-row">'
     + '<div class="live-stat"><div class="live-stat-val">'+recent90.length+'</div><div class="live-stat-lbl">近90天場數</div></div>'
     + '<div class="live-stat"><div class="live-stat-val">'+(avgReach ? fmt(avgReach) : '—')+'</div><div class="live-stat-lbl">平均觸及／場</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">累計觀看人次</div></div>'
+    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">累計觀看</div></div>'
     + '<div class="live-stat"><div class="live-stat-val">'+fmtDur(totalDur)+'</div><div class="live-stat-lbl">累計時長</div></div>'
     + '</div>';
 
@@ -2354,7 +2354,7 @@ function renderLiveTab() {
     var titleText = lv.title || (isIG ? '（IG 不提供標題）' : '（無標題）');
 
     var metricsHtml = ''
-      + '<div class="live-metric lm-main"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">觀看人次</div></div>'
+      + '<div class="live-metric lm-main"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">觀看</div></div>'
       + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.reach)+'</div><div class="live-metric-lbl">觸及人數</div></div>'
       + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.comments)+'</div><div class="live-metric-lbl">💬 留言</div></div>'
       + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.likes)+'</div><div class="live-metric-lbl">👍 按讚</div></div>'
