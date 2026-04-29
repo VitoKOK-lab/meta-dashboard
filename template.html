@@ -289,6 +289,16 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .cat-divider{width:1px;height:12px;background:var(--border);flex-shrink:0}
 .cat-best{font-size:12px;color:var(--ink);background:var(--off);border-radius:6px;padding:5px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat-suggest-box{background:#e8f8f7;border:1px solid #a5d8d4;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;line-height:1.9}
+.cat-toggle-hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center;letter-spacing:.5px}
+.cat-detail{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.cat-detail-head{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;margin-bottom:8px}
+.cat-vid-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.cat-vid-row:last-child{border-bottom:none}
+.cat-vid-rank{font-size:11px;color:var(--muted);min-width:14px;text-align:center;flex-shrink:0}
+.cat-vid-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-weight:500}
+.cat-vid-grade{font-weight:800;font-size:13px;flex-shrink:0;min-width:18px;text-align:right}
+.cat-vid-plays{color:var(--muted);flex-shrink:0;white-space:nowrap}
+.cat-vid-cr{color:var(--muted);flex-shrink:0;white-space:nowrap}
 .trend-pill{font-size:12px;font-weight:800;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .t-up{background:rgba(13,148,136,.12);color:#1a9e95}
 .t-down{background:rgba(190,58,103,.1);color:var(--warn)}
@@ -1573,11 +1583,27 @@ function initTheme() {
       var overdue  = d.lastAge >= 21 && d.lastAge < 9999 && avg !== null && avg >= 55;
       var lastStr  = d.lastAge < 9999 ? d.lastAge + '天前' : '—';
       var trend    = catTrend(d);
-      // 最高分影片
-      var best = d.vids.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); })[0];
-      var bestTitle = truncTitle(best.description||best.caption||'', 28);
 
-      html += '<div class="cat-card'+(overdue?' cat-ready':'')+'">'
+      // Top 6 影片（按分數排序）
+      var top6 = d.vids.slice()
+        .filter(function(v){ return v.plays > 0; })
+        .sort(function(a,b){ return (b.score||0)-(a.score||0); })
+        .slice(0, 6);
+      var top6Html = top6.map(function(v, i) {
+        var title = truncTitle(v.description||v.caption||'', 30);
+        var g = scoreGrade(v);
+        var gc = scoreCol(v);
+        var cr = v.plays > 0 ? ((v.comments||0)/v.plays*100).toFixed(1) : '0.0';
+        return '<div class="cat-vid-row">'
+          + '<span class="cat-vid-rank">'+(i+1)+'</span>'
+          + '<span class="cat-vid-title">'+title+'</span>'
+          + '<span class="cat-vid-grade" style="color:'+gc+'">'+g+'</span>'
+          + '<span class="cat-vid-plays">'+fmtNum(v.plays||0)+'播</span>'
+          + '<span class="cat-vid-cr">'+cr+'%留言</span>'
+          + '</div>';
+      }).join('');
+
+      html += '<div class="cat-card'+(overdue?' cat-ready':'')+'" onclick="toggleCatDetail(\''+cat.id+'\',this)" style="cursor:pointer">'
         + '<div class="cat-head">'
         + '<span class="cat-emoji">'+cat.emoji+'</span>'
         + '<div style="flex:1;min-width:0">'
@@ -1598,12 +1624,26 @@ function initTheme() {
         + trend
         + (overdue ? '<span style="background:#e8f8f7;color:#1a9e95;font-size:11px;font-weight:700;border-radius:3px;padding:1px 6px">💡 可拍</span>' : '')
         + '</div>'
-        + (bestTitle ? '<div class="cat-best">🏆 '+bestTitle+'</div>' : '')
+        + '<div class="cat-toggle-hint">點擊看 Top 6 ▾</div>'
+        + '<div class="cat-detail" id="cat-detail-'+cat.id+'" style="display:none">'
+        + '<div class="cat-detail-head">Top 6 表現最佳影片</div>'
+        + top6Html
+        + '</div>'
         + '</div>';
     });
     html += '</div>';
     return html;
   }
+
+  window.toggleCatDetail = function(catId, card) {
+    var panel = document.getElementById('cat-detail-'+catId);
+    var hint  = card.querySelector('.cat-toggle-hint');
+    if (!panel) return;
+    var open = panel.style.display === 'none';
+    panel.style.display = open ? 'block' : 'none';
+    if (hint) hint.textContent = open ? '收起 ▴' : '點擊看 Top 6 ▾';
+    card.style.boxShadow = open ? '0 4px 16px rgba(0,0,0,.12)' : '';
+  };
 
   // ── 「下一支建議拍」區塊 ─────────────────────────────────────────────────────
   function renderSuggestBox(cd) {
