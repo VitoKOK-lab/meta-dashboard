@@ -1130,8 +1130,36 @@ def monitor_ig_live():
     print('\n完成！時長={}分鐘  留言={}  按讚={}'.format(
         duration_sec // 60, peak_comments, peak_likes))
 
+def diagnose_live():
+    """python pipeline.py --diag-live  診斷直播 API 回傳原始資料"""
+    print('\n=== FB live_videos 原始資料診斷 ===')
+    try:
+        data = api_get('{}/live_videos'.format(FB_PAGE), {
+            'fields': 'id,title,description,broadcast_start_time,live_views,status,length',
+            'limit': 10,
+        })
+        items = data.get('data') or []
+        print('回傳筆數: {}'.format(len(items)))
+        for i, item in enumerate(items):
+            print('\n[{}] id={}'.format(i+1, item.get('id')))
+            print('    status            :', item.get('status'))
+            print('    broadcast_start   :', item.get('broadcast_start_time'))
+            print('    title             :', (item.get('title') or item.get('description') or '')[:60])
+            print('    live_views        :', item.get('live_views'))
+            print('    length(sec)       :', item.get('length'))
+        if not items:
+            print('（空）API 沒有回傳任何資料')
+            print('可能原因：Token 缺少 pages_read_engagement 權限，或粉專尚無直播記錄')
+        paging = data.get('paging') or {}
+        print('\nnext cursor:', '有' if paging.get('next') else '無')
+        print('error:', data.get('error'))
+    except RuntimeError as e:
+        print('API 錯誤:', e)
+
 if __name__ == '__main__':
     if '--monitor-live' in sys.argv:
         monitor_ig_live()
+    elif '--diag-live' in sys.argv:
+        diagnose_live()
     else:
         main()
