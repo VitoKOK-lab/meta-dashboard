@@ -2357,10 +2357,10 @@ function _buildTriggerBarHtml() {
     html += '<div class="live-trigger-bar">'
       + '<button id="liveTriggerBtn" class="live-trigger-btn'
       + (_liveMonitoring ? ' monitoring' : '') + '" onclick="triggerLiveMonitor()">'
-      + (_liveMonitoring ? '🟢 監控中（直播結束自動停止）' : '🔴 開始監控直播')
+      + (_liveMonitoring ? '⏳ 更新中…' : '📡 立即更新數據')
       + '</button>'
       + '<span id="liveTriggerNote" class="live-trigger-note">'
-      + (_liveMonitoring ? '' : '直播前按一下，自動記錄 IG 數據，結束後自動存檔')
+      + (_liveMonitoring ? '' : '播完後按一下，2–3 分鐘內更新 FB 直播成效')
       + '</span>'
       + '</div>';
   }
@@ -2467,16 +2467,16 @@ function doTrigger(token) {
       if (btn) {
         btn.disabled = false;
         btn.className = 'live-trigger-btn monitoring';
-        btn.innerHTML = '🟢 監控中（直播結束自動停止）';
+        btn.innerHTML = '⏳ 更新中…';
       }
-      document.getElementById('liveTriggerNote').textContent = '已成功觸發，Actions 約 30 秒後開始運作';
+      document.getElementById('liveTriggerNote').textContent = '✅ 已觸發，約 2–3 分鐘後重新整理頁面即可看到最新數據';
     } else if (res.status === 401) {
       localStorage.removeItem('ghToken');
-      if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '📡 立即更新數據'; }
       showTokenModal(function(t){ doTrigger(t); });
       document.getElementById('liveTriggerNote').textContent = 'Token 無效，請重新輸入';
     } else {
-      if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '📡 立即更新數據'; }
       res.json().then(function(d){
         document.getElementById('liveTriggerNote').textContent = '觸發失敗：' + (d.message || res.status);
       }).catch(function(){
@@ -2484,7 +2484,7 @@ function doTrigger(token) {
       });
     }
   }).catch(function(e) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '🔴 開始監控直播'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '📡 立即更新數據'; }
     document.getElementById('liveTriggerNote').textContent = '網路錯誤：' + e.message;
   });
 }
