@@ -1,12 +1,12 @@
-name: 直播監控（IG）
+name: 直播後立即更新
 
 on:
   workflow_dispatch:
 
 jobs:
-  monitor:
+  update:
     runs-on: ubuntu-latest
-    timeout-minutes: 360   # 最長 6 小時（2小時直播綽綽有餘）
+    timeout-minutes: 15
     permissions:
       contents: write
 
@@ -22,16 +22,15 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: 監控 IG 直播
+      - name: 執行增量更新（抓最新直播成效）
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}
-        run: python pipeline.py --monitor-live
+        run: python pipeline.py
 
-      - name: Commit 直播記錄
+      - name: Commit 並推送
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main
-          git add data/lives.json index.html
-          git diff --cached --quiet || git commit -m "直播監控：記錄 IG 直播數據 $(date +'%Y-%m-%d')"
+          git add index.html data/videos.json data/archive.json data/follower_history.json data/lives.json
+          git diff --cached --quiet || git commit -m "直播後更新 $(date +'%Y-%m-%d %H:%M')"
           git push
