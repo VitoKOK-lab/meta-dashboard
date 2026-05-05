@@ -850,7 +850,7 @@ def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_li
 def main():
     force_full    = '--full'    in sys.argv
     force_weekly  = '--weekly'  in sys.argv
-    force_history = '--history' in sys.argv  # 每20天：拉5年內所有歷史影片
+    force_history = '--history' in sys.argv  # 每月 1/20 日：拉 1 年內所有歷史影片
     force_backfill = '--backfill' in sys.argv  # 一次性補齊粉絲90天歷史
     html_only     = '--html-only' in sys.argv  # 只重建 HTML，不打 API
 
@@ -896,7 +896,7 @@ def main():
     videos_dict = load_db()
     is_first = len(videos_dict) == 0 or force_full
     if force_history:
-        fetch_days = 1825  # 5年，拉所有歷史影片
+        fetch_days = 365  # 1 年，拉所有歷史影片
     elif is_first:
         fetch_days = 90
     else:
@@ -905,7 +905,7 @@ def main():
         videos_dict = {}  # 清空，從頭重建
 
     if force_history:
-        print('\n[歷史模式] 抓取近 5 年所有影片（每 20 天自動執行）...')
+        print('\n[歷史模式] 抓取近 1 年所有影片（每月 1/20 日執行）...')
     elif is_first:
         print('\n[全量模式] 抓取近 90 天...')
     else:
