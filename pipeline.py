@@ -1114,6 +1114,7 @@ def main():
     lives_list = sorted(lives_dict.values(),
                         key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
     generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
+    save_daily_snapshot(videos_dict)
 
     print('\n完成！DB:{} 支 / HTML:{} 支 / 直播:{} 場'.format(
         len(videos_dict), len(recent), len(lives_dict)))
