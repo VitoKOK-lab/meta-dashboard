@@ -498,6 +498,41 @@ def detect_type(caption):
     body = re.split(r'(?:^|\n)\s*#', caption, maxsplit=1)[0]
     return 'commerce' if COMMERCE_RE.search(body) else 'traffic'
 
+# ── 商品名抽取（僅 commerce 類型）──────────────────────────────────────────────
+# 珠寶相關關鍵字：寶石材質 / 金屬 / 品項 / 工法
+# 一個 hashtag 含其中任一字才視為「商品名」，避開 #寵粉 #限時 等促銷標籤
+JEWELRY_KEYWORDS = (
+    # 寶石・玉石・有機寶石
+    u'珍珠|珠|鑽石|鑽|紅寶|藍寶|祖母綠|翡翠|玉|碧玉|墨玉|岫玉|翠玉|青玉|黃玉|和田'
+    u'|瑪瑙|琥珀|蜜蠟|水晶|紫晶|黃晶|白晶|粉晶|玫瑰石英|月光石|太陽石|橄欖石'
+    u'|碧璽|電氣石|海藍寶|蛋白石|歐泊|石榴石|坦桑|托帕|尖晶|堇青|磷灰|青金'
+    u'|綠松|土耳其石|虎眼|貓眼|鋯石|東陵|孔雀石|煤精|珊瑚|象牙'
+    # 金屬
+    u'|黃金|白金|玫瑰金|K金|純銀|925|鉑金|鈦'
+    # 品項
+    u'|戒指|戒|項鍊|項鏈|手鍊|手鏈|手鐲|手環|手串|耳環|耳針|耳釘|耳墜|耳骨'
+    u'|墜子|吊墜|套組|套鍊|胸針|別針|腳鍊|領帶夾|袖扣|髮飾|髮夾|頸鍊'
+    # 工法・形狀
+    u'|蛋面|刻面|原礦|原石|雕刻|串珠|編繩|包鑲|爪鑲'
+)
+PRODUCT_HASHTAG_RE = re.compile(u'#([^\\s#]+)')
+JEWELRY_RE = re.compile(JEWELRY_KEYWORDS)
+
+def extract_products(caption):
+    """從 caption 抽商品名：取所有 #xxx 中含珠寶關鍵字的 tag。
+    回傳 list[str]（去重、保持順序）。"""
+    if not caption:
+        return []
+    seen, out = set(), []
+    for tag in PRODUCT_HASHTAG_RE.findall(caption):
+        tag = tag.strip(u'_-，,。.!?！？')
+        if not tag or tag in seen:
+            continue
+        if JEWELRY_RE.search(tag):
+            seen.add(tag)
+            out.append(tag)
+    return out
+
 # ── Insights 解析 ─────────────────────────────────────────────────────────────
 def parse_fb_insights(data):
     m = {}
@@ -736,14 +771,16 @@ def fetch_video_list(platform, since_days=7):
             length = item.get('length')
             if platform == 'fb' and length and length > 120:
                 continue
+            vtype = detect_type(cap)
             videos.append({
                 'id':           item['id'],
                 'platform':     platform,
                 'title':        cap[:300],
                 'created_time': ts,
                 'created_date': to_tw_date(ts),
-                'type':         detect_type(cap),
+                'type':         vtype,
                 'length_sec':   length,
+                'products':     extract_products(cap) if vtype == 'commerce' else [],
             })
         cursor = (data.get('paging') or {}).get('next')
         page += 1
@@ -785,6 +822,7 @@ def to_js_video(v):
         'id':             v['id'],
         'platform':       v['platform'],
         'type':           v.get('type', 'traffic'),
+        'products':       v.get('products') or [],
         'description':    title,
         'caption':        title,
         'created_time':   v.get('created_time', ''),
