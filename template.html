@@ -229,11 +229,19 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 /* ── 影片詳細 drawer ── */
 #vidBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:900}
 #vidBackdrop.vd-open{display:block}
-#vidDrawer{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100vw,500px);background:var(--white);border-radius:16px 16px 0 0;padding:20px 18px 36px;z-index:901;box-shadow:0 -6px 32px rgba(0,0,0,.14)}
+#vidDrawer{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100vw,500px);background:var(--white);border-radius:16px 16px 0 0;padding:20px 18px 36px;z-index:901;box-shadow:0 -6px 32px rgba(0,0,0,.14);max-height:90vh;overflow-y:auto}
 #vidDrawer.vd-open{display:block}
 .vd-cell{background:var(--off);border-radius:6px;padding:10px 12px;min-width:0}
 .vd-lbl{font-size:11px;color:var(--muted);margin-bottom:3px;white-space:nowrap}
 .vd-val{font-size:16px;font-weight:700;white-space:nowrap}
+/* ── 趨勢圖 ── */
+.vd-trend{margin-top:14px;background:var(--off);border-radius:8px;padding:12px 14px}
+.vd-trend-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.vd-trend-chart{width:100%;height:80px;display:block}
+.vd-trend-legend{display:flex;gap:12px;margin-top:6px}
+.vd-trend-legend span{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.vd-trend-legend i{display:inline-block;width:18px;height:2px;border-radius:2px;flex-shrink:0}
+.vd-trend-no-data{font-size:12px;color:var(--muted);text-align:center;padding:16px 0}
 /* ── 題材策略 ── */
 .theme-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.theme-cols{grid-template-columns:1fr}}
@@ -514,6 +522,41 @@ const STATIC_DATA = __STATIC_DATA__;
 const AVG = { fb: STATIC_DATA.avg_fb, ig: STATIC_DATA.avg_ig };
 let activePeriod = '7';
 let currentTop20Type = 'traffic';
+
+// ── 每日快照 CSV 載入 ─────────────────────────────────────────────────────────
+var _snapMap = {};  // { video_id: [{date,plays,reach,comments,likes,shares,score}, ...] }
+(function loadSnapshots() {
+  fetch('data/daily_snapshots.csv')
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(text) {
+      if (!text) return;
+      var lines = text.trim().split('\n');
+      if (lines.length < 2) return;
+      var headers = lines[0].split(',');
+      for (var i = 1; i < lines.length; i++) {
+        var cols = lines[i].split(',');
+        var row = {};
+        headers.forEach(function(h, idx){ row[h.trim()] = cols[idx] ? cols[idx].trim() : ''; });
+        var vid = row.video_id;
+        if (!vid) continue;
+        if (!_snapMap[vid]) _snapMap[vid] = [];
+        _snapMap[vid].push({
+          date:     row.date,
+          plays:    parseInt(row.plays)    || 0,
+          reach:    parseInt(row.reach)    || 0,
+          comments: parseInt(row.comments) || 0,
+          likes:    parseInt(row.likes)    || 0,
+          shares:   parseInt(row.shares)   || 0,
+          score:    parseInt(row.score)    || 0,
+        });
+      }
+      // 每個影片按日期排序
+      Object.keys(_snapMap).forEach(function(vid){
+        _snapMap[vid].sort(function(a,b){ return a.date.localeCompare(b.date); });
+      });
+    })
+    .catch(function(){});  // 第一次執行前檔案不存在，靜默忽略
+})();
 
 // ── 評分 helpers ──────────────────────────────────────────────────────────
 // S≥80 / A≥65 / B≥50 / C<50 / F=未及格（播放不足）
@@ -2464,8 +2507,59 @@ function showVidDetail(id) {
   document.getElementById('vdMeta').textContent = platStr+' · '+ageStr;
   document.getElementById('vdScore').innerHTML = '<span style="color:'+scoreCol(v)+';font-size:36px;font-weight:700;line-height:1">'+scoreGrade(v)+'</span>';
   document.getElementById('vdMetrics').innerHTML = metrics;
+  document.getElementById('vdTrend').innerHTML = renderTrendChart(id);
   document.getElementById('vidDrawer').classList.add('vd-open');
   document.getElementById('vidBackdrop').classList.add('vd-open');
+}
+
+function renderTrendChart(vid_id) {
+  var snaps = _snapMap[vid_id];
+  if (!snaps || snaps.length < 2) {
+    return '<div class="vd-trend"><div class="vd-trend-no-data">📈 趨勢資料累積中（需至少 2 天快照）</div></div>';
+  }
+
+  var W = 440, H = 80, PAD = 6;
+  var maxPlays = Math.max.apply(null, snaps.map(function(s){ return s.plays; })) || 1;
+  var maxReach = Math.max.apply(null, snaps.map(function(s){ return s.reach; })) || 1;
+  var n = snaps.length;
+
+  function px(i) { return PAD + (i / (n-1)) * (W - PAD*2); }
+  function pyPlays(v) { return H - PAD - (v / maxPlays) * (H - PAD*2); }
+  function pyReach(v) { return H - PAD - (v / maxReach) * (H - PAD*2); }
+
+  // 折線點
+  var playsPoints = snaps.map(function(s,i){ return px(i)+','+pyPlays(s.plays); }).join(' ');
+  var reachPoints = snaps.map(function(s,i){ return px(i)+','+pyReach(s.reach); }).join(' ');
+
+  // 最新一天的值
+  var last = snaps[snaps.length-1];
+  var first = snaps[0];
+  var playsGrowth = first.plays > 0 ? Math.round((last.plays - first.plays) / first.plays * 100) : 0;
+  var growthStr = playsGrowth > 0 ? '+'+playsGrowth+'%' : playsGrowth+'%';
+  var growthCol = playsGrowth > 0 ? 'var(--good)' : playsGrowth < 0 ? 'var(--warn)' : 'var(--muted)';
+
+  // X 軸日期標籤（只顯示第一天和最後一天）
+  var d1 = snaps[0].date.slice(5);      // MM-DD
+  var d2 = last.date.slice(5);
+
+  var svg = '<svg class="vd-trend-chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
+    // 播放折線（主）
+    + '<polyline points="'+playsPoints+'" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linejoin="round"/>'
+    // 觸及折線（次）
+    + '<polyline points="'+reachPoints+'" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linejoin="round"/>'
+    // 最後一點圓點
+    + '<circle cx="'+px(n-1)+'" cy="'+pyPlays(last.plays)+'" r="3" fill="var(--teal)"/>'
+    + '</svg>';
+
+  return '<div class="vd-trend">'
+    + '<div class="vd-trend-title"><span>📈 20天趨勢</span>'
+    + '<span style="font-size:12px;color:'+growthCol+';font-weight:700">播放 '+growthStr+'</span></div>'
+    + svg
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px"><span>'+d1+'</span><span>'+d2+'</span></div>'
+    + '<div class="vd-trend-legend">'
+    + '<span><i style="background:var(--teal)"></i>播放 '+fmtNum(last.plays)+'</span>'
+    + '<span><i style="background:var(--gold);opacity:.8"></i>觸及 '+fmtNum(last.reach)+'</span>'
+    + '</div></div>';
 }
 function closeVidDrawer() {
   document.getElementById('vidDrawer').classList.remove('vd-open');
@@ -2486,6 +2580,7 @@ function closeVidDrawer() {
     </div>
   </div>
   <div id="vdMetrics" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+  <div id="vdTrend"></div>
 </div>
 </body>
 </html>

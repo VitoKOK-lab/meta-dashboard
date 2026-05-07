@@ -51,6 +51,7 @@ DATA_PATH             = os.path.join(BASE_DIR, 'data', 'videos.json')
 ARCHIVE_PATH          = os.path.join(BASE_DIR, 'data', 'archive.json')
 FOLLOWER_HISTORY_PATH = os.path.join(BASE_DIR, 'data', 'follower_history.json')
 LIVES_PATH            = os.path.join(BASE_DIR, 'data', 'lives.json')
+SNAPSHOT_PATH         = os.path.join(BASE_DIR, 'data', 'daily_snapshots.csv')
 TEMPLATE_PATH         = os.path.join(BASE_DIR, 'template.html')
 OUTPUT_PATH           = os.path.join(BASE_DIR, 'index.html')
 API_BASE              = 'https://graph.facebook.com/v19.0'
@@ -822,6 +823,58 @@ def to_js_live(lv):
         'avgWatchMs':    lv.get('avg_watch_ms', 0),
     }
 
+def save_daily_snapshot(videos_dict):
+    """每次 pipeline 執行後，append 當日快照到 daily_snapshots.csv。
+    只記錄上傳後 20 天內的影片，超過 20 天不再記錄。"""
+    import csv
+    today = tw_now().strftime('%Y-%m-%d')
+    SNAPSHOT_WINDOW = 20  # 只追蹤前 20 天
+
+    # 讀取今天已有記錄的 video_id，避免重複寫入
+    existing_today = set()
+    if os.path.exists(SNAPSHOT_PATH):
+        with open(SNAPSHOT_PATH, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get('date') == today:
+                    existing_today.add(row.get('video_id', ''))
+
+    fieldnames = ['date', 'video_id', 'platform', 'plays', 'reach', 'comments', 'likes', 'shares', 'score']
+    new_rows = []
+    for vid in videos_dict.values():
+        vid_id = vid.get('id', '')
+        if not vid_id or vid_id in existing_today:
+            continue
+        age = days_ago_from(vid.get('created_time', ''))
+        if age > SNAPSHOT_WINDOW:
+            continue  # 超過 20 天不記錄
+        plays = vid.get('plays') or 0
+        if plays == 0:
+            continue  # 還沒有播放數，跳過
+        new_rows.append({
+            'date':     today,
+            'video_id': vid_id,
+            'platform': vid.get('platform', ''),
+            'plays':    plays,
+            'reach':    vid.get('reach') or 0,
+            'comments': vid.get('comments') or 0,
+            'likes':    vid.get('likes') or 0,
+            'shares':   vid.get('shares') or 0,
+            'score':    vid.get('score') or 0,
+        })
+
+    if not new_rows:
+        print('快照：今天已有記錄或無符合影片，跳過')
+        return
+
+    write_header = not os.path.exists(SNAPSHOT_PATH)
+    with open(SNAPSHOT_PATH, 'a', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if write_header:
+            writer.writeheader()
+        writer.writerows(new_rows)
+    print('快照：已儲存 {} 支影片的今日數據 ({})'.format(len(new_rows), today))
+
 def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_list=None):
     if not os.path.exists(TEMPLATE_PATH):
         print('ERROR: 找不到 template.html')
@@ -1136,6 +1189,7 @@ def monitor_ig_live():
     lives_list  = sorted(lives_dict.values(),
                          key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
     generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
+    save_daily_snapshot(videos_dict)
 
     print('\n完成！時長={}分鐘  留言={}  按讚={}'.format(
         duration_sec // 60, peak_comments, peak_likes))
