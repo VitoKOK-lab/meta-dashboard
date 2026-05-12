@@ -1141,6 +1141,16 @@ def main():
 
     # 補抓缺少 permalink 的 IG 影片（逐步補齊，每次最多 50 支）
     backfill_ig_permalinks(videos_dict)
+    # 同步補抓 history.db 裡缺少 permalink 的 IG 影片
+    hist_dict = load_history_db()
+    hist_missing = {vid: v for vid, v in hist_dict.items()
+                    if v.get('platform') == 'ig' and not v.get('permalink')}
+    if hist_missing:
+        print('  補抓 history.db {} 支 IG permalink...'.format(len(hist_missing)))
+        backfill_ig_permalinks(hist_missing)
+        updated = [v for v in hist_missing.values() if v.get('permalink')]
+        if updated:
+            save_history_db(updated)
 
     # 步驟 3：計算評分（頻道相對百分位制）
     print('\n[3] 計算評分...')
