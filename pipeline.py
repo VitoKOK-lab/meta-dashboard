@@ -489,7 +489,17 @@ def batch_api(req_list):
         )
         for item in resp.json():
             try:
-                results.append(json.loads(item['body']) if item.get('code') == 200 else None)
+                if item.get('code') == 200:
+                    results.append(json.loads(item['body']))
+                else:
+                    # 印出錯誤碼和訊息，方便診斷
+                    try:
+                        err = json.loads(item.get('body') or '{}')
+                        print('  [API ERR] code={} msg={}'.format(
+                            item.get('code'), err.get('error', {}).get('message', item.get('body',''))[:120]))
+                    except Exception:
+                        print('  [API ERR] code={}'.format(item.get('code')))
+                    results.append(None)
             except Exception:
                 results.append(None)
         if i + 50 < len(req_list):
