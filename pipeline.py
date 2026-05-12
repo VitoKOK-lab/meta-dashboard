@@ -797,7 +797,7 @@ def fetch_video_list(platform, since_days=7):
                 })
             else:
                 data = api_get('{}/media'.format(IG_ACCOUNT), {
-                    'fields': 'id,caption,media_type,timestamp',
+                    'fields': 'id,caption,media_type,timestamp,permalink',
                     'since': now_ts - since_days*86400,
                     'until': now_ts + 86400, 'limit': 100,
                 })
@@ -839,7 +839,7 @@ def fetch_video_list(platform, since_days=7):
             if platform == 'fb' and length and length > 120:
                 continue
             vtype = detect_type(cap)
-            videos.append({
+            entry = {
                 'id':           item['id'],
                 'platform':     platform,
                 'title':        cap[:300],
@@ -848,7 +848,10 @@ def fetch_video_list(platform, since_days=7):
                 'type':         vtype,
                 'length_sec':   length,
                 'products':     extract_products(cap) if vtype == 'commerce' else [],
-            })
+            }
+            if platform == 'ig' and item.get('permalink'):
+                entry['permalink'] = item['permalink']
+            videos.append(entry)
         cursor = (data.get('paging') or {}).get('next')
         page += 1
         print('    {} 頁{} → {}支'.format(platform.upper(), page, len(items)))
@@ -856,6 +859,28 @@ def fetch_video_list(platform, since_days=7):
             break
         time.sleep(0.3)
     return videos
+
+# ── 補抓 IG Permalink ─────────────────────────────────────────────────────────
+def backfill_ig_permalinks(videos_dict):
+    """對沒有 permalink 的 IG 影片，批次呼叫 API 補抓。"""
+    missing = [vid for vid, v in videos_dict.items()
+               if v.get('platform') == 'ig' and not v.get('permalink')]
+    if not missing:
+        return
+    print('  補抓 {} 支 IG permalink...'.format(len(missing)))
+    # 每次最多 50 支（batch API 上限）
+    filled = 0
+    for i in range(0, len(missing), 50):
+        chunk = missing[i:i+50]
+        raw = batch_api(['{vid}?fields=permalink'.format(vid=vid) for vid in chunk])
+        for j, vid in enumerate(chunk):
+            if raw[j]:
+                pl = raw[j].get('permalink') or ''
+                if pl:
+                    videos_dict[vid]['permalink'] = pl
+                    filled += 1
+        time.sleep(1)
+    print('  補齊 {} 支 permalink'.format(filled))
 
 # ── 抓 Insights ───────────────────────────────────────────────────────────────
 def fetch_insights_for(stale_list):
@@ -1113,6 +1138,9 @@ def main():
                 age_hours = days_ago_from(videos_dict[vid_id].get('created_time', '')) * 24
                 if has_data or age_hours >= 24:
                     videos_dict[vid_id]['insights_at'] = now_iso
+
+    # 補抓缺少 permalink 的 IG 影片（逐步補齊，每次最多 50 支）
+    backfill_ig_permalinks(videos_dict)
 
     # 步驟 3：計算評分（頻道相對百分位制）
     print('\n[3] 計算評分...')
