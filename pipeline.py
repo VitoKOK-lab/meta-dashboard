@@ -592,7 +592,7 @@ def parse_ig_insights(data):
         'comments':        m.get('comments') or 0,
         'likes':           m.get('likes') or 0,
         'saved':           m.get('saved') or 0,
-        'new_followers':   m.get('follows') or 0,
+        'new_followers':   0,  # follows 已廢棄，Meta API 不再支援
         'avg_watch_ms':    avg_watch,
         'total_view_ms':   total_view,
         'completion_rate': None,
@@ -825,8 +825,9 @@ def fetch_insights_for(stale_list):
         time.sleep(1.5)
         # 2025/4/21 起 Meta 廢棄 plays/impressions，改用 views
         # 同時保留 ig_reels_* 做 avg_watch 計算（未廢棄）
+        # follows 已被 Meta 廢棄（#100 不支援），移除後整批才能正常回傳
         raw = batch_api([
-            '{}/insights?metric=views,reach,shares,comments,likes,saved,follows,'
+            '{}/insights?metric=views,reach,shares,comments,likes,saved,'
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])
