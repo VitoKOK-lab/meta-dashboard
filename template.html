@@ -380,37 +380,70 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .period-btn{padding:7px 18px;font-size:14px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);border:none;border-right:1px solid var(--border);font-family:var(--font);transition:all .2s}
 .period-btn:last-child{border-right:none}
 .period-btn.active{background:var(--black);color:var(--white)}
-.top20-tabs{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content}
-.t20-tab{padding:9px 22px;font-size:15px;font-weight:700;cursor:pointer;background:var(--white);color:var(--muted);transition:all .2s;border-right:1px solid var(--border)}
-.t20-tab:last-child{border-right:none}
-.t20-tab.active.traffic{background:var(--teal);color:var(--white)}
-.t20-tab.active.commerce{background:var(--pink);color:var(--white)}
-.top20-filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
-.filter-select{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:14px;font-family:var(--font);color:var(--ink);cursor:pointer}
-.ranking-table{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.table-scroll{overflow-x:auto}
-.rt-head{display:grid;background:var(--off);border-bottom:1px solid var(--border);padding:9px 18px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);grid-template-columns:32px 2fr 64px 80px 80px 80px 90px 80px}
-.rt-row{display:grid;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center;transition:background .15s;grid-template-columns:32px 2fr 64px 80px 80px 80px 90px 80px;min-width:600px}
-@media(max-width:640px){
-  .rt-head{grid-template-columns:28px 1fr 44px;padding:8px 12px}
-  .rt-head div:nth-child(n+4){display:none}
-  .rt-row{grid-template-columns:28px 1fr 44px;min-width:0;padding:10px 12px}
-  .rt-row>div:nth-child(n+4){display:none}
-  .rt-row>div:nth-child(2){min-width:0;overflow:hidden}
-}
-.rt-row:last-child{border-bottom:none}
-.rt-row:hover{background:var(--off)}
-.rt-rank{font-size:18px;font-weight:900;color:var(--border)}
-.rt-rank.gold-r{color:var(--gold)}
-.rt-rank.silver-r{color:#b0b0b0}
-.rt-rank.bronze-r{color:#cd7f32}
-.rt-title{font-size:15px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;max-width:100%}
-.rt-title.expanded{white-space:normal;overflow:visible;text-overflow:unset}
-.rt-date{font-size:13px;color:var(--muted);margin-top:1px}
-.rt-score{font-size:22px;font-weight:600;letter-spacing:-0.5px}
-.rt-score.t-score{color:#1a9e95}
-.rt-score.c-score{color:var(--pink)}
-.rt-num{font-size:15px;font-weight:700}
+/* ── 歷史排行榜 ── */
+.rnk-sum-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.rnk-sum-chip{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px;display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}
+.rnk-sum-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.rnk-sum-val{font-size:22px;font-weight:800;line-height:1}
+.rnk-controls{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rnk-ctrl-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.rnk-ctrl-lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap}
+.rnk-flt-btn{font-size:13px;font-weight:600;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--off);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--font)}
+.rnk-flt-btn:hover{border-color:var(--teal);color:var(--teal)}
+.rnk-flt-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.rnk-ctrl-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.rnk-search{padding:6px 12px;font-size:14px;border:1.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--ink);outline:none;transition:border-color .2s;width:180px;font-family:var(--font)}
+.rnk-search:focus{border-color:var(--teal)}
+.rnk-ctrl-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.rnk-result-cnt{font-size:13px;color:var(--muted);white-space:nowrap}
+.rnk-podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:900px){.rnk-podium{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.rnk-podium{grid-template-columns:1fr}}
+.rnk-pod-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.rnk-pod-card.r1{border-top:3px solid var(--gold)}
+.rnk-pod-card.r2{border-top:3px solid #b0b0b0}
+.rnk-pod-card.r3{border-top:3px solid #cd7f32}
+.rnk-pod-rank{font-size:34px;font-weight:900;line-height:1;margin-bottom:8px}
+.rnk-pod-title{font-size:14px;font-weight:700;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px;min-height:40px}
+.rnk-pod-badges{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.rnk-pod-stats{display:flex;gap:12px;flex-wrap:wrap}
+.rnk-pod-stat-lbl{font-size:11px;color:var(--muted);font-weight:600}
+.rnk-pod-stat-val{font-size:17px;font-weight:900}
+.rnk-tbl-wrap{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.rnk-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.rnk-tbl thead th{background:var(--off);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.rnk-tbl thead th.rnk-sort-col{cursor:pointer;user-select:none;transition:color .15s}
+.rnk-tbl thead th.rnk-sort-col:hover{color:var(--teal)}
+.rnk-tbl thead th.rnk-active-sort{color:var(--teal)}
+.rnk-sort-arrow{margin-left:4px;opacity:.5;font-size:10px}
+.rnk-active-sort .rnk-sort-arrow{opacity:1}
+.rnk-tbl tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.rnk-tbl tbody tr:last-child{border-bottom:none}
+.rnk-tbl tbody tr:hover{background:var(--off)}
+.rnk-tbl td{padding:10px 14px;vertical-align:middle}
+.rnk-num{font-size:22px;font-weight:900;min-width:36px;text-align:center}
+.rnk-c1{color:var(--gold)}.rnk-c2{color:#b0b0b0}.rnk-c3{color:#cd7f32}.rnk-cn{color:var(--muted);font-size:14px}
+.rnk-plat{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+.rnk-plat-fb{background:#e8f0fe;color:#1877f2}
+.rnk-plat-ig{background:#fce4f3;color:#c13584}
+.rnk-type{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.rnk-type-tr{background:#e6faf8;color:var(--teal)}
+.rnk-type-cm{background:#fff4e5;color:var(--gold)}
+.rnk-title-cell{max-width:260px}
+.rnk-title-txt{font-weight:700;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px}
+.rnk-meta{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+.rnk-date{font-size:12px;color:var(--muted)}
+.rnk-n{font-size:15px;font-weight:800;white-space:nowrap;text-align:right}
+.rnk-n small{display:block;font-size:11px;font-weight:400;color:var(--muted);text-align:right}
+.rnk-score-wrap{display:flex;align-items:center;gap:7px}
+.rnk-score-v{font-size:16px;font-weight:900;min-width:30px}
+.rnk-score-bg{flex:1;height:5px;background:var(--off);border-radius:3px;overflow:hidden;min-width:40px}
+.rnk-score-fill{height:100%;border-radius:3px}
+.rnk-sg{background:var(--good)}.rnk-so{background:var(--ok)}.rnk-sw{background:var(--warn)}.rnk-sz{background:var(--border)}
+.rnk-no-data{text-align:center;padding:50px 20px;color:var(--muted);font-size:15px}
+@media(max-width:900px){.rnk-hide-md{display:none}.rnk-search{width:130px}}
+@media(max-width:640px){.rnk-hide-sm{display:none}.rnk-search{width:100%}}
+/* 保留舊樣式（其他頁面可能用到） */
 .reuse-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:800;background:var(--black);color:var(--white)}
 .loading-row{padding:20px;text-align:center;color:var(--muted);font-size:15px;border-bottom:1px solid var(--border)}
 .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--black);border-top:1px solid rgba(255,255,255,.08);z-index:200;padding:8px 0 max(8px,env(safe-area-inset-bottom))}
@@ -464,32 +497,59 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 
   <!-- 排行榜 -->
   <div class="section" id="sec-top20">
-    <div class="slabel">長期排行 · Top 10</div>
-    <div class="top20-tabs">
-      <div class="t20-tab active traffic" onclick="switchTop20('traffic',this)">📈 流量型 Top 10</div>
-      <div class="t20-tab commerce" onclick="switchTop20('commerce',this)">🛍 帶貨型 Top 10</div>
-    </div>
-    <div class="top20-filters">
-      <div class="period-btns">
-        <button class="period-btn active" onclick="setPeriod('7',this)">7天</button>
-        <button class="period-btn" onclick="setPeriod('30',this)">30天</button>
-        <button class="period-btn" onclick="setPeriod('90',this)">90天</button>
-        <button class="period-btn" onclick="setPeriod('9999',this)">全部</button>
+    <div class="rnk-sum-bar" id="rnkSumBar"></div>
+    <p class="slabel" id="rnkPodiumLabel">🏆 Top 3</p>
+    <div class="rnk-podium" id="rnkPodium"></div>
+    <div class="rnk-controls">
+      <div class="rnk-ctrl-group">
+        <span class="rnk-ctrl-lbl">平台</span>
+        <button class="rnk-flt-btn active" data-rnk="plat" data-val="all">全部</button>
+        <button class="rnk-flt-btn" data-rnk="plat" data-val="fb">Facebook</button>
+        <button class="rnk-flt-btn" data-rnk="plat" data-val="ig">Instagram</button>
       </div>
-      <select class="filter-select" id="platFilter" onchange="renderTop10()">
-        <option value="all">全部平台</option>
-        <option value="fb">Facebook</option>
-        <option value="ig">Instagram</option>
-      </select>
-    </div>
-    <div class="insight-box hidden" id="insightBox">
-      <div class="insight-title">🔍 第一名亮點解析</div>
-      <div class="insight-body" id="insightBody"></div>
-    </div>
-    <div class="table-scroll">
-      <div class="ranking-table" id="rankingTable">
-        <div class="loading-row">載入中…</div>
+      <div class="rnk-ctrl-sep"></div>
+      <div class="rnk-ctrl-group">
+        <span class="rnk-ctrl-lbl">類型</span>
+        <button class="rnk-flt-btn active" data-rnk="type" data-val="all">全部</button>
+        <button class="rnk-flt-btn" data-rnk="type" data-val="traffic">流量</button>
+        <button class="rnk-flt-btn" data-rnk="type" data-val="commerce">電商</button>
       </div>
+      <div class="rnk-ctrl-sep"></div>
+      <div class="rnk-ctrl-group">
+        <span class="rnk-ctrl-lbl">排序</span>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="plays">播放量</button>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="score">綜合分</button>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="likes">按讚</button>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="shares">分享</button>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="completionRate">完播率</button>
+        <button class="rnk-flt-btn" data-rnk="sort" data-val="avgWatchMs">平均觀看</button>
+        <button class="rnk-flt-btn active" data-rnk="sort" data-val="created_date">日期</button>
+      </div>
+      <div class="rnk-ctrl-right">
+        <input class="rnk-search" id="rnkSearch" type="search" placeholder="搜尋標題…">
+        <span class="rnk-result-cnt" id="rnkResultCnt"></span>
+      </div>
+    </div>
+    <p class="slabel" id="rnkTableLabel">📋 完整排行（依日期↓）</p>
+    <div class="rnk-tbl-wrap">
+      <table class="rnk-tbl" id="rnkTable">
+        <thead>
+          <tr>
+            <th style="text-align:center;width:44px">#</th>
+            <th class="rnk-hide-sm" style="width:56px">平台</th>
+            <th>標題</th>
+            <th class="rnk-sort-col rnk-hide-sm" data-rcol="created_date">日期<span class="rnk-sort-arrow">↓</span></th>
+            <th class="rnk-sort-col" data-rcol="plays" style="text-align:right">播放量<span class="rnk-sort-arrow">↕</span></th>
+            <th class="rnk-sort-col rnk-hide-md" data-rcol="score" style="min-width:110px">綜合分<span class="rnk-sort-arrow">↕</span></th>
+            <th class="rnk-sort-col rnk-hide-md" data-rcol="likes" style="text-align:right">按讚<span class="rnk-sort-arrow">↕</span></th>
+            <th class="rnk-sort-col rnk-hide-md" data-rcol="shares" style="text-align:right">分享<span class="rnk-sort-arrow">↕</span></th>
+            <th class="rnk-sort-col rnk-hide-md" data-rcol="completionRate" style="text-align:right">完播率<span class="rnk-sort-arrow">↕</span></th>
+            <th class="rnk-sort-col rnk-hide-md" data-rcol="avgWatchMs" style="text-align:right">平均觀看<span class="rnk-sort-arrow">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="rnkBody"></tbody>
+      </table>
+      <div class="rnk-no-data" id="rnkNoData" style="display:none">找不到符合條件的影片</div>
     </div>
   </div>
 
@@ -2067,86 +2127,161 @@ function renderRecentTable() {
 }
 
 // ── 排行榜 ────────────────────────────────────────────────────────────────
-function renderTop10() {
-  var platF = document.getElementById('platFilter').value;
-  var days  = Number(activePeriod);
-  var data  = STATIC_DATA.videos.filter(function(v) { return v.type === currentTop20Type; });
-  if (platF !== 'all') data = data.filter(function(v) { return v.platform === platF; });
-  data = data.filter(function(v) { return daysBetween(v.created_time) <= days; });
-  data.sort(function(a, b) { return b.score - a.score; });
-  var top10 = data.slice(0, 10);
+// ── 歷史排行榜 ──────────────────────────────────────────────────────────────
+var rnkPlat = 'all', rnkType = 'all', rnkSort = 'created_date', rnkAsc = false, rnkQ = '';
 
-  var insightBox = document.getElementById('insightBox');
-  if (top10.length > 0) {
-    insightBox.classList.remove('hidden');
-    document.getElementById('insightBody').innerHTML = buildHighlight(top10[0]);
-  } else {
-    insightBox.classList.add('hidden');
+function rnkFmt(n) {
+  if (n == null || n === '') return '—';
+  if (n >= 10000) return (n/10000).toFixed(1) + '萬';
+  if (n >= 1000)  return (n/1000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+function rnkFmtMs(ms) {
+  if (!ms) return '—';
+  var s = Math.round(ms/1000);
+  return s < 60 ? s + '秒' : Math.floor(s/60) + '分' + (s%60) + '秒';
+}
+function rnkScoreCls(s) {
+  if (!s) return 'rnk-sz';
+  if (s >= 70) return 'rnk-sg';
+  if (s >= 40) return 'rnk-so';
+  return 'rnk-sw';
+}
+function rnkRankCls(i) {
+  return ['rnk-c1','rnk-c2','rnk-c3'][i] || 'rnk-cn';
+}
+function rnkRankEmoji(i) {
+  return ['🥇','🥈','🥉'][i] !== undefined ? ['🥇','🥈','🥉'][i] : (i+1);
+}
+function rnkPlatBadge(p) {
+  return p === 'ig'
+    ? '<span class="rnk-plat rnk-plat-ig">IG</span>'
+    : '<span class="rnk-plat rnk-plat-fb">FB</span>';
+}
+function rnkTypeBadge(t) {
+  return t === 'commerce'
+    ? '<span class="rnk-type rnk-type-cm">電商</span>'
+    : '<span class="rnk-type rnk-type-tr">流量</span>';
+}
+function rnkSortLabel() {
+  var m = {plays:'播放量',score:'綜合分',likes:'按讚',shares:'分享',completionRate:'完播率',avgWatchMs:'平均觀看',created_date:'日期'};
+  return m[rnkSort] || rnkSort;
+}
+function rnkGetFiltered() {
+  var list = STATIC_DATA.videos.slice();
+  if (rnkPlat !== 'all') list = list.filter(function(v){ return v.platform === rnkPlat; });
+  if (rnkType !== 'all') list = list.filter(function(v){ return v.type === rnkType; });
+  if (rnkQ) {
+    var q = rnkQ.toLowerCase();
+    list = list.filter(function(v){ return ((v.description||v.caption||'').toLowerCase()).indexOf(q) >= 0; });
   }
-
-  if (top10.length === 0) {
-    document.getElementById('rankingTable').innerHTML = '<div class="loading-row">暫無符合條件的影片</div>';
-    return;
-  }
-
-  var rankClass  = function(i) { return i===0?'gold-r':i===1?'silver-r':i===2?'bronze-r':''; };
-  var scoreClass = currentTop20Type === 'traffic' ? 't-score' : 'c-score';
-  var colHeaders = currentTop20Type === 'traffic'
-    ? ['#','影片','評分','播放','轉發率','留言率','觸及偏離','新增粉絲']
-    : ['#','影片','評分','播放','留言率','觸及偏離','儲存','新增粉絲'];
-
-  var rows = top10.map(function(v, i) {
-    var dev     = reachDev(v);
-    var devPct  = (dev >= 0 ? '+' : '') + (dev * 100).toFixed(1) + '%';
-    var devColor = dev >= 0.05 ? '#1a9e95' : dev <= -0.05 ? 'var(--warn)' : '#7a6428';
-    var daysOld = daysBetween(v.created_time);
-    var nf      = v.newFollowers || 0;
-    var nfStr   = nf > 0 ? '<span style="color:#1a9e95;font-weight:700">+' + fmtNum(nf) + '</span>' : '<span style="color:var(--muted)">—</span>';
-    var title   = v.description || v.caption || '';
-    var cols;
-    if (currentTop20Type === 'traffic') {
-      cols = [
-        '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
-        '<div class="rt-score ' + scoreClass + '" style="' + (v.low_plays?'font-size:11px':'') + '">' + scoreStr(v) + '</div>',
-        '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
-        '<div class="rt-num">' + (v.plays?(v.shares/v.plays*100).toFixed(2)+'%':'—') + '</div>',
-        '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
-        '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
-        '<div class="rt-num">' + nfStr + '</div>',
-      ];
-    } else {
-      cols = [
-        '<div class="rt-rank ' + rankClass(i) + '">' + (i+1) + '</div>',
-        '<div><div class="rt-title" data-full="' + escAttr(title) + '">' + truncTitle(title) + '</div><div class="rt-date">' + daysOld + '天前 · ' + v.platform.toUpperCase() + '</div></div>',
-        '<div class="rt-score ' + scoreClass + '" style="' + (v.low_plays?'font-size:11px':'') + '">' + scoreStr(v) + '</div>',
-        '<div class="rt-num">' + fmtNum(v.plays||0) + '</div>',
-        '<div class="rt-num">' + (v.plays?(v.comments/v.plays*100).toFixed(2)+'%':'—') + '</div>',
-        '<div class="rt-num" style="color:' + devColor + '">' + devPct + '</div>',
-        '<div class="rt-num">' + (v.platform==='ig'?fmtNum(v.saved||0):'—') + '</div>',
-        '<div class="rt-num">' + nfStr + '</div>',
-      ];
-    }
-    return '<div class="rt-row">' + cols.join('') + '</div>';
+  list.sort(function(a, b) {
+    var av = a[rnkSort] != null ? a[rnkSort] : 0;
+    var bv = b[rnkSort] != null ? b[rnkSort] : 0;
+    if (rnkSort === 'created_date') return rnkAsc ? (av < bv ? -1 : 1) : (bv < av ? -1 : 1);
+    return rnkAsc ? av - bv : bv - av;
+  });
+  return list;
+}
+function rnkRenderSummary(list) {
+  var all = STATIC_DATA.videos;
+  var totalPlays = all.reduce(function(s,v){ return s+(v.plays||0); }, 0);
+  var avgScore   = all.length ? (all.reduce(function(s,v){ return s+(v.score||0); }, 0)/all.length).toFixed(1) : 0;
+  var maxPlays   = Math.max.apply(null, all.map(function(v){ return v.plays||0; }));
+  document.getElementById('rnkSumBar').innerHTML =
+    '<div class="rnk-sum-chip"><span class="rnk-sum-lbl">影片總數</span><span class="rnk-sum-val">'+all.length+'</span></div>'+
+    '<div class="rnk-sum-chip"><span class="rnk-sum-lbl">總播放量</span><span class="rnk-sum-val">'+rnkFmt(totalPlays)+'</span></div>'+
+    '<div class="rnk-sum-chip"><span class="rnk-sum-lbl">平均綜合分</span><span class="rnk-sum-val">'+avgScore+'</span></div>'+
+    '<div class="rnk-sum-chip"><span class="rnk-sum-lbl">最高播放</span><span class="rnk-sum-val">'+rnkFmt(maxPlays)+'</span></div>'+
+    '<div class="rnk-sum-chip"><span class="rnk-sum-lbl">篩選結果</span><span class="rnk-sum-val">'+list.length+'</span></div>';
+}
+function rnkRenderPodium(list) {
+  var top = list.slice(0,3);
+  document.getElementById('rnkPodiumLabel').textContent = '🏆 依'+rnkSortLabel()+'排行 Top 3';
+  if (!top.length) { document.getElementById('rnkPodium').innerHTML=''; return; }
+  document.getElementById('rnkPodium').innerHTML = top.map(function(v,i){
+    var cr = v.completionRate != null ? (v.completionRate*100).toFixed(1)+'%' : '—';
+    return '<div class="rnk-pod-card r'+(i+1)+'">'
+      +'<div class="rnk-pod-rank '+rnkRankCls(i)+'">'+rnkRankEmoji(i)+'</div>'
+      +'<div class="rnk-pod-title">'+(v.description||v.caption||'（無標題）')+'</div>'
+      +'<div class="rnk-pod-badges">'+rnkPlatBadge(v.platform)+rnkTypeBadge(v.type)+'<span class="rnk-date">'+v.created_date+'</span></div>'
+      +'<div class="rnk-pod-stats">'
+        +'<div><div class="rnk-pod-stat-lbl">播放</div><div class="rnk-pod-stat-val">'+rnkFmt(v.plays)+'</div></div>'
+        +'<div><div class="rnk-pod-stat-lbl">分數</div><div class="rnk-pod-stat-val">'+(v.score||0)+'</div></div>'
+        +'<div><div class="rnk-pod-stat-lbl">按讚</div><div class="rnk-pod-stat-val">'+rnkFmt(v.likes)+'</div></div>'
+        +'<div><div class="rnk-pod-stat-lbl">完播</div><div class="rnk-pod-stat-val">'+cr+'</div></div>'
+      +'</div></div>';
   }).join('');
-
-  document.getElementById('rankingTable').innerHTML =
-    '<div class="rt-head">' + colHeaders.map(function(c) { return '<div>' + c + '</div>'; }).join('') + '</div>'
-    + rows;
 }
-
-function setPeriod(p, el) {
-  activePeriod = p;
-  document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
-  el.classList.add('active');
-  renderTop10();
+function rnkRenderTable(list) {
+  document.getElementById('rnkResultCnt').textContent = '共 '+list.length+' 支';
+  document.getElementById('rnkTableLabel').textContent = '📋 完整排行（依'+rnkSortLabel()+(rnkAsc?'↑':'↓')+'）';
+  var noData = document.getElementById('rnkNoData');
+  var tbl    = document.getElementById('rnkTable');
+  if (!list.length) { tbl.style.display='none'; noData.style.display=''; return; }
+  noData.style.display='none'; tbl.style.display='';
+  document.getElementById('rnkBody').innerHTML = list.map(function(v,i){
+    var cr = v.completionRate != null ? (v.completionRate*100).toFixed(1)+'%' : '—';
+    var sc = v.score||0;
+    return '<tr>'
+      +'<td style="text-align:center"><span class="rnk-num '+rnkRankCls(i)+'">'+rnkRankEmoji(i)+'</span></td>'
+      +'<td class="rnk-hide-sm">'+rnkPlatBadge(v.platform)+'</td>'
+      +'<td class="rnk-title-cell">'
+        +'<div class="rnk-title-txt">'+(v.description||v.caption||'（無標題）')+'</div>'
+        +'<div class="rnk-meta">'+rnkTypeBadge(v.type)+'</div>'
+      +'</td>'
+      +'<td class="rnk-hide-sm"><span class="rnk-date">'+(v.created_date||'—')+'</span></td>'
+      +'<td class="rnk-n">'+rnkFmt(v.plays)+'<small>觸及 '+rnkFmt(v.reach)+'</small></td>'
+      +'<td class="rnk-hide-md"><div class="rnk-score-wrap"><span class="rnk-score-v">'+sc+'</span>'
+        +'<div class="rnk-score-bg"><div class="rnk-score-fill '+rnkScoreCls(sc)+'" style="width:'+Math.min(sc,100)+'%"></div></div></div></td>'
+      +'<td class="rnk-n rnk-hide-md">'+rnkFmt(v.likes)+'</td>'
+      +'<td class="rnk-n rnk-hide-md">'+rnkFmt(v.shares)+'</td>'
+      +'<td class="rnk-n rnk-hide-md">'+cr+'</td>'
+      +'<td class="rnk-n rnk-hide-md">'+rnkFmtMs(v.avgWatchMs)+'</td>'
+    +'</tr>';
+  }).join('');
+  // 更新欄位箭頭
+  document.querySelectorAll('.rnk-tbl thead th[data-rcol]').forEach(function(th){
+    var col = th.getAttribute('data-rcol');
+    var arrow = th.querySelector('.rnk-sort-arrow');
+    if (arrow) {
+      th.classList.toggle('rnk-active-sort', col === rnkSort);
+      arrow.textContent = col === rnkSort ? (rnkAsc?'↑':'↓') : '↕';
+    }
+  });
 }
-
-function switchTop20(type, el) {
-  currentTop20Type = type;
-  document.querySelectorAll('.t20-tab').forEach(function(t) { t.classList.remove('active'); });
-  el.classList.add('active');
-  renderTop10();
+function renderTop10() {
+  var list = rnkGetFiltered();
+  rnkRenderSummary(list);
+  rnkRenderPodium(list);
+  rnkRenderTable(list);
+  // 綁定篩選按鈕（只綁一次）
+  if (!renderTop10._bound) {
+    renderTop10._bound = true;
+    document.querySelectorAll('.rnk-flt-btn[data-rnk]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var f = btn.getAttribute('data-rnk'), val = btn.getAttribute('data-val');
+        document.querySelectorAll('.rnk-flt-btn[data-rnk="'+f+'"]').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        if (f==='plat') rnkPlat=val;
+        if (f==='type') rnkType=val;
+        if (f==='sort') { rnkSort=val; rnkAsc=false; }
+        var l = rnkGetFiltered(); rnkRenderSummary(l); rnkRenderPodium(l); rnkRenderTable(l);
+      });
+    });
+    document.querySelectorAll('.rnk-tbl thead th[data-rcol]').forEach(function(th){
+      th.addEventListener('click', function(){
+        var col = th.getAttribute('data-rcol');
+        if (rnkSort===col) rnkAsc=!rnkAsc; else { rnkSort=col; rnkAsc=false; }
+        document.querySelectorAll('.rnk-flt-btn[data-rnk="sort"]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-val')===rnkSort); });
+        var l = rnkGetFiltered(); rnkRenderSummary(l); rnkRenderPodium(l); rnkRenderTable(l);
+      });
+    });
+    var st; document.getElementById('rnkSearch').addEventListener('input', function(e){
+      clearTimeout(st); st=setTimeout(function(){ rnkQ=e.target.value.trim();
+        var l=rnkGetFiltered(); rnkRenderSummary(l); rnkRenderPodium(l); rnkRenderTable(l); }, 200);
+    });
+  }
 }
 
 // ── 低效分析 ──────────────────────────────────────────────────────────────
