@@ -434,15 +434,24 @@ def fetch_follower_snapshot():
 
     return snap
 
-def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
-    """回傳需要更新 insights 的 (id, platform) 清單"""
+def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS, backfill=False):
+    """回傳需要更新 insights 的 (id, platform) 清單。
+    backfill=True 時額外補抓所有 plays=0 的舊影片（history 模式用）。
+    """
     today = utc_now().strftime('%Y-%m-%d')
     stale = []
+    seen = set()
     for vid_id, v in videos_dict.items():
         age = days_ago_from(v.get('created_time', ''))
+        # 一般模式：只更新 refresh_days 天內、今天尚未更新的影片
         if age <= refresh_days:
             last = v.get('insights_at', '')[:10]
             if last < today:
+                stale.append((vid_id, v.get('platform', 'fb')))
+                seen.add(vid_id)
+        # backfill 模式：補抓所有沒有真實數據的舊影片
+        if backfill and vid_id not in seen:
+            if (v.get('plays') or 0) == 0:
                 stale.append((vid_id, v.get('platform', 'fb')))
     return stale
 
@@ -1024,8 +1033,9 @@ def main():
 
     # 步驟 2：更新 insights
     print('\n[2] 更新 Insights...')
-    stale = get_stale_ids(videos_dict, refresh_days=refresh_days)
-    print('  需更新: {} 支（{}天內）'.format(len(stale), refresh_days))
+    stale = get_stale_ids(videos_dict, refresh_days=refresh_days, backfill=force_history)
+    print('  需更新: {} 支（{}天內{}）'.format(
+        len(stale), refresh_days, ' + 補抓零數據舊影片' if force_history else ''))
     if stale:
         insights_map = fetch_insights_for(stale)
         now_iso = utc_now().isoformat()
