@@ -1,5 +1,6 @@
 config.py
 *.db
+!data/history.db
 __pycache__/
 *.pyc
 *.pyo

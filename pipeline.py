@@ -17,6 +17,7 @@ import sys
 import io
 import time
 import datetime
+import sqlite3
 
 # Windows 終端機強制 UTF-8
 if hasattr(sys.stdout, 'buffer'):
@@ -49,6 +50,7 @@ if not TOKEN:
 BASE_DIR              = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH             = os.path.join(BASE_DIR, 'data', 'videos.json')
 ARCHIVE_PATH          = os.path.join(BASE_DIR, 'data', 'archive.json')
+HISTORY_DB_PATH       = os.path.join(BASE_DIR, 'data', 'history.db')
 FOLLOWER_HISTORY_PATH = os.path.join(BASE_DIR, 'data', 'follower_history.json')
 LIVES_PATH            = os.path.join(BASE_DIR, 'data', 'lives.json')
 SNAPSHOT_PATH         = os.path.join(BASE_DIR, 'data', 'daily_snapshots.csv')
@@ -61,6 +63,7 @@ INSIGHTS_WEEKLY_DAYS   = 90    # 每週一：更新 90 天內的 insights
 HTML_EMBED_DAYS        = 9999  # 全部影片都嵌入，讓排行榜可以看歷史
 ARCHIVE_STABLE_DAYS    = 15    # 15 天以上流量趨穩，存入長期 archive
 FOLLOWER_KEEP_DAYS     = 90    # 保留最近 90 天的每日粉絲快照
+HISTORY_DAYS           = 90    # 超過 90 天的影片移入 history.db，不佔 videos.json
 
 # ── 時區（台灣 UTC+8）────────────────────────────────────────────────────────
 TW_HOURS = 8
@@ -157,6 +160,54 @@ def save_db(videos_dict):
         json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
     size_kb = os.path.getsize(DATA_PATH) // 1024
     print('  data/videos.json 已儲存 {} 支 ({} KB)'.format(len(videos_dict), size_kb))
+
+# ── 歷史資料庫（SQLite，超過 HISTORY_DAYS 天的影片）────────────────────────────
+def _history_conn():
+    conn = sqlite3.connect(HISTORY_DB_PATH)
+    conn.execute('''CREATE TABLE IF NOT EXISTS videos
+                    (id TEXT PRIMARY KEY, data TEXT NOT NULL)''')
+    conn.commit()
+    return conn
+
+def load_history_db():
+    """從 history.db 讀取所有歷史影片，回傳 {id: video_dict}"""
+    if not os.path.exists(HISTORY_DB_PATH):
+        return {}
+    try:
+        conn = _history_conn()
+        rows = conn.execute('SELECT id, data FROM videos').fetchall()
+        conn.close()
+        return {r[0]: json.loads(r[1]) for r in rows}
+    except Exception as e:
+        print('  [WARN] history.db 讀取失敗: {}'.format(e))
+        return {}
+
+def save_history_db(videos_list):
+    """把影片清單寫入 history.db（UPSERT）"""
+    if not videos_list:
+        return
+    conn = _history_conn()
+    conn.executemany(
+        'INSERT OR REPLACE INTO videos (id, data) VALUES (?, ?)',
+        [(v['id'], json.dumps(v, ensure_ascii=False)) for v in videos_list]
+    )
+    conn.commit()
+    total = conn.execute('SELECT COUNT(*) FROM videos').fetchone()[0]
+    conn.close()
+    print('  history.db 已存 {} 支（本次新增/更新 {}）'.format(total, len(videos_list)))
+
+def migrate_old_to_history(videos_dict):
+    """把 videos_dict 中超過 HISTORY_DAYS 天的影片搬到 history.db，回傳剩餘的近期 dict"""
+    old, recent = [], {}
+    for vid_id, v in videos_dict.items():
+        if days_ago_from(v.get('created_time', '')) > HISTORY_DAYS:
+            old.append(v)
+        else:
+            recent[vid_id] = v
+    if old:
+        save_history_db(old)
+        print('  {} 支舊影片移入 history.db，videos.json 保留 {} 支'.format(len(old), len(recent)))
+    return recent
 
 # ── 粉絲歷史快照 ──────────────────────────────────────────────────────────────
 def load_follower_history():
@@ -434,25 +485,15 @@ def fetch_follower_snapshot():
 
     return snap
 
-def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS, backfill=False):
-    """回傳需要更新 insights 的 (id, platform) 清單。
-    backfill=True 時額外補抓所有 plays=0 的舊影片（history 模式用）。
-    """
+def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
+    """回傳需要更新 insights 的 (id, platform) 清單（只處理 refresh_days 天內）。"""
     today = utc_now().strftime('%Y-%m-%d')
     stale = []
-    seen = set()
     for vid_id, v in videos_dict.items():
         age = days_ago_from(v.get('created_time', ''))
-        # 一般模式：只更新 refresh_days 天內、今天尚未更新的影片
         if age <= refresh_days:
             last = v.get('insights_at', '')[:10]
             if last < today:
-                stale.append((vid_id, v.get('platform', 'fb')))
-                seen.add(vid_id)
-        # backfill 模式：補抓所有沒有真實數據的舊影片
-        # backfill：只補 365 天內、沒有真實數據的影片（超過 1 年 API 不回傳）
-        if backfill and vid_id not in seen and age <= 365:
-            if (v.get('plays') or 0) == 0:
                 stale.append((vid_id, v.get('platform', 'fb')))
     return stale
 
@@ -838,10 +879,6 @@ def fetch_insights_for(stale_list):
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])
-        # 診斷：印出前3支回傳內容，看API實際給什麼
-        print('  [IG 診斷] 前3支 API 回傳原始內容：')
-        for i in range(min(3, len(ig_ids))):
-            print('    #{} raw={}'.format(i+1, str(raw[i])[:300]))
         for i, vid in enumerate(ig_ids):
             results[vid] = parse_ig_insights(raw[i]) if raw[i] else {}
     return results
@@ -1016,6 +1053,8 @@ def main():
     print('=' * 50)
 
     videos_dict = load_db()
+    # 超過 HISTORY_DAYS 天的影片移入 history.db，保持 videos.json 精簡
+    videos_dict = migrate_old_to_history(videos_dict)
     is_first = len(videos_dict) == 0 or force_full
     if force_history:
         fetch_days = 365  # 1 年，拉所有歷史影片
@@ -1055,9 +1094,8 @@ def main():
 
     # 步驟 2：更新 insights
     print('\n[2] 更新 Insights...')
-    stale = get_stale_ids(videos_dict, refresh_days=refresh_days, backfill=force_history)
-    print('  需更新: {} 支（{}天內{}）'.format(
-        len(stale), refresh_days, ' + 補抓零數據舊影片' if force_history else ''))
+    stale = get_stale_ids(videos_dict, refresh_days=refresh_days)
+    print('  需更新: {} 支（{}天內）'.format(len(stale), refresh_days))
     if stale:
         insights_map = fetch_insights_for(stale)
         now_iso = utc_now().isoformat()
@@ -1142,7 +1180,10 @@ def main():
 
     # 步驟 6：生成 HTML
     print('\n[6] 生成 index.html...')
-    recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
+    # 合併 history.db（舊影片）供排行榜完整顯示，不影響 videos.json 精簡結構
+    history_videos = load_history_db()
+    all_videos_for_html = {**history_videos, **videos_dict}  # videos_dict 優先（含最新 insights）
+    recent = get_recent(all_videos_for_html, days=HTML_EMBED_DAYS)
     lives_list = sorted(lives_dict.values(),
                         key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
     generate_html(recent, avg_fb, avg_ig, follower_history=fh, lives_list=lives_list)
