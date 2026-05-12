@@ -820,6 +820,10 @@ def fetch_insights_for(stale_list):
             'ig_reels_avg_watch_time,ig_reels_video_view_total_time'.format(vid)
             for vid in ig_ids
         ])
+        # 診斷：印出前3支回傳內容，看API實際給什麼
+        print('  [IG 診斷] 前3支 API 回傳原始內容：')
+        for i in range(min(3, len(ig_ids))):
+            print('    #{} raw={}'.format(i+1, str(raw[i])[:300]))
         for i, vid in enumerate(ig_ids):
             results[vid] = parse_ig_insights(raw[i]) if raw[i] else {}
     return results
