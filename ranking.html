@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歷史影片排行榜｜電商部</title>
+<style>
+:root{
+  --pink:#9b2c7e;--rose:#7d1a5e;--teal:#0d9488;--gold:#b5924e;
+  --black:#1e293b;--white:#fff;--off:#f8f7f5;--ink:#1a1a1a;--muted:#7a7a7a;--border:#e8e8e8;
+  --good:#0d9488;--ok:#b5924e;--warn:#be3a67;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;
+  --r:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ── Header ── */
+.hdr{background:var(--white);position:sticky;top:0;z-index:200;border-bottom:2px solid var(--teal);box-shadow:0 1px 8px rgba(0,0,0,.07)}
+.hdr-in{max-width:1400px;margin:0 auto;padding:0 16px 0 20px;display:flex;align-items:center;min-height:52px;gap:12px}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0}
+.brand-mark{width:26px;height:26px;background:var(--pink);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.brand-name{font-size:13px;font-weight:800;color:var(--ink);letter-spacing:.3px;line-height:1.3}
+.brand-name small{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.5px}
+.hdr-sep{color:var(--border);font-size:18px;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:800;color:var(--ink);flex:1}
+.back-btn{font-size:13px;font-weight:600;color:var(--teal);text-decoration:none;padding:5px 12px;border:1.5px solid var(--teal);border-radius:6px;flex-shrink:0;transition:all .15s}
+.back-btn:hover{background:var(--teal);color:#fff}
+.updated-badge{font-size:12px;font-weight:700;color:var(--muted);background:var(--off);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;flex-shrink:0}
+
+/* ── Page ── */
+.page{max-width:1400px;margin:0 auto;padding:24px 20px 60px}
+
+/* ── Summary bar ── */
+.summary-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.sum-chip{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.sum-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.sum-val{font-size:24px;font-weight:800;line-height:1;color:var(--ink)}
+
+/* ── Controls ── */
+.controls{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctrl-group{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ctrl-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap}
+.flt-btn{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--off);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.flt-btn:hover{border-color:var(--teal);color:var(--teal)}
+.flt-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.ctrl-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.search-input{padding:6px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--ink);outline:none;transition:border-color .2s;width:200px;font-family:var(--font)}
+.search-input:focus{border-color:var(--teal)}
+.ctrl-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.result-count{font-size:13px;color:var(--muted);white-space:nowrap}
+
+/* ── Table ── */
+.table-wrap{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl thead th{background:var(--off);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:52px;z-index:10}
+.tbl thead th.sort-col{cursor:pointer;user-select:none;transition:color .15s}
+.tbl thead th.sort-col:hover{color:var(--teal)}
+.tbl thead th.active-sort{color:var(--teal)}
+.tbl thead th .sort-arrow{margin-left:4px;opacity:.5;font-size:10px}
+.tbl thead th.active-sort .sort-arrow{opacity:1}
+.tbl tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.tbl tbody tr:last-child{border-bottom:none}
+.tbl tbody tr:hover{background:var(--off)}
+.tbl td{padding:10px 14px;vertical-align:middle}
+.rank-num{font-size:20px;font-weight:900;min-width:36px;text-align:center}
+.rank-1{color:var(--gold)}
+.rank-2{color:#b0b0b0}
+.rank-3{color:#cd7f32}
+.rank-other{color:var(--muted);font-size:14px;font-weight:700}
+.plat-badge{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.plat-fb{background:#e8f0fe;color:#1877f2}
+.plat-ig{background:#fce4f3;color:#c13584}
+.type-badge{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.type-traffic{background:#e6faf8;color:var(--teal)}
+.type-commerce{background:#fff4e5;color:var(--gold)}
+.title-cell{max-width:280px}
+.title-text{font-weight:700;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink);font-size:13px}
+.meta-row{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+.date-text{font-size:12px;color:var(--muted)}
+.num-cell{font-size:16px;font-weight:800;white-space:nowrap;text-align:right}
+.num-cell small{display:block;font-size:11px;font-weight:400;color:var(--muted);text-align:right}
+.score-bar-wrap{display:flex;align-items:center;gap:8px}
+.score-val{font-size:16px;font-weight:900;min-width:32px}
+.score-bar-bg{flex:1;height:6px;background:var(--off);border-radius:3px;overflow:hidden;min-width:50px}
+.score-bar-fill{height:100%;border-radius:3px}
+.score-good{background:var(--good)}
+.score-ok{background:var(--ok)}
+.score-warn{background:var(--warn)}
+.score-zero{background:var(--border)}
+.compl-val{font-size:14px;font-weight:700}
+.avg-watch{font-size:14px;font-weight:700;white-space:nowrap}
+.no-data{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
+.loading{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px}
+
+/* ── Top 3 podium ── */
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:900px){.podium{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.podium{grid-template-columns:1fr}}
+.podium-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.podium-card.rank-1-card{border-top:3px solid var(--gold)}
+.podium-card.rank-2-card{border-top:3px solid #b0b0b0}
+.podium-card.rank-3-card{border-top:3px solid #cd7f32}
+.podium-rank{font-size:36px;font-weight:900;line-height:1;margin-bottom:8px}
+.podium-title{font-size:14px;font-weight:700;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;min-height:42px}
+.podium-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.podium-stats{display:flex;gap:14px;flex-wrap:wrap}
+.podium-stat{display:flex;flex-direction:column;gap:2px}
+.podium-stat-lbl{font-size:11px;color:var(--muted);font-weight:600}
+.podium-stat-val{font-size:17px;font-weight:900}
+
+/* ── Section label ── */
+.slabel{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:14px;margin-top:8px;display:flex;align-items:center;gap:10px}
+.slabel::before{content:'';width:16px;height:3px;background:var(--gold);border-radius:2px;flex-shrink:0}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .tbl .hide-md{display:none}
+  .search-input{width:140px}
+}
+@media(max-width:640px){
+  .tbl .hide-sm{display:none}
+  .page{padding:16px 12px 40px}
+  .summary-bar .sum-chip{min-width:calc(50% - 6px)}
+  .search-input{width:100%}
+  .controls{gap:8px}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <a class="brand" href="index.html">
+      <div class="brand-mark">💎</div>
+      <div class="brand-name">電商部<small>短影音分析</small></div>
+    </a>
+    <span class="hdr-sep">›</span>
+    <span class="hdr-title">歷史影片排行榜</span>
+    <span class="updated-badge" id="updatedBadge">載入中…</span>
+    <a class="back-btn" href="index.html">← 返回儀表板</a>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- 總覽 -->
+  <div class="summary-bar" id="summaryBar">
+    <div class="sum-chip"><span class="sum-label">影片總數</span><span class="sum-val" id="sumTotal">—</span></div>
+    <div class="sum-chip"><span class="sum-label">總播放量</span><span class="sum-val" id="sumPlays">—</span></div>
+    <div class="sum-chip"><span class="sum-label">平均綜合分</span><span class="sum-val" id="sumScore">—</span></div>
+    <div class="sum-chip"><span class="sum-label">最高播放</span><span class="sum-val" id="sumMaxPlays">—</span></div>
+    <div class="sum-chip"><span class="sum-label">FB 影片</span><span class="sum-val" id="sumFb">—</span></div>
+    <div class="sum-chip"><span class="sum-label">IG 影片</span><span class="sum-val" id="sumIg">—</span></div>
+  </div>
+
+  <!-- Top 3 -->
+  <p class="slabel" id="podiumLabel">🏆 依目前排序 Top 3</p>
+  <div class="podium" id="podium"></div>
+
+  <!-- 控制列 -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">平台</span>
+      <button class="flt-btn active" data-filter="plat" data-val="all">全部</button>
+      <button class="flt-btn" data-filter="plat" data-val="fb">Facebook</button>
+      <button class="flt-btn" data-filter="plat" data-val="ig">Instagram</button>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">類型</span>
+      <button class="flt-btn active" data-filter="type" data-val="all">全部</button>
+      <button class="flt-btn" data-filter="type" data-val="traffic">流量</button>
+      <button class="flt-btn" data-filter="type" data-val="commerce">電商</button>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">排序</span>
+      <button class="flt-btn active" data-filter="sort" data-val="plays">播放量</button>
+      <button class="flt-btn" data-filter="sort" data-val="score">綜合分</button>
+      <button class="flt-btn" data-filter="sort" data-val="likes">按讚</button>
+      <button class="flt-btn" data-filter="sort" data-val="shares">分享</button>
+      <button class="flt-btn" data-filter="sort" data-val="completion_rate">完播率</button>
+      <button class="flt-btn" data-filter="sort" data-val="new_followers">新粉絲</button>
+      <button class="flt-btn" data-filter="sort" data-val="avg_watch_ms">平均觀看</button>
+    </div>
+    <div class="ctrl-right">
+      <input class="search-input" id="searchInput" type="search" placeholder="搜尋標題…">
+      <span class="result-count" id="resultCount"></span>
+    </div>
+  </div>
+
+  <!-- 表格 -->
+  <p class="slabel" id="tableLabel">📋 完整排行（依播放量）</p>
+  <div class="table-wrap">
+    <div class="loading" id="loading">資料載入中…</div>
+    <table class="tbl" id="rankTable" style="display:none">
+      <thead>
+        <tr>
+          <th style="text-align:center;width:48px">#</th>
+          <th class="hide-sm" style="width:60px">平台</th>
+          <th>標題</th>
+          <th class="sort-col hide-sm" data-col="created_date">日期<span class="sort-arrow">↕</span></th>
+          <th class="sort-col" data-col="plays" style="text-align:right">播放量<span class="sort-arrow">↕</span></th>
+          <th class="sort-col hide-md" data-col="score" style="text-align:left;min-width:120px">綜合分<span class="sort-arrow">↕</span></th>
+          <th class="sort-col hide-md" data-col="likes" style="text-align:right">按讚<span class="sort-arrow">↕</span></th>
+          <th class="sort-col hide-md" data-col="shares" style="text-align:right">分享<span class="sort-arrow">↕</span></th>
+          <th class="sort-col hide-md" data-col="completion_rate" style="text-align:right">完播率<span class="sort-arrow">↕</span></th>
+          <th class="sort-col hide-md" data-col="avg_watch_ms" style="text-align:right">平均觀看<span class="sort-arrow">↕</span></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="no-data" id="noData" style="display:none">找不到符合條件的影片</div>
+  </div>
+
+</main>
+
+<script>
+// ── State ──
+let allVideos = [];
+let filtPlat = 'all', filtType = 'all', sortKey = 'plays', searchQ = '';
+let sortAsc = false;
+
+// ── Load data ──
+async function loadData() {
+  const [vRes, aRes] = await Promise.all([
+    fetch('data/videos.json'),
+    fetch('data/archive.json')
+  ]);
+  const vData = await vRes.json();
+  const aData = await aRes.json();
+
+  const seen = new Set();
+  const merged = [];
+
+  // live videos (dict)
+  Object.values(vData.videos || {}).forEach(v => {
+    if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); }
+  });
+  // archive videos (list)
+  (aData.videos || []).forEach(v => {
+    if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); }
+  });
+
+  allVideos = merged;
+
+  // Updated badge
+  const updatedAt = vData.updated_at || aData.updated_at || '';
+  if (updatedAt) {
+    const d = new Date(updatedAt);
+    document.getElementById('updatedBadge').textContent =
+      '更新：' + d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  } else {
+    document.getElementById('updatedBadge').textContent = '';
+  }
+
+  updateSummary();
+  render();
+}
+
+// ── Helpers ──
+function fmt(n) {
+  if (n == null || n === '') return '—';
+  if (n >= 10000) return (n/10000).toFixed(1) + '萬';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+function fmtMs(ms) {
+  if (!ms) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + '秒';
+  return Math.floor(s/60) + '分' + (s%60) + '秒';
+}
+function scoreClass(s) {
+  if (!s) return 'score-zero';
+  if (s >= 70) return 'score-good';
+  if (s >= 40) return 'score-ok';
+  return 'score-warn';
+}
+function platBadge(p) {
+  return p === 'ig'
+    ? '<span class="plat-badge plat-ig">IG</span>'
+    : '<span class="plat-badge plat-fb">FB</span>';
+}
+function typeBadge(t) {
+  return t === 'commerce'
+    ? '<span class="type-badge type-commerce">電商</span>'
+    : '<span class="type-badge type-traffic">流量</span>';
+}
+function rankClass(i) {
+  if (i === 0) return 'rank-1';
+  if (i === 1) return 'rank-2';
+  if (i === 2) return 'rank-3';
+  return 'rank-other';
+}
+function rankEmoji(i) {
+  if (i === 0) return '🥇';
+  if (i === 1) return '🥈';
+  if (i === 2) return '🥉';
+  return i + 1;
+}
+
+// ── Summary ──
+function updateSummary() {
+  const total = allVideos.length;
+  const totalPlays = allVideos.reduce((s,v) => s + (v.plays||0), 0);
+  const avgScore = allVideos.length ? (allVideos.reduce((s,v) => s+(v.score||0),0)/allVideos.length).toFixed(1) : 0;
+  const maxPlays = Math.max(...allVideos.map(v => v.plays||0));
+  const fbCount = allVideos.filter(v => v.platform === 'fb').length;
+  const igCount = allVideos.filter(v => v.platform === 'ig').length;
+
+  document.getElementById('sumTotal').textContent = total.toLocaleString();
+  document.getElementById('sumPlays').textContent = fmt(totalPlays);
+  document.getElementById('sumScore').textContent = avgScore;
+  document.getElementById('sumMaxPlays').textContent = fmt(maxPlays);
+  document.getElementById('sumFb').textContent = fbCount.toLocaleString();
+  document.getElementById('sumIg').textContent = igCount.toLocaleString();
+}
+
+// ── Filter + Sort ──
+function getFiltered() {
+  let list = allVideos.slice();
+  if (filtPlat !== 'all') list = list.filter(v => v.platform === filtPlat);
+  if (filtType !== 'all') list = list.filter(v => v.type === filtType);
+  if (searchQ) {
+    const q = searchQ.toLowerCase();
+    list = list.filter(v => (v.title||'').toLowerCase().includes(q));
+  }
+  list.sort((a,b) => {
+    const av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0;
+    if (sortKey === 'created_date') {
+      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    return sortAsc ? av - bv : bv - av;
+  });
+  return list;
+}
+
+function sortLabelText() {
+  const map = {plays:'播放量',score:'綜合分',likes:'按讚',shares:'分享',completion_rate:'完播率',new_followers:'新粉絲',avg_watch_ms:'平均觀看',created_date:'日期'};
+  return map[sortKey] || sortKey;
+}
+
+// ── Render podium ──
+function renderPodium(list) {
+  const top = list.slice(0, 3);
+  const podium = document.getElementById('podium');
+  if (!top.length) { podium.innerHTML = ''; return; }
+
+  document.getElementById('podiumLabel').textContent = `🏆 依${sortLabelText()}排行 Top 3`;
+
+  podium.innerHTML = top.map((v, i) => {
+    const cr = v.completion_rate != null ? (v.completion_rate * 100).toFixed(1) + '%' : '—';
+    return `
+    <div class="podium-card rank-${i+1}-card">
+      <div class="podium-rank ${rankClass(i)}">${rankEmoji(i)}</div>
+      <div class="podium-title">${v.title || '（無標題）'}</div>
+      <div class="podium-badges">
+        ${platBadge(v.platform)}
+        ${typeBadge(v.type)}
+        <span class="date-text">${v.created_date||''}</span>
+      </div>
+      <div class="podium-stats">
+        <div class="podium-stat"><span class="podium-stat-lbl">播放</span><span class="podium-stat-val">${fmt(v.plays)}</span></div>
+        <div class="podium-stat"><span class="podium-stat-lbl">分數</span><span class="podium-stat-val">${v.score||0}</span></div>
+        <div class="podium-stat"><span class="podium-stat-lbl">按讚</span><span class="podium-stat-val">${fmt(v.likes)}</span></div>
+        <div class="podium-stat"><span class="podium-stat-lbl">完播</span><span class="podium-stat-val">${cr}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render table ──
+function renderTable(list) {
+  const tbody = document.getElementById('tableBody');
+  const tbl = document.getElementById('rankTable');
+  const noData = document.getElementById('noData');
+
+  if (!list.length) {
+    tbl.style.display = 'none';
+    noData.style.display = '';
+    return;
+  }
+  noData.style.display = 'none';
+  tbl.style.display = '';
+
+  tbody.innerHTML = list.map((v, i) => {
+    const cr = v.completion_rate != null ? (v.completion_rate * 100).toFixed(1) + '%' : '—';
+    const sc = v.score || 0;
+    const barW = Math.min(sc, 100) + '%';
+    return `
+    <tr>
+      <td style="text-align:center"><span class="rank-num ${i<3?rankClass(i):'rank-other'}">${i<3?rankEmoji(i):i+1}</span></td>
+      <td class="hide-sm">${platBadge(v.platform)}</td>
+      <td class="title-cell">
+        <div class="title-text">${v.title || '（無標題）'}</div>
+        <div class="meta-row">${typeBadge(v.type)}</div>
+      </td>
+      <td class="hide-sm"><span class="date-text">${v.created_date||'—'}</span></td>
+      <td class="num-cell">${fmt(v.plays)}<small>觸及 ${fmt(v.reach)}</small></td>
+      <td class="hide-md">
+        <div class="score-bar-wrap">
+          <span class="score-val">${sc}</span>
+          <div class="score-bar-bg"><div class="score-bar-fill ${scoreClass(sc)}" style="width:${barW}"></div></div>
+        </div>
+      </td>
+      <td class="num-cell hide-md">${fmt(v.likes)}</td>
+      <td class="num-cell hide-md">${fmt(v.shares)}</td>
+      <td class="num-cell hide-md">${cr}</td>
+      <td class="num-cell hide-md">${fmtMs(v.avg_watch_ms)}</td>
+    </tr>`;
+  }).join('');
+
+  // Update sort arrows
+  document.querySelectorAll('.tbl thead th[data-col]').forEach(th => {
+    const col = th.dataset.col;
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) {
+      th.classList.toggle('active-sort', col === sortKey);
+      arrow.textContent = col === sortKey ? (sortAsc ? '↑' : '↓') : '↕';
+    }
+  });
+}
+
+// ── Main render ──
+function render() {
+  document.getElementById('loading').style.display = 'none';
+  const list = getFiltered();
+  document.getElementById('resultCount').textContent = `共 ${list.length} 支`;
+  document.getElementById('tableLabel').textContent = `📋 完整排行（依${sortLabelText()}${sortAsc?'↑':'↓'}）`;
+  renderPodium(list);
+  renderTable(list);
+}
+
+// ── Event: filter buttons ──
+document.querySelectorAll('.flt-btn[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    const val = btn.dataset.val;
+
+    document.querySelectorAll(`.flt-btn[data-filter="${filter}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (filter === 'plat') filtPlat = val;
+    if (filter === 'type') filtType = val;
+    if (filter === 'sort') { sortKey = val; sortAsc = false; }
+
+    render();
+  });
+});
+
+// ── Event: table header sort ──
+document.querySelectorAll('.tbl thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortKey === col) {
+      sortAsc = !sortAsc;
+    } else {
+      sortKey = col;
+      sortAsc = false;
+    }
+    // sync filter buttons
+    document.querySelectorAll('.flt-btn[data-filter="sort"]').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === sortKey);
+    });
+    render();
+  });
+});
+
+// ── Event: search ──
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { searchQ = e.target.value.trim(); render(); }, 200);
+});
+
+// ── Init ──
+loadData().catch(err => {
+  document.getElementById('loading').textContent = '資料載入失敗：' + err.message;
+});
+</script>
+</body>
+</html>
