@@ -169,20 +169,21 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="ctrl-sep"></div>
     <div class="ctrl-group">
       <span class="ctrl-label">類型</span>
-      <button class="flt-btn active" data-filter="type" data-val="all">全部</button>
-      <button class="flt-btn" data-filter="type" data-val="traffic">流量</button>
+      <button class="flt-btn" data-filter="type" data-val="all">全部</button>
+      <button class="flt-btn active" data-filter="type" data-val="traffic">流量</button>
       <button class="flt-btn" data-filter="type" data-val="commerce">電商</button>
     </div>
     <div class="ctrl-sep"></div>
     <div class="ctrl-group">
       <span class="ctrl-label">排序</span>
-      <button class="flt-btn active" data-filter="sort" data-val="plays">播放量</button>
+      <button class="flt-btn" data-filter="sort" data-val="plays">播放量</button>
       <button class="flt-btn" data-filter="sort" data-val="score">綜合分</button>
       <button class="flt-btn" data-filter="sort" data-val="likes">按讚</button>
       <button class="flt-btn" data-filter="sort" data-val="shares">分享</button>
       <button class="flt-btn" data-filter="sort" data-val="completion_rate">完播率</button>
       <button class="flt-btn" data-filter="sort" data-val="new_followers">新粉絲</button>
       <button class="flt-btn" data-filter="sort" data-val="avg_watch_ms">平均觀看</button>
+      <button class="flt-btn active" data-filter="sort" data-val="created_date">日期</button>
     </div>
     <div class="ctrl-right">
       <input class="search-input" id="searchInput" type="search" placeholder="搜尋標題…">
@@ -219,7 +220,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 <script>
 // ── State ──
 let allVideos = [];
-let filtPlat = 'all', filtType = 'all', sortKey = 'plays', searchQ = '';
+let filtPlat = 'all', filtType = 'traffic', sortKey = 'created_date', searchQ = '';
 let sortAsc = false;
 
 // ── Load data ──
