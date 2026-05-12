@@ -450,7 +450,8 @@ def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS, backfill=Fals
                 stale.append((vid_id, v.get('platform', 'fb')))
                 seen.add(vid_id)
         # backfill 模式：補抓所有沒有真實數據的舊影片
-        if backfill and vid_id not in seen:
+        # backfill：只補 365 天內、沒有真實數據的影片（超過 1 年 API 不回傳）
+        if backfill and vid_id not in seen and age <= 365:
             if (v.get('plays') or 0) == 0:
                 stale.append((vid_id, v.get('platform', 'fb')))
     return stale
@@ -482,12 +483,18 @@ def batch_api(req_list):
     for i in range(0, len(req_list), 50):
         chunk = req_list[i:i+50]
         batch = json.dumps([{'method': 'GET', 'relative_url': r} for r in chunk])
-        resp = requests.post(
-            '{}/'.format(API_BASE),
-            data={'batch': batch, 'access_token': TOKEN, 'include_headers': 'false'},
-            timeout=60
-        )
-        for item in resp.json():
+        try:
+            resp = requests.post(
+                '{}/'.format(API_BASE),
+                data={'batch': batch, 'access_token': TOKEN, 'include_headers': 'false'},
+                timeout=60
+            )
+            batch_result = resp.json()
+        except Exception as e:
+            print('  [API TIMEOUT] batch i={} err={}'.format(i, str(e)[:80]))
+            results.extend([None] * len(chunk))
+            continue
+        for item in batch_result:
             try:
                 if item.get('code') == 200:
                     results.append(json.loads(item['body']))
