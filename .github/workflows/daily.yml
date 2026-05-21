@@ -54,7 +54,7 @@ jobs:
           fi
 
           if [ "$MODE" = "history" ]; then
-            echo "每月歷史模式：抓取 5 年內所有影片"
+            echo "每月歷史模式：抓取 1 年內所有影片"
             python pipeline.py --history
           elif [ "$MODE" = "weekly" ]; then
             echo "週一午夜：執行 weekly 模式（90天 insights）"
