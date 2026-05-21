@@ -40,7 +40,6 @@ gh auth login
 mkdir -p ~/Documents/AIcode-claude && cd ~/Documents/AIcode-claude
 gh repo clone VitoKOK-lab/meta-dashboard
 cd meta-dashboard
-chmod +x update_token.sh
 ```
 
 完成。線上自動化照常跑，這台機器隨時開關都不影響儀表板。
@@ -91,13 +90,14 @@ git push
 - 用 Access Token Debugger 點「Extend Access Token」換 long-lived
 - 確認 Page Token 通常會顯示「永不過期」
 
-### 2. 跑腳本
+### 2. 推到 GitHub Secret
 ```bash
 cd ~/Documents/AIcode-claude/meta-dashboard
-./update_token.sh        # 互動式貼 token，不會 echo
+gh secret set META_TOKEN -R VitoKOK-lab/meta-dashboard   # 互動式貼 token，不會 echo
 ```
 
-腳本會自動：驗證 token → 推到 GitHub Secret → 詢問是否立刻觸發測試。
+設定後可手動觸發一次測試：`gh workflow run daily.yml -R VitoKOK-lab/meta-dashboard`。
+驗證 token 是否有效：到 https://developers.facebook.com/tools/debug/accesstoken/ 貼上內容看 `expires_at`。
 
 ---
 
@@ -112,8 +112,10 @@ meta-dashboard/
 │   ├── videos.json        # 影片資料庫（增量更新）
 │   ├── archive.json       # 15 天以上趨穩的長期歸檔
 │   ├── follower_history.json  # 90 天每日粉絲快照
-│   └── lives.json         # 直播紀錄
-├── update_token.sh        # ↑ 第四節在用的腳本
+│   ├── lives.json         # 直播紀錄
+│   ├── history.db         # 超過 90 天影片（SQLite，不佔 videos.json）
+│   └── daily_snapshots.csv # 前 20 天影片每日數據快照
+├── ranking.html           # 歷史影片排行榜（獨立頁，前端抓 json）
 ├── requirements.txt       # python 依賴（只有 requests）
 └── .github/workflows/
     ├── daily.yml          # 例行抓取 + weekly + history
@@ -140,13 +142,13 @@ gh run view <run_id> -R VitoKOK-lab/meta-dashboard --log-failed
 | 訊息 | 原因 | 處理 |
 |---|---|---|
 | `Runner of type hosted ... not acquired` | GitHub 自己掛了 | 不用管，下次排程會自動跑 |
-| `META_TOKEN ... 401/403` | Token 過期 | 跑 `./update_token.sh` 換新 token |
+| `META_TOKEN ... 401/403` | Token 過期 | 跑 `gh secret set META_TOKEN` 換新 token |
 | `rate limit` | API 打太快 | 通常自動恢復，連續幾次失敗才需處理 |
 
 ### 確認 token 還有效
 ```bash
 # 不貼 token：去 https://developers.facebook.com/tools/debug/accesstoken/ 貼 secret 內容
-# 或要更新時直接跑 ./update_token.sh，腳本會驗證並印出 expires_at
+# 看 expires_at 確認是否仍有效
 ```
 
 ---

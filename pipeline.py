@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-泰熙爾札娜 IP 儀表板 - 資料抓取與 HTML 生成
+電商部-短影音成效即時分析 - 資料抓取與 HTML 生成
 Usage:
   python pipeline.py          自動判斷（首次=全量，之後=增量）
   python pipeline.py --full   強制全量掃描
@@ -43,8 +43,10 @@ if not TOKEN:
         FB_PAGE   = getattr(config, 'FB_PAGE',    FB_PAGE)
         IG_ACCOUNT = getattr(config, 'IG_ACCOUNT', IG_ACCOUNT)
     except ImportError:
-        print("ERROR: 找不到 META_TOKEN 環境變數，也找不到 config.py")
-        sys.exit(1)
+        # --html-only 只重建 HTML，不打 API，缺 token 也能跑
+        if '--html-only' not in sys.argv:
+            print("ERROR: 找不到 META_TOKEN 環境變數，也找不到 config.py")
+            sys.exit(1)
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 BASE_DIR              = os.path.dirname(os.path.abspath(__file__))
@@ -369,8 +371,6 @@ def backfill_follower_history():
     """一次性補齊過去 90 天的粉絲快照"""
     print('\n[backfill] 補齊過去 90 天粉絲歷史...')
     epoch    = datetime.datetime(1970, 1, 1)
-    since_ts = int((utc_now() - datetime.timedelta(days=93) - epoch).total_seconds())
-    until_ts = int((utc_now() + datetime.timedelta(days=1) - epoch).total_seconds())
     days_map = {}  # date_str -> {fb_total, ig_total}
 
     # ── FB：page_fans 每日快照（用 ISO date string，不用 unix ts）──
@@ -1058,8 +1058,11 @@ def main():
                 rescored += 1
         if rescored:
             save_db(videos_dict)
-            recent = get_recent(videos_dict, days=HTML_EMBED_DAYS)
             print('  重新計算分數: {} 支'.format(rescored))
+        # 合併 history.db（舊影片）供排行榜完整顯示，與正常流程一致
+        history_videos = load_history_db()
+        all_videos_for_html = {**history_videos, **videos_dict}
+        recent = get_recent(all_videos_for_html, days=HTML_EMBED_DAYS)
         lives_dict = load_lives()
         lives_list = sorted(lives_dict.values(),
                             key=lambda x: x.get('broadcast_start_time', ''), reverse=True)
@@ -1073,7 +1076,7 @@ def main():
         sys.argv = [a for a in sys.argv if a != '--backfill']
     refresh_days  = INSIGHTS_WEEKLY_DAYS if (force_weekly or force_history) else INSIGHTS_REFRESH_DAYS
     print('=' * 50)
-    print('  泰熙爾札娜 IP 儀表板 pipeline')
+    print('  電商部-短影音成效即時分析 pipeline')
     print('  {}'.format(tw_now().strftime('%Y-%m-%d %H:%M')))
     print('=' * 50)
 
