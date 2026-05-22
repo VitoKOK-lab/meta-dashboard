@@ -198,27 +198,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .brief-share-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;border-top:1px solid var(--border);font-size:13px}
 .brief-share-row:first-child{border-top:none}
 .brief-share-row:hover{opacity:.75}
-/* ── 直播 ── */
-.live-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.live-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-.live-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex:1;min-width:100px;text-align:center}
-.live-stat-val{font-size:22px;font-weight:700;color:var(--ink);line-height:1.2}
-.live-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
-.live-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;transition:box-shadow .15s}
-.live-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
-.live-card-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
-.live-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:2px 7px;white-space:nowrap;flex-shrink:0}
-.live-title{font-size:14px;font-weight:600;color:var(--ink);line-height:1.4;flex:1}
-.live-meta{font-size:12px;color:var(--muted)}
-.live-metrics{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.live-metric{background:var(--off);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--ink);display:flex;flex-direction:column;align-items:center;min-width:64px}
-.live-metric-val{font-size:15px;font-weight:700;line-height:1.2}
-.live-metric-lbl{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap}
-.live-metric.lm-main{background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25)}
-.live-metric.lm-main .live-metric-val{color:var(--teal);font-size:18px}
-.live-metric.lm-eng{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3)}
-.live-metric.lm-eng .live-metric-val{color:#92740a}
-.live-empty{text-align:center;padding:60px 0;color:var(--muted);font-size:15px}
+
 .btn-cancel{background:var(--off);color:var(--muted)}
 .btn-save{background:var(--teal);color:#fff}
 /* ── 近日上片 ── */
@@ -476,7 +456,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
       <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
       <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
       <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
-      <div class="tab" onclick="switchTab('live',this)">📺 直播</div>
     </div>
     <div class="hdr-right">
       <span class="snapshot-badge" id="snapshotBadge">載入中…</span>
@@ -567,10 +546,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div id="searchResults"></div>
   </div>
 
-  <!-- 直播 -->
-  <div class="section" id="sec-live">
-    <div id="liveContent"></div>
-  </div>
 
 </div>
 
@@ -579,7 +554,6 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>近期</div>
     <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>關鍵字</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
-    <div class="mob-tab" onclick="mobileSwitchTab('live',this)"><span class="mi">📺</span>直播</div>
   </div>
 </div>
 
@@ -2446,113 +2420,9 @@ function runSearch(q) {
   }).join('');
 }
 
-// ── 直播頁 ────────────────────────────────────────────────────────────────
-function renderLiveTab() {
-  var container = document.getElementById('liveContent');
-  if (!container) return;
-  var lives = (STATIC_DATA.lives || []).slice()
-    .sort(function(a, b) { return b.startTime.localeCompare(a.startTime); });
-
-  if (!lives.length) {
-    container.innerHTML = '<div class="live-empty">尚無直播記錄</div>';
-    return;
-  }
-
-  function fmt(n) {
-    if (!n) return '0';
-    return n >= 10000 ? (n/10000).toFixed(1)+'萬' : n.toLocaleString();
-  }
-  function fmtDur(sec) {
-    if (!sec) return '—';
-    var h = Math.floor(sec / 3600);
-    var m = Math.floor((sec % 3600) / 60);
-    return h > 0 ? h+'h '+m+'m' : m+'m';
-  }
-  function fmtWatch(ms) {
-    if (!ms) return '—';
-    var s = Math.round(ms / 1000);
-    var m = Math.floor(s / 60);
-    s = s % 60;
-    return m > 0 ? m+'m '+s+'s' : s+'s';
-  }
-  function retainPct(lv) {
-    if (!lv.durationSec || !lv.avgWatchMs) return null;
-    var pct = (lv.avgWatchMs / 1000) / lv.durationSec * 100;
-    return Math.min(Math.round(pct), 100);
-  }
-  function daysBetween(iso) {
-    if (!iso) return 9999;
-    var d = new Date(iso.replace('Z','').split('+')[0]);
-    return Math.floor((Date.now() - d.getTime()) / 86400000);
-  }
-
-  // ── 彙總統計 ──
-  var recent90 = lives.filter(function(lv){ return daysBetween(lv.startTime) <= 90; });
-  var totalPlays = 0, totalReach = 0, totalInteract = 0, totalDur = 0;
-  recent90.forEach(function(lv) {
-    totalPlays    += lv.plays      || 0;
-    totalReach    += lv.reach      || 0;
-    totalInteract += (lv.comments || 0) + (lv.likes || 0);
-    totalDur      += lv.durationSec || 0;
-  });
-  var avgReach = recent90.length ? Math.round(totalReach / recent90.length) : 0;
-
-  var statsHtml = '<div class="live-stat-row">'
-    + '<div class="live-stat"><div class="live-stat-val">'+recent90.length+'</div><div class="live-stat-lbl">近90天場數</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+(avgReach ? fmt(avgReach) : '—')+'</div><div class="live-stat-lbl">平均觸及／場</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmt(totalPlays)+'</div><div class="live-stat-lbl">累計觀看</div></div>'
-    + '<div class="live-stat"><div class="live-stat-val">'+fmtDur(totalDur)+'</div><div class="live-stat-lbl">累計時長</div></div>'
-    + '</div>';
-
-  // ── 每場直播卡片 ──
-  var cardsHtml = lives.map(function(lv) {
-    var isIG   = lv.platform === 'ig';
-    var age    = daysBetween(lv.startTime);
-    var ageStr = age === 0 ? '今天' : age === 1 ? '昨天' : age + '天前';
-    // 台灣時間（UTC+8）：週幾 + 幾點開播
-    var twDow = ''; var twTime = '';
-    if (lv.startTime) {
-      var twDate = new Date(new Date(lv.startTime.replace('Z','').split('+')[0]+'Z').getTime() + 8*3600000);
-      twDow  = ['日','一','二','三','四','五','六'][twDate.getUTCDay()];
-      var hh = twDate.getUTCHours().toString().padStart(2,'0');
-      var mm = twDate.getUTCMinutes().toString().padStart(2,'0');
-      twTime = hh + ':' + mm;
-    }
-    var interact = (lv.comments || 0) + (lv.likes || 0);
-    // 互動率：互動數 ÷ VOD觀看
-    var engRate = (lv.plays > 0) ? (interact / lv.plays * 100) : 0;
-    var engStr  = engRate > 0 ? engRate.toFixed(1) + '%' : '—';
-
-    var platBadge = isIG
-      ? '<span class="live-badge" style="background:#e1306c">IG 直播</span>'
-      : '<span class="live-badge">FB 直播</span>';
-    var titleText = lv.title || (isIG ? '（IG 不提供標題）' : '（無標題）');
-
-    var metricsHtml = ''
-      + '<div class="live-metric lm-main"><div class="live-metric-val">'+fmt(lv.plays)+'</div><div class="live-metric-lbl">觀看</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.reach)+'</div><div class="live-metric-lbl">觸及人數</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.comments)+'</div><div class="live-metric-lbl">💬 留言</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmt(lv.likes)+'</div><div class="live-metric-lbl">👍 按讚</div></div>'
-      + '<div class="live-metric"><div class="live-metric-val">'+fmtWatch(lv.avgWatchMs)+'</div><div class="live-metric-lbl">平均觀看</div></div>'
-      + '<div class="live-metric lm-eng"><div class="live-metric-val">'+engStr+'</div><div class="live-metric-lbl">互動率</div></div>';
-
-    return '<div class="live-card">'
-      + '<div class="live-card-head">'
-      + platBadge
-      + '<div style="flex:1">'
-      + '<div class="live-title">'+titleText+'</div>'
-      + '<div class="live-meta">'+lv.date+'（'+twDow+'）・'+ageStr+' '+twTime+' 開播・時長 '+fmtDur(lv.durationSec)+'</div>'
-      + '</div>'
-      + '</div>'
-      + '<div class="live-metrics">' + metricsHtml + '</div>'
-      + '</div>';
-  }).join('');
-
-  container.innerHTML = statsHtml + cardsHtml;
-}
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { overview: false, summary: false, theme: false, top20: false, search: false, live: false };
+var initiated = { overview: false, summary: false, theme: false, top20: false, search: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -2566,7 +2436,6 @@ function switchTab(id, el) {
     if (id === 'summary') initSummary();
     if (id === 'theme') initTheme();
     if (id === 'top20') renderTop10();
-    if (id === 'live') renderLiveTab();
   }
   if (id === 'search') {
     setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
@@ -2576,8 +2445,8 @@ function switchTab(id, el) {
 }
 
 function mobileSwitchTab(id, el) {
-  // 桌面 tab 順序：0=近期 1=總覽 2=關鍵字 3=排行榜 4=尋找 5=直播
-  var tabMap = { overview: 0, theme: 2, top20: 3, search: 4, live: 5 };
+  // 桌面 tab 順序：0=近期 1=總覽 2=關鍵字 3=排行榜 4=尋找
+  var tabMap = { overview: 0, theme: 2, top20: 3, search: 4 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]] !== undefined) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });
