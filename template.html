@@ -2559,6 +2559,7 @@ function switchTab(id, el) {
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById('sec-' + id).classList.add('active');
   el.classList.add('active');
+  window.scrollTo(0, 0);
   if (!initiated[id]) {
     initiated[id] = true;
     if (id === 'overview') initOverview();
@@ -2651,6 +2652,8 @@ function showVidDetail(id) {
   document.getElementById('vdTrend').innerHTML = renderTrendChart(id);
   document.getElementById('vidDrawer').classList.add('vd-open');
   document.getElementById('vidBackdrop').classList.add('vd-open');
+  // iOS：鎖住背景捲動，防止 fixed drawer 造成 body scroll 失效
+  document.body.style.overflow = 'hidden';
 }
 
 function renderTrendChart(vid_id) {
@@ -2705,6 +2708,7 @@ function renderTrendChart(vid_id) {
 function closeVidDrawer() {
   document.getElementById('vidDrawer').classList.remove('vd-open');
   document.getElementById('vidBackdrop').classList.remove('vd-open');
+  document.body.style.overflow = '';
 }
 </script>
 
