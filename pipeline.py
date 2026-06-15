@@ -31,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 # ── Token（環境變數優先，本機 fallback 到 config.py）────────────────────────
-TOKEN = os.environ.get('META_TOKEN', '')
+TOKEN = os.environ.get('META_TOKEN', '').strip()
 FB_PAGE    = os.environ.get('FB_PAGE_ID', '1627804834169159')
 IG_ACCOUNT = os.environ.get('IG_ACCOUNT_ID', '17841456817621335')
 GH_REPO    = os.environ.get('GH_REPO', 'VitoKOK-lab/meta-dashboard')
