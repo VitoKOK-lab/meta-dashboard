@@ -32,11 +32,6 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Debug secret
-        env:
-          META_TOKEN: ${{ secrets.META_TOKEN }}
-        run: echo "BASH_TOKEN_LEN=${#META_TOKEN}"
-
       - name: Run pipeline
         env:
           META_TOKEN: ${{ secrets.META_TOKEN }}

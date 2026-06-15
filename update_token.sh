@@ -25,8 +25,9 @@ echo "正在換取新的 Long-lived Token..."
 RESPONSE=$(curl -s "https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${OLD_TOKEN}")
 
 # 解析新 token
-NEW_TOKEN=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token','ERROR'))" 2>/dev/null)
-EXPIRES=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); sec=d.get('expires_in',0); print(f'{sec//86400} 天' if sec else '未知')" 2>/dev/null)
+NEW_TOKEN=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token','ERROR'), end='')" 2>/dev/null)
+EXPIRES=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); sec=d.get('expires_in',0); print(f'{sec//86400} 天' if sec else '未知', end='')" 2>/dev/null)
+
 
 if [ "$NEW_TOKEN" = "ERROR" ] || [ -z "$NEW_TOKEN" ]; then
     echo ""
@@ -42,7 +43,7 @@ echo ""
 # 確認是否更新 GitHub Secret
 read -p "是否自動更新到 GitHub Secrets？(y/n): " CONFIRM
 if [ "$CONFIRM" = "y" ] || [ "$CONFIRM" = "Y" ]; then
-    printf '%s' "$NEW_TOKEN" | gh secret set META_TOKEN -R VitoKOK-lab/meta-dashboard --body -
+    gh secret set META_TOKEN -R VitoKOK-lab/meta-dashboard --body "$NEW_TOKEN"
     echo "✅ GitHub Secret 已更新！"
     echo ""
     echo "📌 建議記下更新日期：$(date '+%Y-%m-%d')，下次約 $(date -v+55d '+%Y-%m-%d' 2>/dev/null || date -d '+55 days' '+%Y-%m-%d' 2>/dev/null) 前需再更新"
