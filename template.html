@@ -452,6 +452,32 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .top-banner{display:none;width:100%;background:#fff;line-height:0}
 .top-banner img{display:block;width:100%;max-width:1400px;height:auto;margin:0 auto}
 @media(max-width:640px){.top-banner{display:block}}
+/* ── 長期趨勢儀表板 (總覽 tab) ── */
+.lt-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:900px){.lt-kpi{grid-template-columns:repeat(2,1fr)}}
+@keyframes lt-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.lt-kc{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s;opacity:0;animation:lt-in .45s ease forwards}
+.lt-kc:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.07)}
+.lt-kc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--gold);opacity:.55}
+.lt-kc:nth-child(1){animation-delay:.05s}.lt-kc:nth-child(2){animation-delay:.11s}.lt-kc:nth-child(3){animation-delay:.17s}.lt-kc:nth-child(4){animation-delay:.23s}
+.lt-kl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
+.lt-kv{font-size:34px;font-weight:300;letter-spacing:-1.5px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.lt-ku{font-size:13px;color:var(--muted);margin-top:5px;font-weight:600}
+.lt-ks{font-size:12px;color:var(--muted);margin-top:8px}
+.lt-ms-strip{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.lt-ms{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:16px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--white);color:var(--muted)}
+.lt-ms.hit{border-color:var(--gold);background:linear-gradient(135deg,#fff9f0,#fff4dc);color:var(--gold-dk)}
+.lt-ms-d{font-size:10px;font-weight:400;color:var(--muted);margin-left:2px}
+.lt-ms.hit .lt-ms-d{color:var(--gold-dk);opacity:.65}
+.lt-cc{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:14px}
+.lt-cc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.lt-cc-ttl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.lt-cc-note{font-size:11px;color:var(--muted)}
+.lt-leg{display:flex;gap:12px}
+.lt-li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.lt-ld{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lt-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.lt-2col{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1402,148 +1428,199 @@ function miniKpiCell(lbl, val, sub, hint) {
 }
 
 // ── 總覽 ──────────────────────────────────────────────────────────────────
+// ── 長期趨勢 helpers ──────────────────────────────────────────────────────────
+function ltFmtK(v){if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,'')+'M';if(v>=1000)return Math.round(v/1000)+'K';return String(v);}
+function ltFmtYM(k){return k.slice(2,4)+'/'+(+k.slice(5));}  // "2025-06" → "25/6"
+
+function ltCountUp(el, target, ms) {
+  var s=Date.now();
+  (function run(){
+    var pct=Math.min((Date.now()-s)/ms,1), e=1-Math.pow(1-pct,3);
+    el.textContent=fmtNum(Math.round(e*target));
+    if(pct<1)requestAnimationFrame(run);
+  })();
+}
+
+function ltDrawBar(id, months, vals) {
+  var el=document.getElementById(id); if(!el)return;
+  var W=900,H=195,PL=54,PR=8,PT=12,PB=44,cW=W-PL-PR,cH=H-PT-PB;
+  var max=Math.max.apply(null,vals.concat([1])), n=months.length;
+  var slot=cW/n, bW=Math.max(slot-5,3), bOff=(slot-bW)/2;
+  // Y gridlines
+  var rawStep=max/4, mag=Math.pow(10,Math.floor(Math.log10(rawStep)));
+  var niceStep=[1,2,2.5,5,10].map(function(f){return f*mag;}).filter(function(v){return v>=rawStep;})[0]||rawStep;
+  var grid='';
+  for(var gi=1;gi<=5;gi++){var gv=Math.round(niceStep*gi);if(gv>max*1.15)break;var gy=PT+cH-Math.round((gv/max)*cH);grid+='<line x1="'+PL+'" y1="'+gy+'" x2="'+(W-PR)+'" y2="'+gy+'" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/><text x="'+(PL-5)+'" y="'+(gy+4)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+ltFmtK(gv)+'</text>';}
+  // Bars
+  var maxV=Math.max.apply(null,vals);
+  var bars=vals.map(function(v,i){
+    if(v<=0)return '';
+    var bh=Math.round((v/max)*cH), bx=(PL+slot*i+bOff).toFixed(1), by=(PT+cH).toFixed(1);
+    var col=v===maxV?'var(--gold)':'rgba(181,146,78,.45)';
+    return '<rect class="ltb" x="'+bx+'" y="'+by+'" width="'+bW.toFixed(1)+'" height="0" rx="3" fill="'+col+'" data-ty="'+(PT+cH-bh).toFixed(1)+'" data-th="'+bh+'"/>';
+  }).join('');
+  // X labels
+  var step=n>14?3:n>9?2:1;
+  var xlbl=months.map(function(m,i){if(i%step!==0&&i!==n-1)return '';return '<text x="'+(PL+slot*i+slot/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+ltFmtYM(m)+'</text>';}).join('');
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">'+grid+bars+xlbl+'</svg>';
+  // Animate
+  el.querySelectorAll('.ltb').forEach(function(r,i){setTimeout(function(){r.setAttribute('y',r.getAttribute('data-ty'));r.setAttribute('height',r.getAttribute('data-th'));r.style.transition='y .55s cubic-bezier(.22,1,.36,1),height .55s cubic-bezier(.22,1,.36,1)';},40+i*22);});
+}
+
+function ltDrawLine(id, months, series) {
+  var el=document.getElementById(id); if(!el)return;
+  var W=600,H=175,PL=46,PR=10,PT=12,PB=38,cW=W-PL-PR,cH=H-PT-PB;
+  var allV=series.reduce(function(a,s){return a.concat(s.vals);},[]);
+  var max=Math.max.apply(null,allV.concat([1])), n=months.length;
+  function px(i){return PL+(cW/(Math.max(n-1,1)))*i;}
+  function py(v){return PT+cH-(v/max)*cH;}
+  // Grid
+  var rawStep=max/4, mag=Math.pow(10,Math.floor(Math.log10(rawStep)||0));
+  var ns=[1,2,2.5,5,10].map(function(f){return f*mag;}).filter(function(v){return v>=rawStep;})[0]||rawStep;
+  var grid='';
+  for(var gi=1;gi<=5;gi++){var gv=Math.round(ns*gi);if(gv>max*1.15)break;var gy=py(gv);grid+='<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/><text x="'+(PL-5)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--muted)">'+ltFmtK(gv)+'</text>';}
+  var paths='';
+  series.forEach(function(s){
+    if(n<2)return;
+    var d=s.vals.map(function(v,i){var x=px(i).toFixed(1),y=py(v).toFixed(1);if(i===0)return 'M '+x+' '+y;var cx=((px(i-1)+px(i))/2).toFixed(1);return 'C '+cx+' '+py(s.vals[i-1]).toFixed(1)+' '+cx+' '+y+' '+x+' '+y;}).join(' ');
+    var len=(cW+cH)*4;
+    paths+='<path d="'+d+'" fill="none" stroke="'+s.col+'" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="'+len+'" stroke-dashoffset="'+len+'" class="lt-lp"/>';
+    paths+=s.vals.map(function(v,i){return '<circle cx="'+px(i).toFixed(1)+'" cy="'+py(v).toFixed(1)+'" r="3.5" fill="'+s.col+'" opacity="0" class="lt-lc"/>';}).join('');
+  });
+  var step=n>9?3:2;
+  var xlbl=months.map(function(m,i){if(i%step!==0&&i!==n-1)return '';return '<text x="'+px(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+ltFmtYM(m)+'</text>';}).join('');
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">'+grid+paths+xlbl+'</svg>';
+  setTimeout(function(){el.querySelectorAll('.lt-lp').forEach(function(p){p.style.transition='stroke-dashoffset 1.1s ease';p.style.strokeDashoffset='0';});setTimeout(function(){el.querySelectorAll('.lt-lc').forEach(function(c,i){setTimeout(function(){c.style.transition='opacity .25s';c.style.opacity='1';},i*18);});},700);},60);
+}
+
+function ltDrawQual(id, months, counts, scores) {
+  var el=document.getElementById(id); if(!el)return;
+  var W=600,H=175,PL=36,PR=36,PT=12,PB=38,cW=W-PL-PR,cH=H-PT-PB;
+  var maxC=Math.max.apply(null,counts.concat([1])), n=months.length;
+  var slot=cW/n, bW=Math.max(slot-5,3), bOff=(slot-bW)/2;
+  var bars=counts.map(function(c,i){if(c<=0)return '';var bh=Math.round((c/maxC)*cH),bx=(PL+slot*i+bOff).toFixed(1);return '<rect x="'+bx+'" y="'+(PT+cH-bh)+'" width="'+bW.toFixed(1)+'" height="'+bh+'" rx="2" fill="var(--border)" opacity=".9"/>';}).join('');
+  var validS=scores.filter(function(s){return s>0;});
+  var minS=Math.min.apply(null,validS.concat([40])), maxS=Math.max.apply(null,validS.concat([80]));
+  function sy(s){return PT+cH-((s-minS)/(maxS-minS||1))*cH;}
+  var pts=months.map(function(m,i){return scores[i]>0?{x:PL+slot*i+slot/2,y:sy(scores[i])}:null;}).filter(Boolean);
+  var scorePath='';
+  if(pts.length>=2){
+    var d=pts.map(function(p,i){if(i===0)return 'M '+p.x.toFixed(1)+' '+p.y.toFixed(1);var pp=pts[i-1],cx=((pp.x+p.x)/2).toFixed(1);return 'C '+cx+' '+pp.y.toFixed(1)+' '+cx+' '+p.y.toFixed(1)+' '+p.x.toFixed(1)+' '+p.y.toFixed(1);}).join(' ');
+    scorePath='<path d="'+d+'" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/>';
+    scorePath+=pts.map(function(p){return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="var(--gold)"/>';}).join('');
+  }
+  var rLbl=[minS,Math.round((minS+maxS)/2),maxS].map(function(s){var y=sy(s);return '<text x="'+(W-PR+5)+'" y="'+(y+4).toFixed(1)+'" font-size="9" fill="var(--gold-dk)">'+Math.round(s)+'</text>';}).join('');
+  var step=n>9?3:2;
+  var xlbl=months.map(function(m,i){if(i%step!==0&&i!==n-1)return '';return '<text x="'+(PL+slot*i+slot/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+ltFmtYM(m)+'</text>';}).join('');
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">'+bars+scorePath+rLbl+xlbl+'</svg>';
+}
+
 function initSummary() {
-  var all = STATIC_DATA.videos;
-  var now = new Date();
-  var dayOfMonth = now.getDate();
-  var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  var lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
-  var lastMonthSameEnd = new Date(now.getFullYear(), now.getMonth()-1, dayOfMonth+1);
-  var thisMonth    = all.filter(function(v){ return new Date(v.created_time) >= thisMonthStart; });
-  var lastMonthSame= all.filter(function(v){ var d=new Date(v.created_time); return d>=lastMonthStart&&d<lastMonthSameEnd; });
-  var lastMonthAll = all.filter(function(v){ var d=new Date(v.created_time); return d>=lastMonthStart&&d<thisMonthStart; });
+  var all = STATIC_DATA.videos || [];
 
-  var recent30=all.filter(function(v){return daysBetween(v.created_time)<=30;});
-  var prev30  =all.filter(function(v){var d=daysBetween(v.created_time);return d>30&&d<=60;});
-  var avgR=recent30.length?recent30.reduce(function(s,v){return s+(v.score||0);},0)/recent30.length:0;
-  var avgP=prev30.length  ?prev30.reduce(function(s,v){return s+(v.score||0);},0)/prev30.length  :0;
-  var hPct=avgP>0?Math.round((avgR-avgP)/avgP*100):0;
-  var hColor=Math.abs(hPct)<5?'#b5924e':hPct>0?'#1a9e95':'#be3a67';
-  var hEmoji,hSentence;
-  if(avgP===0){hEmoji='📊';hSentence='開始累積數據中';}
-  else if(hPct>10){hEmoji='🚀';hSentence='越來越好！品質持續提升';}
-  else if(hPct>4){hEmoji='📈';hSentence='小幅進步，方向正確';}
-  else if(hPct>=-4){hEmoji='➡️';hSentence='穩定發揮，維持現狀';}
-  else if(hPct>=-10){hEmoji='📉';hSentence='稍微滑落，需要留意';}
-  else{hEmoji='⚠️';hSentence='品質明顯下滑，需要檢視';}
+  // ── 按月彙整 ──────────────────────────────────────────────────
+  var byMonth = {};
+  all.forEach(function(v) {
+    if (!v.created_time) return;
+    var d = new Date(v.created_time);
+    if (isNaN(d.getTime())) return;
+    var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    if (!byMonth[key]) byMonth[key] = {total:0,fb:0,ig:0,cnt:0,scoreSum:0,scoreCnt:0};
+    var p = v.plays || 0;
+    byMonth[key].total += p;
+    if (v.platform === 'fb') byMonth[key].fb += p; else byMonth[key].ig += p;
+    byMonth[key].cnt++;
+    if (v.score) { byMonth[key].scoreSum += v.score; byMonth[key].scoreCnt++; }
+  });
+  var allKeys = Object.keys(byMonth).sort();
+  var last18 = allKeys.slice(-18);
 
-  var thisQual=thisMonth.filter(function(v){return (v.score||0)>=65;});
-  var prevQual=lastMonthAll.filter(function(v){return (v.score||0)>=65;});
-  var qualRate=thisMonth.length?Math.round(thisQual.length/thisMonth.length*100):0;
-  var prevQualRate=lastMonthAll.length?Math.round(prevQual.length/lastMonthAll.length*100):0;
-  var qualTrend=prevQualRate>0?qualRate-prevQualRate:0;
-  var qualColor=qualTrend>0?'#1a9e95':qualTrend<-5?'#be3a67':'#b5924e';
+  // ── KPI 總計 ──────────────────────────────────────────────────
+  var totalPlays = all.reduce(function(s,v){return s+(v.plays||0);}, 0);
+  var totalVids = all.length;
+  var scored = all.filter(function(v){return v.score>0;});
+  var avgScore = scored.length ? scored.reduce(function(s,v){return s+v.score;},0)/scored.length : 0;
+  var activeMonths = allKeys.length;
+  var peakMonth = allKeys.length ? allKeys.reduce(function(best,k){return byMonth[k].total>(byMonth[best]||{total:0}).total?k:best;}, allKeys[0]) : '';
 
-  // 行動清單
-  var weekCounts4=0;
-  for(var ww=0;ww<4;ww++) weekCounts4+=all.filter(function(v){var d=daysBetween(v.created_time);return d>ww*7&&d<=(ww+1)*7;}).length;
-  var avgWeekly=Math.round(weekCounts4/4);
-  var thisW=all.filter(function(v){return daysBetween(v.created_time)<=7;}).length;
-  var actions=[];
-  if(thisW===0) actions.push({t:'warn',msg:'本週還沒有新影片！近月均速 '+avgWeekly+' 支/週，今天就要開拍。'});
-  else if(avgWeekly>1&&thisW<avgWeekly-1) actions.push({t:'warn',msg:'本週只發了 '+thisW+' 支，低於近月均速（'+avgWeekly+' 支/週），需要補齊。'});
-  else actions.push({t:'good',msg:'本週發片節奏正常（'+thisW+' 支），繼續維持。'});
-  var badCom=all.filter(function(v){return v.type==='commerce'&&!v.low_plays&&(v.score||0)<35&&daysBetween(v.created_time)<=30;});
-  if(badCom.length>=3) actions.push({t:'warn',msg:'近30天有 '+badCom.length+' 支帶貨影片分數偏低，複盤這些片的共同點。'});
-  var hidden=all.filter(function(v){return loyaltyTier(v)!=='tier3'&&reachDev(v)<-0.3&&daysBetween(v.created_time)<=60;});
-  if(hidden.length>=2) actions.push({t:'act',msg:'有 '+hidden.length+' 支影片鐵粉喜歡但流量低，值得改標題重發或加投廣告。'});
-  var fbR=all.filter(function(v){return v.platform==='fb'&&daysBetween(v.created_time)<=30;}).length;
-  var igR=all.filter(function(v){return v.platform==='ig'&&daysBetween(v.created_time)<=30;}).length;
-  if(fbR>0&&igR>0&&Math.max(fbR,igR)/Math.min(fbR,igR)>=2){var more=fbR>igR?'FB':'IG',less=fbR>igR?'IG':'FB';actions.push({t:'act',msg:'近30天 '+more+' 遠多於 '+less+'，建議補齊 '+less+'。'});}
-  if(avgP>0&&avgR<avgP*0.85) actions.push({t:'warn',msg:'近30天平均分 '+avgR.toFixed(0)+' vs 前30天 '+avgP.toFixed(0)+'，品質下滑 '+Math.abs(hPct)+'%。'});
-  if(actions.length===1&&actions[0].t==='good') actions.push({t:'good',msg:'帶貨影片品質穩定，繼續這個方向。'});
-  var actionIcon={good:'✅',warn:'⚠️',act:'💡'};
+  // ── 里程碑 ────────────────────────────────────────────────────
+  var milestones = [
+    {label:'1M播放',val:1000000,hit:false,when:''},
+    {label:'5M播放',val:5000000,hit:false,when:''},
+    {label:'10M播放',val:10000000,hit:false,when:''},
+    {label:'50M播放',val:50000000,hit:false,when:''}
+  ];
+  var cumPlays = 0;
+  allKeys.forEach(function(k) {
+    cumPlays += byMonth[k].total;
+    milestones.forEach(function(ms) {
+      if (!ms.hit && cumPlays >= ms.val) { ms.hit = true; ms.when = ltFmtYM(k); }
+    });
+  });
 
-  // 發片節奏
-  var wkData=[];
-  for(var w2=7;w2>=0;w2--){var c=all.filter(function(v){var d=daysBetween(v.created_time);return d>w2*7&&d<=(w2+1)*7;}).length;wkData.push({cnt:c,label:w2===0?'本週':w2===1?'上週':'-'+w2+'週'});}
-  var maxWk=Math.max.apply(null,wkData.map(function(x){return x.cnt;}));if(maxWk<1)maxWk=1;
-  var cadenceSummary='近4週均速 '+avgWeekly+' 支/週，本週 '+thisW+' 支 '+(thisW>=avgWeekly?'👍':'⚡');
+  // ── 圖表資料 ──────────────────────────────────────────────────
+  var barVals   = last18.map(function(k){return byMonth[k].total;});
+  var fbVals    = last18.map(function(k){return byMonth[k].fb;});
+  var igVals    = last18.map(function(k){return byMonth[k].ig;});
+  var cntVals   = last18.map(function(k){return byMonth[k].cnt;});
+  var scoreVals = last18.map(function(k){return byMonth[k].scoreCnt?Math.round(byMonth[k].scoreSum/byMonth[k].scoreCnt):0;});
 
-  // 主題勝率
-  var STOP3=new Set(['的','了','我','你','他','她','它','們','在','是','有','和','也','但','都','到','就','這','那','什麼','一個','可以','沒有','因為','所以','如果','不是','可是','還是','只是','還有','就是','其實','現在','已經','非常','一起','大家','真的','這個','那個','一下','一直','好像','感覺','覺得']);
-  var kwS={},kwC={};
-  all.forEach(function(v){var txt=(v.description||v.caption||''),tags=[];txt=txt.replace(/#([^\s#，。！？、；：\n]+)/g,function(m,t){tags.push('#'+t);return ' ';});var tokens=txt.split(/[\s，。！？、；：「」『』【】（）(),.!?;:\n]+/).filter(Boolean).concat(tags);var seen=new Set();tokens.forEach(function(w){w=w.trim();if(!w)return;var isH=w[0]==='#';if(!isH&&(w.length<2||STOP3.has(w)||/^\d+$/.test(w)))return;if(seen.has(w))return;seen.add(w);kwS[w]=(kwS[w]||0)+(v.score||0);kwC[w]=(kwC[w]||0)+1;});});
-  var kwTop=Object.keys(kwC).filter(function(k){return kwC[k]>=3;}).map(function(k){return{kw:k,avg:kwS[k]/kwC[k],cnt:kwC[k]};}).sort(function(a,b){return b.avg-a.avg;}).slice(0,8);
-  var maxAvg=kwTop.length?kwTop[0].avg:100;
-
-  // 詳細數字
-  var thisComPlays=thisMonth.filter(function(v){return v.type==='commerce';}).reduce(function(s,v){return s+(v.plays||0);},0);
-  var prevComPlays=lastMonthSame.filter(function(v){return v.type==='commerce';}).reduce(function(s,v){return s+(v.plays||0);},0);
-  var thisIgSaves=thisMonth.filter(function(v){return v.platform==='ig';}).reduce(function(s,v){return s+(v.saved||0);},0);
-  var prevIgSaves=lastMonthSame.filter(function(v){return v.platform==='ig';}).reduce(function(s,v){return s+(v.saved||0);},0);
-  var thisCom=thisMonth.filter(function(v){return v.type==='commerce'&&v.plays>0;});
-  var prevCom=lastMonthSame.filter(function(v){return v.type==='commerce'&&v.plays>0;});
-  var comCR=thisCom.length?thisCom.reduce(function(s,v){return s+(v.comments||0);},0)/thisCom.reduce(function(s,v){return s+(v.plays||0);},0)*100:0;
-  var prevComCR=prevCom.length?prevCom.reduce(function(s,v){return s+(v.comments||0);},0)/prevCom.reduce(function(s,v){return s+(v.plays||0);},0)*100:0;
-  var thisFbNewF=thisMonth.filter(function(v){return v.platform==='fb';}).reduce(function(s,v){return s+(v.newFollowers||0);},0);
-  var prevFbNewF=lastMonthSame.filter(function(v){return v.platform==='fb';}).reduce(function(s,v){return s+(v.newFollowers||0);},0);
-  var prevFbCount=lastMonthSame.filter(function(v){return v.platform==='fb';}).length;
-  // 流量型數字
-  var thisTrPlays=thisMonth.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.plays||0);},0);
-  var prevTrPlays=lastMonthSame.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.plays||0);},0);
-  var thisTrShares=thisMonth.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.shares||0);},0);
-  var prevTrShares=lastMonthSame.filter(function(v){return v.type==='traffic';}).reduce(function(s,v){return s+(v.shares||0);},0);
-
+  // ── 渲染 ──────────────────────────────────────────────────────
   document.getElementById('summaryCenter').innerHTML =
-
-    // 行動清單
-    '<div class="cmd-card" style="margin-bottom:14px">'
-    +'<div class="cmd-card-label">本週行動清單</div>'
-    +actions.map(function(a){return '<div class="action-item"><span class="action-icon">'+actionIcon[a.t]+'</span><span>'+a.msg+'</span></div>';}).join('')
+    '<div class="lt-kpi">'
+    +'<div class="lt-kc"><div class="lt-kl">累積總播放</div><div class="lt-kv" id="ltKv0">'+ltFmtK(totalPlays)+'</div><div class="lt-ku">views</div></div>'
+    +'<div class="lt-kc"><div class="lt-kl">總影片數</div><div class="lt-kv" id="ltKv1">'+totalVids+'</div><div class="lt-ku">支影片</div></div>'
+    +'<div class="lt-kc"><div class="lt-kl">平均品質分</div><div class="lt-kv" id="ltKv2">'+avgScore.toFixed(0)+'</div><div class="lt-ku">分（相對制）</div></div>'
+    +'<div class="lt-kc"><div class="lt-kl">活躍月份</div><div class="lt-kv" id="ltKv3">'+activeMonths+'</div><div class="lt-ku">個月累積</div>'
+    +(peakMonth?'<div class="lt-ks">最高峰 '+ltFmtYM(peakMonth)+' ('+ltFmtK(byMonth[peakMonth].total)+')</div>':'')
+    +'</div>'
     +'</div>'
 
-    // 頻道近況 + 本月效率
-    +'<div class="cmd-row-2">'
-    +'<div class="cmd-card"><div class="cmd-card-label">頻道近況 · 近30天</div>'
-    +'<div class="health-emoji">'+hEmoji+'</div>'
-    +'<div class="health-sentence" style="color:'+hColor+'">'+hSentence+'</div>'
-    +'<div class="health-pct" style="color:'+hColor+'">'+(hPct>=0?'+':'')+hPct+'%</div>'
-    +'<div class="health-meta">平均分 <strong>'+avgR.toFixed(0)+'</strong>（前30天 '+avgP.toFixed(0)+'）</div>'
-    +'</div>'
-    +'<div class="cmd-card"><div class="cmd-card-label">本月產出效率</div>'
-    +'<div class="health-emoji">'+(qualRate>=30?'🎯':qualRate>=15?'📊':'😬')+'</div>'
-    +'<div class="eff-num" style="color:'+qualColor+'">'+qualRate+'%</div>'
-    +'<div class="health-sentence" style="color:'+qualColor+'">優質片比例</div>'
-    +'<div class="eff-sub">本月 '+thisMonth.length+' 支，'+thisQual.length+' 支達65分以上<br>'+(prevQualRate>0?'上月 '+prevQualRate+'%，'+(qualTrend>=0?'▲ 進步':'▼ 下滑')+' '+Math.abs(qualTrend)+'%':'上月資料累積中')+'</div>'
-    +'</div></div>'
-
-    // 發片節奏 + 主題勝率
-    +'<div class="cmd-row-2">'
-    +'<div class="cmd-card"><div class="cmd-card-label">發片節奏 · 近 8 週</div>'
-    +'<div style="font-size:14px;color:var(--muted);margin-bottom:10px">'+cadenceSummary+'</div>'
-    +'<div class="cadence-chart">'+wkData.map(function(x,i){var h=Math.max(Math.round(x.cnt/maxWk*52),x.cnt>0?6:2);return '<div class="cadence-bar-col"><span class="cadence-num">'+(x.cnt||'·')+'</span><div class="cadence-bar-fill '+(i===7?'cur':'past')+'" style="height:'+h+'px"></div></div>';}).join('')+'</div>'
-    +'<div style="display:flex;gap:5px">'+wkData.map(function(x){return '<div class="cadence-lbl" style="flex:1">'+x.label+'</div>';}).join('')+'</div>'
-    +'</div>'
-    +'<div class="cmd-card"><div class="cmd-card-label">主題勝率 · 詳細看「關鍵字」分頁</div>'
-    +(kwTop.length===0?'<div style="color:var(--muted);font-size:14px;padding:10px 0">資料不足</div>'
-      :kwTop.slice(0,6).map(function(x,xi){var barW=Math.round(x.avg/maxAvg*100);var sc=avgGradeCol(x.avg);return '<div class="winrate-row"><span class="winrate-kw'+(x.kw[0]==='#'?' kw-hash':'')+'">'+x.kw+(xi===0?'<span style="font-size:12px;background:#fff3cd;color:#856404;border-radius:3px;padding:1px 5px;margin-left:5px;font-weight:700">🏆</span>':'')+'</span><div class="winrate-bar-wrap"><div class="winrate-bar-fill" style="width:'+barW+'%;background:'+sc+'"></div></div><span class="winrate-score" style="color:'+sc+';font-weight:700">'+avgGrade(x.avg)+'</span><span class="winrate-cnt">'+x.cnt+'支</span></div>';}).join(''))
-    +'</div></div>'
-
-    // 詳細數字（優化：流量+帶貨都顯示）
-    +'<div class="mini-section-divider">本月數字</div>'
-    +'<div class="mini-kpi-row">'
-    +miniKpiCell('📈 流量影片播放',fmtNum(thisTrPlays),momStr(thisTrPlays,prevTrPlays),'本月累計')
-    +miniKpiCell('🔁 流量影片轉發',fmtNum(thisTrShares),momStr(thisTrShares,prevTrShares),'傳播力指標')
-    +miniKpiCell('🛍 帶貨影片播放',fmtNum(thisComPlays),momStr(thisComPlays,prevComPlays),'本月累計')
-    +miniKpiCell('💬 帶貨留言率',comCR.toFixed(2)+'%',momRateStr(comCR,prevComCR),'購買意圖訊號')
-    +'</div>'
-    +'<div class="mini-kpi-row" style="margin-top:8px">'
-    +miniKpiCell('🔖 IG 收藏數',fmtNum(thisIgSaves),momStr(thisIgSaves,prevIgSaves),'想買但未買')
-    +miniKpiCell('👥 FB 新增粉絲','+'+(thisFbNewF||0),momStr(thisFbNewF,prevFbNewF,prevFbCount===0?'本月首次記錄':''),'本月新追蹤')
-    +miniKpiCell('📊 近30天均分',avgR.toFixed(0)+'分',(hPct>=0?'▲ +':'▼ ')+Math.abs(hPct)+'% vs 前30天','頻道健康')
-    +miniKpiCell('🎯 優質片比例',qualRate+'%',(qualTrend>=0?'▲ +':'▼ ')+Math.abs(qualTrend)+'% vs 上月','分數≥65分')
+    // 里程碑
+    +'<div class="lt-ms-strip">'
+    +milestones.map(function(ms){
+      return '<div class="lt-ms'+(ms.hit?' hit':'')+'">🏅 '+ms.label
+        +(ms.hit?'<span class="lt-ms-d">'+ms.when+'</span>':'<span class="lt-ms-d">未達到</span>')
+        +'</div>';
+    }).join('')
     +'</div>'
 
-    +'<details style="margin-top:28px">'
-    +'<summary style="font-size:13px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px"><span style="font-size:16px">📖</span> 指標說明（點擊展開）</summary>'
-    +'<div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--ink);background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px">'
-    +'<strong>📊 分數說明（頻道相對制）</strong><br>分數是跟自己頻道內同類型影片比，50分 = 中位數，65分以上 = 前25%（優質），80分以上 = 前10%（強）<br>互動率計分需至少30次播放才有效，避免小樣本假高分<br><br>'
-    +'<strong>🛍 帶貨型</strong>：留言為主（50%）+ IG儲存25% + 觸及 — 播放量只佔5-10%<br>'
-    +'<strong>📈 流量型</strong>：播放量35% + 轉發30% + 留言20% + 觸及15%<br><br>'
-    +'<strong>🔖 忠實度</strong>：（留言+轉發）÷ 播放，🟢前30% 🟡正常 🔴後30%'
-    +'</div></details>'
+    // 每月播放量長條圖
+    +'<div class="lt-cc">'
+    +'<div class="lt-cc-hdr"><div class="lt-cc-ttl">每月播放量趨勢</div><div class="lt-cc-note">近 '+last18.length+' 個月</div></div>'
+    +'<div id="ltBarChart"></div>'
+    +'</div>'
+
+    // FB vs IG 折線 + 發片數×均分組合圖
+    +'<div class="lt-2col">'
+    +'<div class="lt-cc"><div class="lt-cc-hdr"><div class="lt-cc-ttl">FB vs IG 播放對比</div>'
+    +'<div class="lt-leg">'
+    +'<span class="lt-li"><span class="lt-ld" style="background:var(--teal)"></span>FB</span>'
+    +'<span class="lt-li"><span class="lt-ld" style="background:var(--gold)"></span>IG</span>'
+    +'</div></div><div id="ltLineChart"></div></div>'
+    +'<div class="lt-cc"><div class="lt-cc-hdr"><div class="lt-cc-ttl">每月發片數 + 平均分</div>'
+    +'<div class="lt-leg">'
+    +'<span class="lt-li"><span class="lt-ld" style="background:var(--border)"></span>發片數</span>'
+    +'<span class="lt-li"><span class="lt-ld" style="background:var(--gold)"></span>均分</span>'
+    +'</div></div><div id="ltQualChart"></div></div>'
+    +'</div>'
     +'';
+
+  // 圖表繪製
+  ltDrawBar('ltBarChart', last18, barVals);
+  ltDrawLine('ltLineChart', last18, [
+    {col:'var(--teal)', vals: fbVals},
+    {col:'var(--gold)', vals: igVals}
+  ]);
+  ltDrawQual('ltQualChart', last18, cntVals, scoreVals);
+
+  // count-up 動畫
+  setTimeout(function(){
+    var kv0=document.getElementById('ltKv0'); if(kv0) ltCountUp(kv0, totalPlays, 1200);
+    var kv1=document.getElementById('ltKv1'); if(kv1) ltCountUp(kv1, totalVids, 900);
+    var kv2=document.getElementById('ltKv2'); if(kv2) ltCountUp(kv2, Math.round(avgScore), 800);
+    var kv3=document.getElementById('ltKv3'); if(kv3) ltCountUp(kv3, activeMonths, 700);
+  }, 100);
 }
 
 // ── 題材策略 ──────────────────────────────────────────────────────────────
