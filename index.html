@@ -509,6 +509,19 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .ps-vlink{color:inherit;text-decoration:none}
 .ps-vlink:hover{color:var(--gold-dk);text-decoration:underline}
 .ps-caveat{margin:20px 0;padding:12px 16px;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--muted)}
+.ps-ctl{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+.ps-flt{display:inline-block;font-size:12.5px;padding:4px 12px;border:1px solid var(--border);border-radius:99px;background:var(--white);cursor:pointer;user-select:none;color:var(--ink)}
+.ps-flt:hover{border-color:var(--gold)}
+.ps-flt.active{background:var(--gold);color:#fff;border-color:var(--gold)}
+.ps-hint{font-size:12px;color:var(--muted);margin:4px 0 10px}
+.ps-vm{font-size:11.5px;color:var(--muted)}
+.ps-vrow{margin:3px 0 0 4px;font-size:12.5px}
+.ps-main{cursor:pointer}
+.ps-main:hover td{background:rgba(181,146,78,.06)}
+.ps-caret{color:var(--muted);font-size:11px;display:inline-block;width:12px}
+.ps-dtable{width:100%;border-collapse:collapse;background:rgba(181,146,78,.04)}
+.ps-dtable td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px}
+.ps-plat td{font-weight:600;background:rgba(13,148,136,.05)}
 </style>
 </head>
 <body>
@@ -2571,6 +2584,12 @@ function psNormProduct(title) {
   return t || title;
 }
 
+var psState = { sort: 'slAddons', dir: -1, filter: 'all', plat: 'all', camps: [], vmap: {} };
+
+function psEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function initPostsale() {
   var box = document.getElementById('postsaleContent');
   var camps = STATIC_DATA.postsale || [];
@@ -2585,97 +2604,32 @@ function initPostsale() {
   var maxDate = camps.reduce(function(m, c) { return c.date > m ? c.date : m; }, '');
   var cutoff = (parseInt(maxDate.slice(0,4), 10) - 1) + maxDate.slice(4);
   var recent = camps.filter(function(c) { return c.date >= cutoff; });
+  psState.camps = recent;
+  psState.vmap = vmap;
 
-  // 商品分組彙整
-  var groups = {};
+  // KPI（全平台）
+  var matched = 0, totC = 0, totA = 0, totS = 0, totPlays = 0, totReach = 0;
+  var seenV = {};
   recent.forEach(function(c) {
-    var key = psNormProduct(c.title);
-    var g = groups[key];
-    if (!g) g = groups[key] = { product: key, campaigns: 0, slComments: 0, slAddons: 0, slSales: 0,
-                                plays: 0, reach: 0, eng: 0, videos: [], seen: {}, last: '' };
-    g.campaigns++;
-    g.slComments += c.slComments; g.slAddons += c.slAddons; g.slSales += c.slSales;
-    if (c.date > g.last) g.last = c.date;
+    var hit = false;
     (c.videoIds || []).forEach(function(id) {
       var v = vmap[id];
-      if (!v || g.seen[id]) return;
-      g.seen[id] = 1;
-      g.plays += v.plays || 0; g.reach += v.reach || 0;
-      g.eng += (v.likes||0) + (v.comments||0) + (v.shares||0) + (v.saved||0);
-      g.videos.push(v);
+      if (!v) return;
+      hit = true;
+      if (!seenV[id]) { seenV[id] = 1; totPlays += v.plays || 0; totReach += v.reach || 0; }
     });
-  });
-  var glist = Object.keys(groups).map(function(k) { return groups[k]; });
-
-  // KPI
-  var matched = 0, totPlays = 0, totReach = 0;
-  recent.forEach(function(c) {
-    var hit = (c.videoIds || []).some(function(id) { return vmap[id]; });
     if (hit) matched++;
+    totC += c.slComments; totA += c.slAddons; totS += c.slSales;
   });
-  glist.forEach(function(g) { totPlays += g.plays; totReach += g.reach; });
-  var totC = 0, totA = 0, totS = 0;
-  recent.forEach(function(c) { totC += c.slComments; totA += c.slAddons; totS += c.slSales; });
 
-  var sellers = glist.filter(function(g) { return g.slAddons > 0 || g.slSales > 0; })
-    .sort(function(a, b) { return (b.slSales - a.slSales) || (b.slAddons - a.slAddons); });
-  var traffic = glist.slice().sort(function(a, b) { return b.plays - a.plays; }).slice(0, 20);
-
+  var glist = psBuildGroups('all');
+  var sellers = glist.filter(function(g) { return g.slAddons > 0; })
+    .sort(function(a, b) { return b.slAddons - a.slAddons; });
   var selC = 0, selA = 0;
   sellers.forEach(function(g) { selC += g.slComments; selA += g.slAddons; });
   var convAll = selC ? (selA / selC * 100).toFixed(1) : '0';
-
-  function chip(p) { return '<span class="ps-chip ' + p + '">' + p.toUpperCase() + '</span>'; }
-  function vRows(g) {
-    return g.videos.map(function(v) {
-      var eng = (v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saved||0);
-      var er = v.plays ? (eng / v.plays * 100).toFixed(1) : '0';
-      var t = truncTitle((v.description || '').split('\n')[0], 30);
-      return '<tr><td>' + chip(v.platform) + '</td>'
-        + '<td><a class="ps-vlink" href="' + rnkVideoUrl(v) + '" target="_blank" rel="noopener">' + t + '</a></td>'
-        + '<td class="ps-num">' + rnkFmt(v.plays) + '</td>'
-        + '<td class="ps-num">' + rnkFmt(v.reach) + '</td>'
-        + '<td class="ps-num">' + rnkFmt(eng) + '</td>'
-        + '<td class="ps-num">' + er + '%</td>'
-        + '<td class="ps-num" style="color:var(--muted)">' + (v.created_date || '') + '</td></tr>';
-    }).join('');
-  }
-
-  var sellerRows = sellers.map(function(g, i) {
-    var conv = g.slComments ? (g.slAddons / g.slComments * 100).toFixed(1) : '0';
-    var detail = g.videos.length
-      ? '<details><summary>' + g.videos.length + ' 支影片明細</summary><table>'
-        + '<thead><tr><th></th><th>影片</th><th class="ps-num">播放</th><th class="ps-num">觸及</th>'
-        + '<th class="ps-num">互動</th><th class="ps-num">互動率</th><th class="ps-num">發布日</th></tr></thead>'
-        + '<tbody>' + vRows(g) + '</tbody></table></details>'
-      : '';
-    return '<tr><td class="ps-rank">' + (i+1) + '</td>'
-      + '<td style="min-width:200px"><strong>' + g.product + '</strong>' + detail + '</td>'
-      + '<td class="ps-num ps-sales">' + (g.slSales ? 'NT$' + g.slSales.toLocaleString() : '—') + '</td>'
-      + '<td class="ps-num">' + g.slAddons.toLocaleString() + '</td>'
-      + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
-      + '<td class="ps-num">' + conv + '%</td>'
-      + '<td class="ps-num">' + rnkFmt(g.plays) + '</td>'
-      + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>';
-  }).join('');
-
-  var maxP = traffic.length ? traffic[0].plays : 1;
-  var trafficRows = traffic.map(function(g, i) {
-    var er = g.plays ? (g.eng / g.plays * 100).toFixed(1) : '0';
-    var sold = (g.slAddons || g.slSales) ? '<span class="ps-tag">有轉換</span>' : '';
-    return '<tr><td class="ps-rank">' + (i+1) + '</td>'
-      + '<td style="min-width:200px"><strong>' + g.product + '</strong>' + sold
-      + '<div class="ps-bar"><i style="width:' + Math.round(g.plays / maxP * 100) + '%"></i></div></td>'
-      + '<td class="ps-num">' + rnkFmt(g.plays) + '</td>'
-      + '<td class="ps-num">' + rnkFmt(g.reach) + '</td>'
-      + '<td class="ps-num">' + rnkFmt(g.eng) + '</td>'
-      + '<td class="ps-num">' + er + '%</td>'
-      + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
-      + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>';
-  }).join('');
-
   var topSellerNames = sellers.slice(0, 3).map(function(g) { return g.product; }).join('、');
-  var top1 = sellers[0];
+  var nRepeat = glist.filter(function(g) { return g.nCamps >= 2; }).length;
 
   box.innerHTML =
     '<p class="slabel">🛒 貼文銷售 × Meta 成效（近 12 個月）</p>'
@@ -2686,26 +2640,200 @@ function initPostsale() {
     + '<div class="ps-kpi gold"><b>' + rnkFmt(totReach) + '</b><span>影片總觸及</span></div>'
     + '<div class="ps-kpi"><b>' + totC.toLocaleString() + '</b><span>Shopline 留言</span></div>'
     + '<div class="ps-kpi good"><b>' + totA.toLocaleString() + '</b><span>留言加購</span></div>'
-    + '<div class="ps-kpi good"><b>NT$' + totS.toLocaleString() + '</b><span>貼文銷售額</span></div>'
     + '</div>'
     + '<div class="ps-find"><h3>關鍵發現</h3><ul>'
     + '<li><b>流量與帶貨脫鉤：</b>播放量最高的商品貼文多為 0 加購 0 銷售；高播放內容是流量型，觀眾看完就走。</li>'
-    + (top1 ? '<li><b>帶貨主力是開運招財類寵粉款：</b>' + topSellerNames + '。共通點：招財題材＋市價對比話術＋明確關鍵字留言指令。</li>' : '')
+    + (sellers.length ? '<li><b>帶貨主力是開運招財類寵粉款：</b>' + psEsc(topSellerNames) + '。共通點：招財題材＋市價對比話術＋明確關鍵字留言指令。</li>' : '')
     + '<li><b>留言轉加購率是關鍵：</b>有帶貨商品平均轉換率 <b>' + convAll + '%</b>；留言的「質」（下單意圖）比量重要。</li>'
-    + '<li><b>帶貨甜蜜點在 1.4萬–4萬播放：</b>不需爆款流量，需要精準的購買意圖觸發。</li>'
+    + '<li><b>' + nRepeat + ' 項商品有重複貼文</b>：用「重複貼文」篩選＋展開商品列，可比較每次貼文、每個平台的成效差異。</li>'
     + '</ul></div>'
-    + '<p class="slabel">💰 帶貨排行（' + sellers.length + ' 項有轉換）</p>'
-    + '<div class="ps-tw"><table><thead><tr><th></th><th>商品</th><th class="ps-num">銷售額</th>'
-    + '<th class="ps-num">加購</th><th class="ps-num">SL留言</th><th class="ps-num">轉換率</th>'
-    + '<th class="ps-num">影片播放</th><th class="ps-num">最近活動</th></tr></thead>'
-    + '<tbody>' + sellerRows + '</tbody></table></div>'
-    + '<p class="slabel">📈 流量排行 Top 20</p>'
-    + '<div class="ps-tw"><table><thead><tr><th></th><th>商品／貼文主題</th><th class="ps-num">播放</th>'
-    + '<th class="ps-num">觸及</th><th class="ps-num">互動</th><th class="ps-num">互動率</th>'
-    + '<th class="ps-num">SL留言</th><th class="ps-num">最近活動</th></tr></thead>'
-    + '<tbody>' + trafficRows + '</tbody></table></div>'
+    + '<div class="ps-ctl">'
+    + '<span class="ps-vm">篩選：</span>'
+    + '<span class="ps-flt f-all active" onclick="psSetFilter(\'all\',this)">全部商品</span>'
+    + '<span class="ps-flt f-all" onclick="psSetFilter(\'sellers\',this)">💰 有轉換</span>'
+    + '<span class="ps-flt f-all" onclick="psSetFilter(\'repeat\',this)">🔁 重複貼文（≥2 次）</span>'
+    + '<span class="ps-vm" style="margin-left:14px">平台：</span>'
+    + '<span class="ps-flt f-plat active" onclick="psSetPlat(\'all\',this)">FB＋IG</span>'
+    + '<span class="ps-flt f-plat" onclick="psSetPlat(\'fb\',this)">只看 FB</span>'
+    + '<span class="ps-flt f-plat" onclick="psSetPlat(\'ig\',this)">只看 IG</span>'
+    + '</div>'
+    + '<p class="ps-hint">點欄位標題排序 ↕，點商品列展開：FB / IG 平台對比＋每次貼文與影片成效（皆可點連結）</p>'
+    + '<div id="psTableBox"></div>'
     + '<div class="ps-caveat">資料來源：Shopline 貼文銷售匯出 × Meta 影片洞察。未對應的活動多為「照片」貼文（無影片洞察）'
     + '及部分由 Shopline 代發、ID 不在粉專影片庫的 FB Reel。銷售額僅計貼文銷售歸因訂單，不含私訊成交。</div>';
+  psRenderTable();
+}
+
+function psBuildGroups(plat) {
+  var vmap = psState.vmap;
+  var groups = {};
+  psState.camps.forEach(function(c) {
+    if (plat !== 'all' && c.platform !== plat) return;
+    var key = psNormProduct(c.title);
+    var g = groups[key];
+    if (!g) g = groups[key] = { product: key, camps: [], slComments: 0, slAddons: 0, slSales: 0,
+                                plays: 0, reach: 0, eng: 0, vComments: 0, nVids: 0, seen: {}, last: '',
+                                byPlat: { fb: psEmptyPlat(), ig: psEmptyPlat() } };
+    var cVids = [];
+    var bp = g.byPlat[c.platform] || psEmptyPlat();
+    bp.nCamps++;
+    bp.slComments += c.slComments; bp.slAddons += c.slAddons; bp.slSales += c.slSales;
+    (c.videoIds || []).forEach(function(id) {
+      var v = vmap[id];
+      if (!v) return;
+      cVids.push(v);
+      if (g.seen[id]) return;
+      g.seen[id] = 1;
+      var eng = (v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saved||0);
+      g.plays += v.plays || 0; g.reach += v.reach || 0;
+      g.vComments += v.comments || 0; g.eng += eng; g.nVids++;
+      bp.nVids++; bp.plays += v.plays || 0; bp.reach += v.reach || 0;
+      bp.vComments += v.comments || 0; bp.eng += eng;
+    });
+    g.camps.push({ c: c, videos: cVids });
+    g.slComments += c.slComments; g.slAddons += c.slAddons; g.slSales += c.slSales;
+    if (c.date > g.last) g.last = c.date;
+  });
+  return Object.keys(groups).map(function(k) {
+    var g = groups[k];
+    g.nCamps = g.camps.length;
+    g.conv = g.slComments ? g.slAddons / g.slComments * 100 : 0;
+    g.camps.sort(function(a, b) { return a.c.date < b.c.date ? 1 : -1; });
+    return g;
+  });
+}
+
+function psEmptyPlat() {
+  return { nCamps: 0, nVids: 0, plays: 0, reach: 0, vComments: 0, eng: 0, slComments: 0, slAddons: 0, slSales: 0 };
+}
+
+function psSetFilter(f, el) {
+  psState.filter = f;
+  document.querySelectorAll('.ps-flt.f-all').forEach(function(x) { x.classList.remove('active'); });
+  el.classList.add('active');
+  psRenderTable();
+}
+
+function psSetPlat(p, el) {
+  psState.plat = p;
+  document.querySelectorAll('.ps-flt.f-plat').forEach(function(x) { x.classList.remove('active'); });
+  el.classList.add('active');
+  psRenderTable();
+}
+
+function psSort(key) {
+  if (psState.sort === key) { psState.dir *= -1; }
+  else { psState.sort = key; psState.dir = (key === 'product') ? 1 : -1; }
+  psRenderTable();
+}
+
+function psChip(p) { return '<span class="ps-chip ' + p + '">' + p.toUpperCase() + '</span>'; }
+
+function psRenderTable() {
+  var list = psBuildGroups(psState.plat);
+  if (psState.filter === 'sellers') list = list.filter(function(g) { return g.slAddons > 0; });
+  if (psState.filter === 'repeat')  list = list.filter(function(g) { return g.nCamps >= 2; });
+
+  var k = psState.sort, dir = psState.dir;
+  list.sort(function(a, b) {
+    if (k === 'product') return a.product.localeCompare(b.product, 'zh-Hant') * dir;
+    if (k === 'last') return (a.last < b.last ? -1 : a.last > b.last ? 1 : 0) * dir;
+    return ((a[k] || 0) - (b[k] || 0)) * dir;
+  });
+
+  var cols = [
+    ['product',   '商品'],
+    ['nCamps',    '貼文次數'],
+    ['nVids',     '影片數'],
+    ['plays',     '影片播放'],
+    ['reach',     '觸及'],
+    ['vComments', '影片留言'],
+    ['eng',       '互動'],
+    ['slComments','SL留言'],
+    ['slAddons',  '加購'],
+    ['conv',      '轉換率'],
+    ['last',      '最近']
+  ];
+  var head = cols.map(function(c) {
+    var arrow = (psState.sort === c[0]) ? (dir > 0 ? ' ▲' : ' ▼') : '';
+    var cls = (c[0] === 'product') ? '' : ' class="ps-num"';
+    return '<th' + cls + ' style="cursor:pointer" onclick="psSort(\'' + c[0] + '\')">' + c[1] + arrow + '</th>';
+  }).join('');
+
+  var NCOL = cols.length;
+  var rows = list.map(function(g, i) {
+    // 平台對比小計（僅在 FB+IG 檢視時顯示）
+    var platRows = '';
+    if (psState.plat === 'all') {
+      platRows = ['fb', 'ig'].map(function(p) {
+        var bp = g.byPlat[p];
+        if (!bp.nCamps) return '';
+        var conv = bp.slComments ? (bp.slAddons / bp.slComments * 100).toFixed(1) : '0';
+        return '<tr class="ps-sub ps-plat"><td class="ps-num">' + psChip(p) + ' 小計</td>'
+          + '<td class="ps-num">' + bp.nCamps + '</td>'
+          + '<td class="ps-num">' + bp.nVids + '</td>'
+          + '<td class="ps-num">' + rnkFmt(bp.plays) + '</td>'
+          + '<td class="ps-num">' + rnkFmt(bp.reach) + '</td>'
+          + '<td class="ps-num">' + rnkFmt(bp.vComments) + '</td>'
+          + '<td class="ps-num">' + rnkFmt(bp.eng) + '</td>'
+          + '<td class="ps-num">' + bp.slComments.toLocaleString() + '</td>'
+          + '<td class="ps-num">' + bp.slAddons.toLocaleString() + '</td>'
+          + '<td class="ps-num">' + conv + '%</td><td></td></tr>';
+      }).join('');
+    }
+
+    // 每次貼文明細（含影片成效與所有連結）
+    var campRows = g.camps.map(function(e) {
+      var c = e.c;
+      var postLinks = (c.links || []).map(function(l, j) {
+        return '<a class="ps-vlink" href="' + psEsc(l) + '" target="_blank" rel="noopener">貼文' + ((c.links.length > 1) ? (j+1) : '') + ' ↗</a>';
+      }).join(' ');
+      var vidCells = e.videos.map(function(v) {
+        var eng = (v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saved||0);
+        var er = v.plays ? (eng / v.plays * 100).toFixed(1) : '0';
+        return '<div class="ps-vrow">🎬 <a class="ps-vlink" href="' + rnkVideoUrl(v) + '" target="_blank" rel="noopener">'
+          + psEsc(truncTitle((v.description || '').split('\n')[0], 26)) + '</a>'
+          + ' <span class="ps-vm">播放 ' + rnkFmt(v.plays) + '｜觸及 ' + rnkFmt(v.reach)
+          + '｜留言 ' + rnkFmt(v.comments || 0) + '｜互動率 ' + er + '%</span></div>';
+      }).join('');
+      return '<tr class="ps-sub"><td></td>'
+        + '<td colspan="' + (NCOL - 4) + '">' + psChip(c.platform) + ' <b>' + c.date + '</b> '
+        + '<span class="ps-vm">' + psEsc(c.postType || '') + '</span> ' + postLinks + vidCells + '</td>'
+        + '<td class="ps-num">SL留言 ' + c.slComments.toLocaleString() + '</td>'
+        + '<td class="ps-num">加購 ' + c.slAddons.toLocaleString() + '</td>'
+        + '<td></td></tr>';
+    }).join('');
+
+    var rep = g.nCamps >= 2 ? ' <span class="ps-tag">×' + g.nCamps + '</span>' : '';
+    return '<tr class="ps-main" onclick="psToggle(' + i + ')">'
+      + '<td style="min-width:190px"><span class="ps-caret" id="psCaret' + i + '">▸</span> <strong>'
+      + psEsc(g.product) + '</strong>' + rep + '</td>'
+      + '<td class="ps-num">' + g.nCamps + '</td>'
+      + '<td class="ps-num">' + g.nVids + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.plays) + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.reach) + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.vComments) + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.eng) + '</td>'
+      + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
+      + '<td class="ps-num">' + g.slAddons.toLocaleString() + '</td>'
+      + '<td class="ps-num">' + g.conv.toFixed(1) + '%</td>'
+      + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>'
+      + '<tr class="ps-dwrap" id="psDetail' + i + '" style="display:none"><td colspan="' + NCOL + '" style="padding:0">'
+      + '<table class="ps-dtable">' + platRows + campRows + '</table></td></tr>';
+  }).join('');
+
+  document.getElementById('psTableBox').innerHTML =
+    '<div class="ps-tw"><table><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<p class="ps-hint" style="margin:-14px 0 20px">共 ' + list.length + ' 項商品</p>';
+}
+
+function psToggle(i) {
+  var d = document.getElementById('psDetail' + i);
+  var c = document.getElementById('psCaret' + i);
+  if (!d) return;
+  var open = d.style.display !== 'none';
+  d.style.display = open ? 'none' : '';
+  if (c) c.textContent = open ? '▸' : '▾';
 }
 
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
