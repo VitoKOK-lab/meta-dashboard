@@ -646,6 +646,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
     <div class="mob-tab active" onclick="mobileSwitchTab('overview',this)"><span class="mi">📊</span>近期</div>
     <div class="mob-tab" onclick="mobileSwitchTab('theme',this)"><span class="mi">🎯</span>關鍵字</div>
     <div class="mob-tab" onclick="mobileSwitchTab('top20',this)"><span class="mi">🏆</span>排行</div>
+    <div class="mob-tab" onclick="mobileSwitchTab('postsale',this)"><span class="mi">🛒</span>貼文</div>
   </div>
 </div>
 
@@ -2734,7 +2735,7 @@ function psRenderTable() {
   ];
   var head = cols.map(function(c) {
     var cls = (c[0] === 'product') ? '' : ' class="ps-num"';
-    if (c[0] === 'slAddons') return '<th' + cls + ' title="來自 Shopline，僅供參考">' + c[1] + '</th>';
+    if (c[0] === 'slAddons' || c[0] === 'eng') return '<th' + cls + '>' + c[1] + '</th>';
     var arrow = (psState.sort === c[0]) ? (dir > 0 ? ' ▲' : ' ▼') : '';
     return '<th' + cls + ' style="cursor:pointer" onclick="psSort(\'' + c[0] + '\')">' + c[1] + arrow + '</th>';
   }).join('');
