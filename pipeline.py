@@ -491,6 +491,8 @@ def get_stale_ids(videos_dict, refresh_days=INSIGHTS_REFRESH_DAYS):
     today = utc_now().strftime('%Y-%m-%d')
     stale = []
     for vid_id, v in videos_dict.items():
+        if v.get('no_insights'):
+            continue  # 連續失敗多次（如 IG 交叉發布 Reels 無 insights），停止重試
         age = days_ago_from(v.get('created_time', ''))
         if age <= refresh_days:
             last = v.get('insights_at', '')[:10]
@@ -891,14 +893,9 @@ def fetch_insights_for(stale_list):
     results = {}
     if fb_ids:
         print('  [FB] 更新 insights ({} 支)...'.format(len(fb_ids)))
-        # video_insights 已不支援（#100），改用 insights?metric= 新格式（相容 Reels 及一般影片）
-        FB_METRICS = (
-            'blue_reels_play_count,post_impressions_unique,'
-            'post_video_avg_time_watched,post_video_view_time,'
-            'post_video_social_actions,post_video_likes_by_reaction_type,'
-            'post_video_followers,post_video_retention_graph'
-        )
-        raw = batch_api(['{}/insights?metric={}'.format(vid, FB_METRICS) for vid in fb_ids])
+        # video_insights 對一般頁面影片有效；部分影片（IG 交叉發布 Reels 等）
+        # 永遠回 #100，由呼叫端以 insights_fail 計數標記 no_insights 停止重試
+        raw = batch_api(['{}/video_insights'.format(vid) for vid in fb_ids])
         for i, vid in enumerate(fb_ids):
             results[vid] = parse_fb_insights(raw[i]) if raw[i] else {}
     if ig_ids:
@@ -1171,19 +1168,28 @@ def main():
         insights_map = fetch_insights_for(stale)
         now_iso = utc_now().isoformat()
         for vid_id, ins in insights_map.items():
-            if ins and vid_id in videos_dict:
-                # 更新前保留上一次播放數，供爆流量偵測用
-                prev_plays = videos_dict[vid_id].get('plays') or 0
-                if prev_plays > 0:
-                    videos_dict[vid_id]['plays_prev']    = prev_plays
-                    videos_dict[vid_id]['plays_prev_at'] = videos_dict[vid_id].get('insights_at', '')
-                videos_dict[vid_id].update(ins)
-                # 只在有真實播放數、或影片已超過 24 小時時才標記 insights_at
-                # 避免新影片 API 尚未回傳數據（plays=0）就被鎖定，導致永遠不再重抓
-                has_data = (ins.get('plays') or 0) > 0
-                age_hours = days_ago_from(videos_dict[vid_id].get('created_time', '')) * 24
-                if has_data or age_hours >= 24:
-                    videos_dict[vid_id]['insights_at'] = now_iso
+            if vid_id not in videos_dict:
+                continue
+            if not ins:
+                # API 失敗：連續 3 次後標記 no_insights，不再重試（如 IG 交叉發布 Reels）
+                fails = (videos_dict[vid_id].get('insights_fail') or 0) + 1
+                videos_dict[vid_id]['insights_fail'] = fails
+                if fails >= 3:
+                    videos_dict[vid_id]['no_insights'] = True
+                continue
+            videos_dict[vid_id].pop('insights_fail', None)
+            # 更新前保留上一次播放數，供爆流量偵測用
+            prev_plays = videos_dict[vid_id].get('plays') or 0
+            if prev_plays > 0:
+                videos_dict[vid_id]['plays_prev']    = prev_plays
+                videos_dict[vid_id]['plays_prev_at'] = videos_dict[vid_id].get('insights_at', '')
+            videos_dict[vid_id].update(ins)
+            # 只在有真實播放數、或影片已超過 24 小時時才標記 insights_at
+            # 避免新影片 API 尚未回傳數據（plays=0）就被鎖定，導致永遠不再重抓
+            has_data = (ins.get('plays') or 0) > 0
+            age_hours = days_ago_from(videos_dict[vid_id].get('created_time', '')) * 24
+            if has_data or age_hours >= 24:
+                videos_dict[vid_id]['insights_at'] = now_iso
 
     # 補抓缺少 permalink 的 IG 影片（逐步補齊，每次最多 50 支）
     backfill_ig_permalinks(videos_dict)
