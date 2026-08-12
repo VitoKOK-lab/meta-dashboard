@@ -477,6 +477,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .lt-li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
 .lt-ld{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .lt-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rnk-title-link:hover{color:var(--gold)!important;text-decoration:underline!important}
 @media(max-width:900px){.lt-2col{grid-template-columns:1fr}}
 </style>
 </head>
@@ -2203,6 +2204,16 @@ function renderRecentTable() {
 // ── 歷史排行榜 ──────────────────────────────────────────────────────────────
 var rnkPlat = 'all', rnkType = 'all', rnkSort = 'created_date', rnkAsc = false, rnkQ = '';
 
+function rnkVideoUrl(v) {
+  var id = v.id;
+  if (v.platform === 'fb') return 'https://www.facebook.com/watch/?v=' + id;
+  // IG: encode numeric ID to shortcode (base64url)
+  var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  var n = typeof id === 'string' ? parseInt(id, 10) : id;
+  var sc = '';
+  while (n > 0) { sc = alpha[n % 64] + sc; n = Math.floor(n / 64); }
+  return 'https://www.instagram.com/reel/' + sc + '/';
+}
 function rnkFmt(n) {
   if (n == null || n === '') return '—';
   if (n >= 10000) return (n/10000).toFixed(1) + '萬';
@@ -2276,7 +2287,7 @@ function rnkRenderPodium(list) {
     var cr = v.completionRate != null ? (v.completionRate*100).toFixed(1)+'%' : '—';
     return '<div class="rnk-pod-card r'+(i+1)+'">'
       +'<div class="rnk-pod-rank '+rnkRankCls(i)+'">'+rnkRankEmoji(i)+'</div>'
-      +'<div class="rnk-pod-title">'+(v.description||v.caption||'（無標題）')+'</div>'
+      +'<div class="rnk-pod-title"><a href="'+rnkVideoUrl(v)+'" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dashed var(--gold)">'+(v.description||v.caption||'（無標題）')+'</a></div>'
       +'<div class="rnk-pod-badges">'+rnkPlatBadge(v.platform)+rnkTypeBadge(v.type)+'<span class="rnk-date">'+v.created_date+'</span></div>'
       +'<div class="rnk-pod-stats">'
         +'<div><div class="rnk-pod-stat-lbl">播放</div><div class="rnk-pod-stat-val">'+rnkFmt(v.plays)+'</div></div>'
@@ -2300,7 +2311,7 @@ function rnkRenderTable(list) {
       +'<td style="text-align:center"><span class="rnk-num '+rnkRankCls(i)+'">'+rnkRankEmoji(i)+'</span></td>'
       +'<td class="rnk-hide-sm">'+rnkPlatBadge(v.platform)+'</td>'
       +'<td class="rnk-title-cell">'
-        +'<div class="rnk-title-txt">'+(v.description||v.caption||'（無標題）')+'</div>'
+        +'<div class="rnk-title-txt"><a href="'+rnkVideoUrl(v)+'" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" class="rnk-title-link">'+(v.description||v.caption||'（無標題）')+'</a></div>'
         +'<div class="rnk-meta">'+rnkTypeBadge(v.type)+'</div>'
       +'</td>'
       +'<td class="rnk-hide-sm"><span class="rnk-date">'+(v.created_date||'—')+'</span></td>'
