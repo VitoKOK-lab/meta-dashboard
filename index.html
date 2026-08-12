@@ -2584,7 +2584,7 @@ function psNormProduct(title) {
   return t || title;
 }
 
-var psState = { sort: 'slAddons', dir: -1, filter: 'all', plat: 'all', camps: [], vmap: {} };
+var psState = { sort: 'plays', dir: -1, filter: 'all', plat: 'all', camps: [], vmap: {} };
 
 function psEsc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -2623,12 +2623,6 @@ function initPostsale() {
   });
 
   var glist = psBuildGroups('all');
-  var sellers = glist.filter(function(g) { return g.slAddons > 0; })
-    .sort(function(a, b) { return b.slAddons - a.slAddons; });
-  var selC = 0, selA = 0;
-  sellers.forEach(function(g) { selC += g.slComments; selA += g.slAddons; });
-  var convAll = selC ? (selA / selC * 100).toFixed(1) : '0';
-  var topSellerNames = sellers.slice(0, 3).map(function(g) { return g.product; }).join('、');
   var nRepeat = glist.filter(function(g) { return g.nCamps >= 2; }).length;
 
   box.innerHTML =
@@ -2642,17 +2636,11 @@ function initPostsale() {
     + '<div class="ps-kpi good"><b>' + totA.toLocaleString() + '</b><span>留言加購</span></div>'
     + '</div>'
     + '<div class="ps-find"><h3>關鍵發現</h3><ul>'
-    + '<li><b>流量與帶貨脫鉤：</b>播放量最高的商品貼文多為 0 加購 0 銷售；高播放內容是流量型，觀眾看完就走。</li>'
-    + (sellers.length ? '<li><b>帶貨主力是開運招財類寵粉款：</b>' + psEsc(topSellerNames) + '。共通點：招財題材＋市價對比話術＋明確關鍵字留言指令。</li>' : '')
-    + '<li><b>留言轉加購率是關鍵：</b>有帶貨商品平均轉換率 <b>' + convAll + '%</b>；留言的「質」（下單意圖）比量重要。</li>'
-    + '<li><b>' + nRepeat + ' 項商品有重複貼文</b>：用「重複貼文」篩選＋展開商品列，可比較每次貼文、每個平台的成效差異。</li>'
+    + '<li><b>流量與帶貨脫鉤：</b>高播放的商品貼文不一定帶單；看影片留言數比看播放量更接近購買意圖。</li>'
+    + '<li><b>' + nRepeat + ' 項商品有重複貼文</b>（商品名旁 ×N 標記）：點商品列展開，可比較每次貼文、每個平台的成效差異。</li>'
     + '</ul></div>'
     + '<div class="ps-ctl">'
-    + '<span class="ps-vm">篩選：</span>'
-    + '<span class="ps-flt f-all active" onclick="psSetFilter(\'all\',this)">全部商品</span>'
-    + '<span class="ps-flt f-all" onclick="psSetFilter(\'sellers\',this)">💰 有轉換</span>'
-    + '<span class="ps-flt f-all" onclick="psSetFilter(\'repeat\',this)">🔁 重複貼文（≥2 次）</span>'
-    + '<span class="ps-vm" style="margin-left:14px">平台：</span>'
+    + '<span class="ps-vm">平台：</span>'
     + '<span class="ps-flt f-plat active" onclick="psSetPlat(\'all\',this)">FB＋IG</span>'
     + '<span class="ps-flt f-plat" onclick="psSetPlat(\'fb\',this)">只看 FB</span>'
     + '<span class="ps-flt f-plat" onclick="psSetPlat(\'ig\',this)">只看 IG</span>'
@@ -2707,13 +2695,6 @@ function psEmptyPlat() {
   return { nCamps: 0, nVids: 0, plays: 0, reach: 0, vComments: 0, eng: 0, slComments: 0, slAddons: 0, slSales: 0 };
 }
 
-function psSetFilter(f, el) {
-  psState.filter = f;
-  document.querySelectorAll('.ps-flt.f-all').forEach(function(x) { x.classList.remove('active'); });
-  el.classList.add('active');
-  psRenderTable();
-}
-
 function psSetPlat(p, el) {
   psState.plat = p;
   document.querySelectorAll('.ps-flt.f-plat').forEach(function(x) { x.classList.remove('active'); });
@@ -2731,8 +2712,6 @@ function psChip(p) { return '<span class="ps-chip ' + p + '">' + p.toUpperCase()
 
 function psRenderTable() {
   var list = psBuildGroups(psState.plat);
-  if (psState.filter === 'sellers') list = list.filter(function(g) { return g.slAddons > 0; });
-  if (psState.filter === 'repeat')  list = list.filter(function(g) { return g.nCamps >= 2; });
 
   var k = psState.sort, dir = psState.dir;
   list.sort(function(a, b) {
@@ -2751,12 +2730,12 @@ function psRenderTable() {
     ['eng',       '互動'],
     ['slComments','SL留言'],
     ['slAddons',  '加購'],
-    ['conv',      '轉換率'],
     ['last',      '最近']
   ];
   var head = cols.map(function(c) {
-    var arrow = (psState.sort === c[0]) ? (dir > 0 ? ' ▲' : ' ▼') : '';
     var cls = (c[0] === 'product') ? '' : ' class="ps-num"';
+    if (c[0] === 'slAddons') return '<th' + cls + ' title="來自 Shopline，僅供參考">' + c[1] + '</th>';
+    var arrow = (psState.sort === c[0]) ? (dir > 0 ? ' ▲' : ' ▼') : '';
     return '<th' + cls + ' style="cursor:pointer" onclick="psSort(\'' + c[0] + '\')">' + c[1] + arrow + '</th>';
   }).join('');
 
@@ -2768,7 +2747,6 @@ function psRenderTable() {
       platRows = ['fb', 'ig'].map(function(p) {
         var bp = g.byPlat[p];
         if (!bp.nCamps) return '';
-        var conv = bp.slComments ? (bp.slAddons / bp.slComments * 100).toFixed(1) : '0';
         return '<tr class="ps-sub ps-plat"><td class="ps-num">' + psChip(p) + ' 小計</td>'
           + '<td class="ps-num">' + bp.nCamps + '</td>'
           + '<td class="ps-num">' + bp.nVids + '</td>'
@@ -2778,7 +2756,7 @@ function psRenderTable() {
           + '<td class="ps-num">' + rnkFmt(bp.eng) + '</td>'
           + '<td class="ps-num">' + bp.slComments.toLocaleString() + '</td>'
           + '<td class="ps-num">' + bp.slAddons.toLocaleString() + '</td>'
-          + '<td class="ps-num">' + conv + '%</td><td></td></tr>';
+          + '<td></td></tr>';
       }).join('');
     }
 
@@ -2816,7 +2794,6 @@ function psRenderTable() {
       + '<td class="ps-num">' + rnkFmt(g.eng) + '</td>'
       + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
       + '<td class="ps-num">' + g.slAddons.toLocaleString() + '</td>'
-      + '<td class="ps-num">' + g.conv.toFixed(1) + '%</td>'
       + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>'
       + '<tr class="ps-dwrap" id="psDetail' + i + '" style="display:none"><td colspan="' + NCOL + '" style="padding:0">'
       + '<table class="ps-dtable">' + platRows + campRows + '</table></td></tr>';
