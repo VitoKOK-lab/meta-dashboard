@@ -479,6 +479,36 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
 .lt-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .rnk-title-link:hover{color:var(--gold)!important;text-decoration:underline!important}
 @media(max-width:900px){.lt-2col{grid-template-columns:1fr}}
+/* ── 貼文銷售分析 ── */
+.ps-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+.ps-kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.ps-kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ps-kpi span{font-size:11.5px;color:var(--muted)}
+.ps-kpi.gold b{color:var(--gold-dk)}
+.ps-kpi.good b{color:var(--teal)}
+.ps-find{background:var(--white);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--r);padding:14px 18px;margin:14px 0;font-size:13.5px}
+.ps-find h3{margin:0 0 8px;font-size:14px}
+.ps-find li{margin:6px 0;line-height:1.7}
+.ps-find b{color:var(--gold-dk)}
+.ps-tw{overflow-x:auto;background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin:10px 0 24px}
+.ps-tw table{border-collapse:collapse;width:100%;font-size:13px}
+.ps-tw th{text-align:left;font-size:11px;color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.ps-tw td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.ps-tw tr:last-child td{border-bottom:none}
+.ps-num{text-align:right!important;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ps-rank{color:var(--muted);width:2em}
+.ps-sales{color:var(--teal);font-weight:700}
+.ps-chip{display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border-radius:99px;color:#fff;vertical-align:1px}
+.ps-chip.fb{background:#3b5b92}.ps-chip.ig{background:#b0447c}
+.ps-tag{display:inline-block;font-size:10.5px;font-weight:600;color:var(--teal);border:1px solid var(--teal);border-radius:99px;padding:0 6px;margin-left:5px}
+.ps-bar{height:4px;background:var(--border);border-radius:2px;margin-top:5px;max-width:230px}
+.ps-bar i{display:block;height:100%;background:var(--gold);border-radius:2px}
+.ps-tw details{margin-top:6px}
+.ps-tw summary{cursor:pointer;font-size:12px;color:var(--teal)}
+.ps-tw details table{font-size:12px;margin-top:6px}
+.ps-vlink{color:inherit;text-decoration:none}
+.ps-vlink:hover{color:var(--gold-dk);text-decoration:underline}
+.ps-caveat{margin:20px 0;padding:12px 16px;border:1px dashed var(--border);border-radius:var(--r);font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -498,6 +528,7 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
       <div class="tab" onclick="switchTab('summary',this)">📋 總覽</div>
       <div class="tab" onclick="switchTab('theme',this)">🎯 關鍵字</div>
       <div class="tab" onclick="switchTab('top20',this)">🏆 排行榜</div>
+      <div class="tab" onclick="switchTab('postsale',this)">🛒 貼文銷售</div>
       <div class="tab" onclick="switchTab('search',this)">🔍 尋找</div>
     </div>
     <div class="hdr-right">
@@ -521,6 +552,11 @@ body{font-family:var(--font);background:var(--off);color:var(--ink);min-height:1
   <!-- 題材策略 -->
   <div class="section" id="sec-theme">
     <div id="themeContent"></div>
+  </div>
+
+  <!-- 貼文銷售 -->
+  <div class="section" id="sec-postsale">
+    <div id="postsaleContent"></div>
   </div>
 
   <!-- 排行榜 -->
@@ -2525,8 +2561,155 @@ function runSearch(q) {
 }
 
 
+// ── 貼文銷售分析 ──────────────────────────────────────────────────────────
+function psNormProduct(title) {
+  var t = (title || '').trim();
+  t = t.replace(/\d{8}[a-z]\d+(fb|ig)?$/i, '');
+  t = t.replace(/(fb|ig)$/i, '');
+  t = t.replace(/^\d{4}\/\d{2}\/\d{2}\s*/, '');
+  t = t.replace(/^[\s\-_|]+|[\s\-_|]+$/g, '');
+  return t || title;
+}
+
+function initPostsale() {
+  var box = document.getElementById('postsaleContent');
+  var camps = STATIC_DATA.postsale || [];
+  if (!camps.length) {
+    box.innerHTML = '<div class="ps-caveat">尚無貼文銷售資料（data/postsale_links.csv）</div>';
+    return;
+  }
+  var vmap = {};
+  (STATIC_DATA.videos || []).forEach(function(v) { vmap[v.id] = v; });
+
+  // 只看近 12 個月（以最新活動日為基準）
+  var maxDate = camps.reduce(function(m, c) { return c.date > m ? c.date : m; }, '');
+  var cutoff = (parseInt(maxDate.slice(0,4), 10) - 1) + maxDate.slice(4);
+  var recent = camps.filter(function(c) { return c.date >= cutoff; });
+
+  // 商品分組彙整
+  var groups = {};
+  recent.forEach(function(c) {
+    var key = psNormProduct(c.title);
+    var g = groups[key];
+    if (!g) g = groups[key] = { product: key, campaigns: 0, slComments: 0, slAddons: 0, slSales: 0,
+                                plays: 0, reach: 0, eng: 0, videos: [], seen: {}, last: '' };
+    g.campaigns++;
+    g.slComments += c.slComments; g.slAddons += c.slAddons; g.slSales += c.slSales;
+    if (c.date > g.last) g.last = c.date;
+    (c.videoIds || []).forEach(function(id) {
+      var v = vmap[id];
+      if (!v || g.seen[id]) return;
+      g.seen[id] = 1;
+      g.plays += v.plays || 0; g.reach += v.reach || 0;
+      g.eng += (v.likes||0) + (v.comments||0) + (v.shares||0) + (v.saved||0);
+      g.videos.push(v);
+    });
+  });
+  var glist = Object.keys(groups).map(function(k) { return groups[k]; });
+
+  // KPI
+  var matched = 0, totPlays = 0, totReach = 0;
+  recent.forEach(function(c) {
+    var hit = (c.videoIds || []).some(function(id) { return vmap[id]; });
+    if (hit) matched++;
+  });
+  glist.forEach(function(g) { totPlays += g.plays; totReach += g.reach; });
+  var totC = 0, totA = 0, totS = 0;
+  recent.forEach(function(c) { totC += c.slComments; totA += c.slAddons; totS += c.slSales; });
+
+  var sellers = glist.filter(function(g) { return g.slAddons > 0 || g.slSales > 0; })
+    .sort(function(a, b) { return (b.slSales - a.slSales) || (b.slAddons - a.slAddons); });
+  var traffic = glist.slice().sort(function(a, b) { return b.plays - a.plays; }).slice(0, 20);
+
+  var selC = 0, selA = 0;
+  sellers.forEach(function(g) { selC += g.slComments; selA += g.slAddons; });
+  var convAll = selC ? (selA / selC * 100).toFixed(1) : '0';
+
+  function chip(p) { return '<span class="ps-chip ' + p + '">' + p.toUpperCase() + '</span>'; }
+  function vRows(g) {
+    return g.videos.map(function(v) {
+      var eng = (v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saved||0);
+      var er = v.plays ? (eng / v.plays * 100).toFixed(1) : '0';
+      var t = truncTitle((v.description || '').split('\n')[0], 30);
+      return '<tr><td>' + chip(v.platform) + '</td>'
+        + '<td><a class="ps-vlink" href="' + rnkVideoUrl(v) + '" target="_blank" rel="noopener">' + t + '</a></td>'
+        + '<td class="ps-num">' + rnkFmt(v.plays) + '</td>'
+        + '<td class="ps-num">' + rnkFmt(v.reach) + '</td>'
+        + '<td class="ps-num">' + rnkFmt(eng) + '</td>'
+        + '<td class="ps-num">' + er + '%</td>'
+        + '<td class="ps-num" style="color:var(--muted)">' + (v.created_date || '') + '</td></tr>';
+    }).join('');
+  }
+
+  var sellerRows = sellers.map(function(g, i) {
+    var conv = g.slComments ? (g.slAddons / g.slComments * 100).toFixed(1) : '0';
+    var detail = g.videos.length
+      ? '<details><summary>' + g.videos.length + ' 支影片明細</summary><table>'
+        + '<thead><tr><th></th><th>影片</th><th class="ps-num">播放</th><th class="ps-num">觸及</th>'
+        + '<th class="ps-num">互動</th><th class="ps-num">互動率</th><th class="ps-num">發布日</th></tr></thead>'
+        + '<tbody>' + vRows(g) + '</tbody></table></details>'
+      : '';
+    return '<tr><td class="ps-rank">' + (i+1) + '</td>'
+      + '<td style="min-width:200px"><strong>' + g.product + '</strong>' + detail + '</td>'
+      + '<td class="ps-num ps-sales">' + (g.slSales ? 'NT$' + g.slSales.toLocaleString() : '—') + '</td>'
+      + '<td class="ps-num">' + g.slAddons.toLocaleString() + '</td>'
+      + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
+      + '<td class="ps-num">' + conv + '%</td>'
+      + '<td class="ps-num">' + rnkFmt(g.plays) + '</td>'
+      + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>';
+  }).join('');
+
+  var maxP = traffic.length ? traffic[0].plays : 1;
+  var trafficRows = traffic.map(function(g, i) {
+    var er = g.plays ? (g.eng / g.plays * 100).toFixed(1) : '0';
+    var sold = (g.slAddons || g.slSales) ? '<span class="ps-tag">有轉換</span>' : '';
+    return '<tr><td class="ps-rank">' + (i+1) + '</td>'
+      + '<td style="min-width:200px"><strong>' + g.product + '</strong>' + sold
+      + '<div class="ps-bar"><i style="width:' + Math.round(g.plays / maxP * 100) + '%"></i></div></td>'
+      + '<td class="ps-num">' + rnkFmt(g.plays) + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.reach) + '</td>'
+      + '<td class="ps-num">' + rnkFmt(g.eng) + '</td>'
+      + '<td class="ps-num">' + er + '%</td>'
+      + '<td class="ps-num">' + g.slComments.toLocaleString() + '</td>'
+      + '<td class="ps-num" style="color:var(--muted)">' + g.last + '</td></tr>';
+  }).join('');
+
+  var topSellerNames = sellers.slice(0, 3).map(function(g) { return g.product; }).join('、');
+  var top1 = sellers[0];
+
+  box.innerHTML =
+    '<p class="slabel">🛒 貼文銷售 × Meta 成效（近 12 個月）</p>'
+    + '<div class="ps-kpis">'
+    + '<div class="ps-kpi"><b>' + recent.length.toLocaleString() + '</b><span>銷售活動</span></div>'
+    + '<div class="ps-kpi"><b>' + matched.toLocaleString() + '</b><span>對應到影片數據</span></div>'
+    + '<div class="ps-kpi gold"><b>' + rnkFmt(totPlays) + '</b><span>影片總播放</span></div>'
+    + '<div class="ps-kpi gold"><b>' + rnkFmt(totReach) + '</b><span>影片總觸及</span></div>'
+    + '<div class="ps-kpi"><b>' + totC.toLocaleString() + '</b><span>Shopline 留言</span></div>'
+    + '<div class="ps-kpi good"><b>' + totA.toLocaleString() + '</b><span>留言加購</span></div>'
+    + '<div class="ps-kpi good"><b>NT$' + totS.toLocaleString() + '</b><span>貼文銷售額</span></div>'
+    + '</div>'
+    + '<div class="ps-find"><h3>關鍵發現</h3><ul>'
+    + '<li><b>流量與帶貨脫鉤：</b>播放量最高的商品貼文多為 0 加購 0 銷售；高播放內容是流量型，觀眾看完就走。</li>'
+    + (top1 ? '<li><b>帶貨主力是開運招財類寵粉款：</b>' + topSellerNames + '。共通點：招財題材＋市價對比話術＋明確關鍵字留言指令。</li>' : '')
+    + '<li><b>留言轉加購率是關鍵：</b>有帶貨商品平均轉換率 <b>' + convAll + '%</b>；留言的「質」（下單意圖）比量重要。</li>'
+    + '<li><b>帶貨甜蜜點在 1.4萬–4萬播放：</b>不需爆款流量，需要精準的購買意圖觸發。</li>'
+    + '</ul></div>'
+    + '<p class="slabel">💰 帶貨排行（' + sellers.length + ' 項有轉換）</p>'
+    + '<div class="ps-tw"><table><thead><tr><th></th><th>商品</th><th class="ps-num">銷售額</th>'
+    + '<th class="ps-num">加購</th><th class="ps-num">SL留言</th><th class="ps-num">轉換率</th>'
+    + '<th class="ps-num">影片播放</th><th class="ps-num">最近活動</th></tr></thead>'
+    + '<tbody>' + sellerRows + '</tbody></table></div>'
+    + '<p class="slabel">📈 流量排行 Top 20</p>'
+    + '<div class="ps-tw"><table><thead><tr><th></th><th>商品／貼文主題</th><th class="ps-num">播放</th>'
+    + '<th class="ps-num">觸及</th><th class="ps-num">互動</th><th class="ps-num">互動率</th>'
+    + '<th class="ps-num">SL留言</th><th class="ps-num">最近活動</th></tr></thead>'
+    + '<tbody>' + trafficRows + '</tbody></table></div>'
+    + '<div class="ps-caveat">資料來源：Shopline 貼文銷售匯出 × Meta 影片洞察。未對應的活動多為「照片」貼文（無影片洞察）'
+    + '及部分由 Shopline 代發、ID 不在粉專影片庫的 FB Reel。銷售額僅計貼文銷售歸因訂單，不含私訊成交。</div>';
+}
+
 // ── Tab 切換 ──────────────────────────────────────────────────────────────
-var initiated = { overview: false, summary: false, theme: false, top20: false, search: false };
+var initiated = { overview: false, summary: false, theme: false, top20: false, postsale: false, search: false };
 
 function switchTab(id, el) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
@@ -2540,6 +2723,7 @@ function switchTab(id, el) {
     if (id === 'summary') initSummary();
     if (id === 'theme') initTheme();
     if (id === 'top20') renderTop10();
+    if (id === 'postsale') initPostsale();
   }
   if (id === 'search') {
     setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
@@ -2549,8 +2733,8 @@ function switchTab(id, el) {
 }
 
 function mobileSwitchTab(id, el) {
-  // 桌面 tab 順序：0=近期 1=總覽 2=關鍵字 3=排行榜 4=尋找
-  var tabMap = { overview: 0, theme: 2, top20: 3, search: 4 };
+  // 桌面 tab 順序：0=近期 1=總覽 2=關鍵字 3=排行榜 4=貼文銷售 5=尋找
+  var tabMap = { overview: 0, theme: 2, top20: 3, postsale: 4, search: 5 };
   var tabs = document.querySelectorAll('.tab');
   if (tabs[tabMap[id]] !== undefined) tabs[tabMap[id]].click();
   document.querySelectorAll('.mob-tab').forEach(function(t) { t.classList.remove('active'); });

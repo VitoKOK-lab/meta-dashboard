@@ -10,6 +10,7 @@ Token 讀取順序：
   2. 本機 config.py（本地測試用）
 """
 from __future__ import print_function
+import csv
 import json
 import os
 import re
@@ -1013,6 +1014,40 @@ def save_daily_snapshot(videos_dict):
         writer.writerows(new_rows)
     print('快照：已儲存 {} 支影片的今日數據 ({})'.format(len(new_rows), today))
 
+POSTSALE_PATH = os.path.join(BASE_DIR, 'data', 'postsale_links.csv')
+
+def load_postsale():
+    """讀取 Shopline 貼文銷售匯出 CSV，回傳活動清單（含對應影片 ID）。"""
+    if not os.path.exists(POSTSALE_PATH):
+        return []
+    campaigns = []
+    with open(POSTSALE_PATH, newline='', encoding='utf-8-sig') as f:
+        for r in csv.DictReader(f):
+            links = [l.strip() for l in (r.get('貼文連結') or '').split('\n') if l.strip()]
+            metas = [m.strip() for m in (r.get('Meta post ID') or '').split('\n') if m.strip()]
+            plat = r.get('平台', '')
+            vids = []
+            for l in links:
+                m = re.search(r'facebook\.com/reel/(\d+)', l)
+                if m:
+                    vids.append(m.group(1))
+            if plat == 'Instagram':
+                vids = metas or vids  # IG 的 Meta post ID 即 media ID
+            campaigns.append({
+                'id':       r.get('活動ID', ''),
+                'date':     r.get('建立日期', ''),
+                'platform': 'ig' if plat == 'Instagram' else 'fb',
+                'title':    r.get('活動標題', ''),
+                'postType': r.get('貼文類型', ''),
+                'links':    links,
+                'videoIds': vids,
+                'slComments': int(r.get('留言數') or 0),
+                'slAddons':   int(r.get('留言加購') or 0),
+                'slSales':    int(r.get('銷售額NT$') or 0),
+            })
+    print('  貼文銷售：載入 {} 個活動'.format(len(campaigns)))
+    return campaigns
+
 def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_list=None):
     if not os.path.exists(TEMPLATE_PATH):
         print('ERROR: 找不到 template.html')
@@ -1028,6 +1063,7 @@ def generate_html(recent_videos, avg_fb, avg_ig, follower_history=None, lives_li
         'videos':          [to_js_video(v) for v in recent_videos],
         'followerHistory': follower_history or [],
         'lives':           [to_js_live(lv) for lv in (lives_list or [])],
+        'postsale':        load_postsale(),
         'ghRepo':          GH_REPO,
     }
     html = template.replace('__STATIC_DATA__', json.dumps(payload, ensure_ascii=False))
