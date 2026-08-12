@@ -890,7 +890,14 @@ def fetch_insights_for(stale_list):
     results = {}
     if fb_ids:
         print('  [FB] 更新 insights ({} 支)...'.format(len(fb_ids)))
-        raw = batch_api(['{}/video_insights'.format(vid) for vid in fb_ids])
+        # video_insights 已不支援（#100），改用 insights?metric= 新格式（相容 Reels 及一般影片）
+        FB_METRICS = (
+            'blue_reels_play_count,post_impressions_unique,'
+            'post_video_avg_time_watched,post_video_view_time,'
+            'post_video_social_actions,post_video_likes_by_reaction_type,'
+            'post_video_followers,post_video_retention_graph'
+        )
+        raw = batch_api(['{}/insights?metric={}'.format(vid, FB_METRICS) for vid in fb_ids])
         for i, vid in enumerate(fb_ids):
             results[vid] = parse_fb_insights(raw[i]) if raw[i] else {}
     if ig_ids:
