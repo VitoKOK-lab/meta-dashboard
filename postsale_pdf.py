@@ -65,7 +65,7 @@ def ensure_fonts():
         from fontTools.varLib.instancer import instantiateVariableFont
         for wght, path in ((700, reg), (900, bold)):
             f = FTFont(var_path)
-            instantiateVariableFont(f, {'wght': wght})
+            instantiateVariableFont(f, {'wght': wght}, inplace=True)
             f.save(path)
         return reg, bold
     except ImportError:
@@ -282,8 +282,8 @@ def make_styles():
         'subtitle': ParagraphStyle('subtitle', fontSize=12, leading=17, textColor=MUTED, **base),
         'kpi': ParagraphStyle('kpi', fontSize=11.5, leading=16, textColor=DARK, **base),
         'note': ParagraphStyle('note', fontSize=10, leading=14, textColor=MUTED, **base),
-        'ghead': ParagraphStyle('ghead', fontName='NotoTC-Bold', fontSize=14.5, leading=19,
-                                textColor=DARK),
+        'ghead': ParagraphStyle('ghead', fontName='NotoTC-Bold', fontSize=17, leading=22,
+                                textColor='#000000'),
         'gsum': ParagraphStyle('gsum', fontSize=11, leading=15.5, textColor=MUTED, **base),
         'cell': ParagraphStyle('cell', fontSize=10.5, leading=14.5, textColor=DARK, **base),
         'cellm': ParagraphStyle('cellm', fontSize=10, leading=14, textColor=MUTED, **base),
@@ -358,7 +358,7 @@ def build_product_pdf(glist, link_map, kpi, out_path):
 
     glist = sorted(glist, key=lambda g: (-g['nCamps'], -g['plays'], g['product']))
 
-    col_w = [16 * mm, 21 * mm, 12 * mm, 56 * mm, 18 * mm, 18 * mm, 20 * mm, 21 * mm]
+    col_w = [16 * mm, 24 * mm, 12 * mm, 53 * mm, 18 * mm, 18 * mm, 20 * mm, 21 * mm]
     head = [Paragraph(h, styles['chead']) for h in
             ['次序', '日期', '平台', '貼文 / 帶貨影片（點擊開啟）', '播放', '觸及', '互動率', 'SL成效']]
 
@@ -488,8 +488,9 @@ def build_video_pdf(videos, link_map, kpi, out_path):
                 sl_bits.append('加購 ' + fmt(c['slAddons']))
             if c['slSales']:
                 sl_bits.append('NT$ ' + fmt(c['slSales']))
-            prods.append('{} <font color="{}" size="9">{}{}</font>'.format(
-                link_para(esc(trunc(norm_product(c['title']), 18)), pl, styles['cellm']),
+            prods.append('<b>{}</b><br/><font color="{}" size="9">{}{}</font>'.format(
+                link_para(esc(trunc(norm_product(c['title']), 18)), pl, styles['cellm'],
+                          color=DARK),
                 MUTED, c['date'], ('｜' + '｜'.join(sl_bits)) if sl_bits else ''))
         rows.append([
             Paragraph('<b>{}</b>'.format(rank), styles['cell']),
