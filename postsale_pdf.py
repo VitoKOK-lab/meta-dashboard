@@ -35,7 +35,7 @@ NOTO_URL = ('https://raw.githubusercontent.com/google/fonts/main/'
 # ── 色彩（沿用儀表板金黑風格）────────────────────────────────────────────────
 GOLD = '#b08d3c'
 DARK = '#1a1a1a'
-MUTED = '#8a8378'
+MUTED = '#6e6857'
 GOOD = '#0d9488'
 BG_HEAD = '#26221a'
 BG_ROW = '#f7f4ec'
@@ -51,7 +51,7 @@ def tw_now():
 # ── 字型 ─────────────────────────────────────────────────────────────────────
 def ensure_fonts():
     """回傳 (regular_path, bold_path)。優先用已生成的靜態字重，否則下載＋實例化。"""
-    reg = os.path.join(FONT_DIR, 'NotoSansTC-Regular.ttf')
+    reg = os.path.join(FONT_DIR, 'NotoSansTC-Medium.ttf')
     bold = os.path.join(FONT_DIR, 'NotoSansTC-Bold.ttf')
     if os.path.exists(reg) and os.path.exists(bold):
         return reg, bold
@@ -63,7 +63,7 @@ def ensure_fonts():
     try:
         from fontTools.ttLib import TTFont as FTFont
         from fontTools.varLib.instancer import instantiateVariableFont
-        for wght, path in ((400, reg), (700, bold)):
+        for wght, path in ((500, reg), (700, bold)):
             f = FTFont(var_path)
             instantiateVariableFont(f, {'wght': wght})
             f.save(path)
@@ -277,17 +277,17 @@ def make_styles():
     from reportlab.lib.styles import ParagraphStyle
     base = dict(fontName='NotoTC', wordWrap='CJK')
     return {
-        'title': ParagraphStyle('title', fontName='NotoTC-Bold', fontSize=20, leading=26,
+        'title': ParagraphStyle('title', fontName='NotoTC-Bold', fontSize=22, leading=29,
                                 textColor=DARK),
-        'subtitle': ParagraphStyle('subtitle', fontSize=10.5, leading=15, textColor=MUTED, **base),
-        'kpi': ParagraphStyle('kpi', fontSize=10, leading=14, textColor=DARK, **base),
-        'note': ParagraphStyle('note', fontSize=8.5, leading=12, textColor=MUTED, **base),
-        'ghead': ParagraphStyle('ghead', fontName='NotoTC-Bold', fontSize=12, leading=16,
+        'subtitle': ParagraphStyle('subtitle', fontSize=12, leading=17, textColor=MUTED, **base),
+        'kpi': ParagraphStyle('kpi', fontSize=11.5, leading=16, textColor=DARK, **base),
+        'note': ParagraphStyle('note', fontSize=10, leading=14, textColor=MUTED, **base),
+        'ghead': ParagraphStyle('ghead', fontName='NotoTC-Bold', fontSize=14.5, leading=19,
                                 textColor=DARK),
-        'gsum': ParagraphStyle('gsum', fontSize=9, leading=13, textColor=MUTED, **base),
-        'cell': ParagraphStyle('cell', fontSize=8.5, leading=12, textColor=DARK, **base),
-        'cellm': ParagraphStyle('cellm', fontSize=8, leading=11.5, textColor=MUTED, **base),
-        'chead': ParagraphStyle('chead', fontName='NotoTC-Bold', fontSize=8.5, leading=12,
+        'gsum': ParagraphStyle('gsum', fontSize=11, leading=15.5, textColor=MUTED, **base),
+        'cell': ParagraphStyle('cell', fontSize=10.5, leading=14.5, textColor=DARK, **base),
+        'cellm': ParagraphStyle('cellm', fontSize=10, leading=14, textColor=MUTED, **base),
+        'chead': ParagraphStyle('chead', fontName='NotoTC-Bold', fontSize=10.5, leading=14,
                                 textColor='#f0e6ce'),
     }
 
@@ -370,7 +370,7 @@ def build_product_pdf(glist, link_map, kpi, out_path):
 
     glist = sorted(glist, key=lambda g: (-g['nCamps'], -g['plays'], g['product']))
 
-    col_w = [10 * mm, 16 * mm, 11 * mm, 71 * mm, 18 * mm, 18 * mm, 20 * mm, 18 * mm]
+    col_w = [16 * mm, 21 * mm, 10 * mm, 58 * mm, 18 * mm, 18 * mm, 20 * mm, 21 * mm]
     head = [Paragraph(h, styles['chead']) for h in
             ['次序', '日期', '平台', '貼文 / 帶貨影片（點擊開啟）', '播放', '觸及', '互動率', 'SL成效']]
 
@@ -408,9 +408,9 @@ def build_product_pdf(glist, link_map, kpi, out_path):
                         Paragraph(c['date'] if k == 0 else '', styles['cellm']),
                         Paragraph(plat_tag(c['platform']) if k == 0 else '', styles['cell']),
                         Paragraph(cell, styles['cell']),
-                        Paragraph(fmt(v.get('plays') or 0), styles['cell']),
+                        Paragraph('<b>{}</b>'.format(fmt(v.get('plays') or 0)), styles['cell']),
                         Paragraph(fmt(v.get('reach') or 0), styles['cell']),
-                        Paragraph('{:.1f}%<br/><font color="{}" size="7">互動 {}</font>'.format(
+                        Paragraph('{:.1f}%<br/><font color="{}" size="9">互動 {}</font>'.format(
                             er_of(v), MUTED, fmt(eng_of(v))), styles['cell']),
                         Paragraph(sl if k == 0 else '', styles['cellm']),
                     ])
@@ -419,7 +419,7 @@ def build_product_pdf(glist, link_map, kpi, out_path):
                     Paragraph(seq, styles['cell']),
                     Paragraph(c['date'], styles['cellm']),
                     Paragraph(plat_tag(c['platform']), styles['cell']),
-                    Paragraph('{}　{}<br/><font color="{}" size="7.5">無影片數據'
+                    Paragraph('{}　{}<br/><font color="{}" size="9.5">無影片數據'
                               '（照片貼文或未對應）</font>'.format(
                                   esc(c['postType']), post_links, MUTED), styles['cell']),
                     Paragraph('—', styles['cellm']),
@@ -481,7 +481,7 @@ def build_video_pdf(videos, link_map, kpi, out_path):
     story.append(Spacer(1, 8))
     kpi_block(kpi, styles, story)
 
-    col_w = [12 * mm, 76 * mm, 17 * mm, 17 * mm, 17 * mm, 43 * mm]
+    col_w = [11 * mm, 72 * mm, 18 * mm, 18 * mm, 18 * mm, 45 * mm]
     head = [Paragraph(h, styles['chead']) for h in
             ['排名', '影片（點擊開啟）', '播放', '觸及', '互動率', '賣過的商品 / 貼文']]
     rows = [head]
@@ -490,7 +490,7 @@ def build_video_pdf(videos, link_map, kpi, out_path):
         vid_id = v.get('id')
         vtitle = esc(trunc(v.get('title'), 44)) or '（無標題）'
         vurl = video_url(vid_id, v.get('platform'), link_map)
-        vcell = '{}<br/><font color="{}" size="7.5">{}　{}　讚 {}｜留言 {}｜分享 {}</font>'.format(
+        vcell = '{}<br/><font color="{}" size="9.5">{}　{}　讚 {}｜留言 {}｜分享 {}</font>'.format(
             link_para(vtitle, vurl, styles['cell']),
             MUTED, plat_tag(v.get('platform') or ''),
             v.get('created_date') or '', fmt(v.get('likes') or 0),
@@ -505,15 +505,15 @@ def build_video_pdf(videos, link_map, kpi, out_path):
                 sl_bits.append('加購 ' + fmt(c['slAddons']))
             if c['slSales']:
                 sl_bits.append('NT$ ' + fmt(c['slSales']))
-            prods.append('{} <font color="{}" size="7">{}{}</font>'.format(
+            prods.append('{} <font color="{}" size="9">{}{}</font>'.format(
                 link_para(esc(trunc(norm_product(c['title']), 18)), pl, styles['cellm']),
                 MUTED, c['date'], ('｜' + '｜'.join(sl_bits)) if sl_bits else ''))
         rows.append([
             Paragraph('<b>{}</b>'.format(rank), styles['cell']),
             Paragraph(vcell, styles['cell']),
-            Paragraph(fmt(v.get('plays') or 0), styles['cell']),
+            Paragraph('<b>{}</b>'.format(fmt(v.get('plays') or 0)), styles['cell']),
             Paragraph(fmt(v.get('reach') or 0), styles['cell']),
-            Paragraph('<b>{:.1f}%</b><br/><font color="{}" size="7">互動 {}</font>'.format(
+            Paragraph('<b>{:.1f}%</b><br/><font color="{}" size="9">互動 {}</font>'.format(
                 er_of(v), MUTED, fmt(eng_of(v))), styles['cell']),
             Paragraph('<br/>'.join(prods) or '—', styles['cellm']),
         ])
