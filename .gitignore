@@ -8,3 +8,4 @@ __pycache__/
 dashboard/
 .claude/
 data/backups/
+.fonts/
