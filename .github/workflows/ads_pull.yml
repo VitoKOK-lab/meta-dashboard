@@ -1,0 +1,52 @@
+name: 廣告數據拉取（唯讀）
+
+on:
+  schedule:
+    - cron: '0 1 * * *'        # 台灣時間每日 09:00，抓昨天完整結算資料
+  workflow_dispatch:
+    inputs:
+      days:
+        description: '回溯天數'
+        required: false
+        default: '90'
+        type: string
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests
+
+      - name: Pull ads data
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+          AD_ACCOUNT_ID:  ${{ vars.AD_ACCOUNT_ID }}
+        run: python ads_pull.py --days "${{ github.event.inputs.days || '90' }}"
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ads/
+          git diff --staged --quiet && echo "無變更" && exit 0
+          git commit -m "ads data $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((2 ** i))
+          done
+          exit 1
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report
+          path: data/ads/health_report.md
