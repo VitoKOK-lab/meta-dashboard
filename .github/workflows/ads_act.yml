@@ -1,0 +1,106 @@
+name: 廣告變更執行
+
+# 授權模型：
+#   auto     job — 只執行「不增加支出」的動作（關閉、降預算、測試池內新建），無需人工審核
+#   approved job — 綁定 ads-approval environment，必須由指定審核者在 GitHub UI 按下核可才會跑
+#                  （加預算、重啟、池外新建都走這裡）
+# 這個分工讓「加預算要先問你」變成 GitHub 層級的強制規則，Claude 無法自行放行。
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: 'JSON 動作清單（[{"op":...,"id":...,"reason":...}]）'
+        required: true
+        type: string
+      include_approval_ops:
+        description: '本次是否包含需核可動作（會觸發人工審核關卡）'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: '只模擬不執行'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  ADS_ACCOUNT_DAILY_CAP:    ${{ vars.ADS_ACCOUNT_DAILY_CAP }}
+  ADS_TEST_POOL_DAILY_CAP:  ${{ vars.ADS_TEST_POOL_DAILY_CAP }}
+  ADS_MAX_BUDGET_CHANGE_PCT: ${{ vars.ADS_MAX_BUDGET_CHANGE_PCT }}
+  AD_ACCOUNT_ID:            ${{ vars.AD_ACCOUNT_ID }}
+
+jobs:
+  auto:
+    name: 自動許可動作
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+
+      - name: 執行（不含需核可動作）
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+          PLAN: ${{ github.event.inputs.plan }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          printf '%s' "$PLAN" > /tmp/plan.json
+          if [ "$DRY_RUN" = "true" ]; then
+            python ads_act.py --plan /tmp/plan.json
+          else
+            python ads_act.py --plan /tmp/plan.json --execute
+          fi
+
+      - name: 記錄
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ads/action_log.jsonl 2>/dev/null || true
+          git diff --staged --quiet && exit 0
+          git commit -m "ads action log $(date -u +%Y-%m-%dT%H:%M)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((2 ** i))
+          done
+
+  approved:
+    name: 需核可動作（等你按核可）
+    needs: auto
+    if: ${{ github.event.inputs.include_approval_ops == 'true' && github.event.inputs.dry_run != 'true' }}
+    runs-on: ubuntu-latest
+    environment: ads-approval      # ← 這個 environment 設定必要審核者，人工按了才會往下跑
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+
+      - name: 執行（含加預算 / 重啟 / 池外新建）
+        env:
+          META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN }}
+          PLAN: ${{ github.event.inputs.plan }}
+        run: |
+          printf '%s' "$PLAN" > /tmp/plan.json
+          python ads_act.py --plan /tmp/plan.json --execute --approved
+
+      - name: 記錄
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ads/action_log.jsonl 2>/dev/null || true
+          git diff --staged --quiet && exit 0
+          git commit -m "ads action log (approved) $(date -u +%Y-%m-%dT%H:%M)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((2 ** i))
+          done
